@@ -1,0 +1,11 @@
+{
+	"recommendations": [
+		"Anthropic.claude-code",
+		"orta.vscode-jest",
+		"dbaeumer.vscode-eslint",
+		"esbenp.prettier-vscode",
+		"visualstudioexptteam.vscodeintellicode",
+		"bierner.markdown-preview-github-styles",
+		"jebbs.plantuml"
+	]
+}

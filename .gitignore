@@ -1,0 +1,11 @@
+
+# Claude Local Settings
+.claude/settings.local.json
+
+# Temporary Folders
+tmp/
+temp/
+
+**/node_modules/**
+**/dist/**
+**/build/**

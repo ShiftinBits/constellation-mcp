@@ -1,0 +1,42 @@
+{
+	"debug.hideSlowPreLaunchWarning": true,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 2,
+	"editor.detectIndentation": false,
+	"editor.formatOnPaste": false,
+	"editor.codeLens": true,
+	"editor.renderWhitespace": "all",
+	"editor.codeActionsOnSave": {
+		"source.organizeImports": "explicit",
+		"source.removeUnusedImports": "explicit",
+		"source.fixAll.eslint": "explicit"
+	},
+	"eslint.validate": ["javascript", "typescript"],
+	// Set Prettier as the default formatter globally
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.formatOnSave": true,
+	// Override for specific languages
+	"[json]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[html]": {
+		"editor.defaultFormatter": "vscode.html-language-features"
+	},
+	"[css]": {
+		"editor.defaultFormatter": "vscode.css-language-features"
+	},
+	"[markdown]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+	},
+	"javascript.referencesCodeLens.enabled": true,
+	"typescript.preferences.importModuleSpecifier": "shortest"
+}

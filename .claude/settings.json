@@ -1,0 +1,21 @@
+{
+	"permissions": {
+		"allow": [
+			"mcp__ide__*",
+			"mcp__context7__*",
+			"mcp__tree-sitter__*",
+			"mcp__puppeteer__*",
+			"mcp__memory__*",
+			"mcp__sequential-thinking__*"
+		],
+		"deny": [],
+		"ask": []
+	},
+	"enabledMcpjsonServers": [
+		"memory",
+		"context7",
+		"puppeteer",
+		"tree-sitter",
+		"sequential-thinking"
+	]
+}

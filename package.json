@@ -1,0 +1,30 @@
+{
+	"name": "@constellation/mcp",
+	"version": "0.0.1",
+	"description": "Constellation MCP Server",
+	"type": "module",
+	"bin": {
+		"mcp-server": "./dist/index.js"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "rimraf dist && tsup && node utils/postbuild.js",
+		"watch": "tsc --watch",
+		"start": "npm run build && node dist/index.js",
+		"inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
+	},
+	"dependencies": {
+		"mcp-framework": "^0.2.2"
+	},
+	"devDependencies": {
+		"@types/node": "^20.11.24",
+		"rimraf": "^6.0.1",
+		"tsup": "^8.5.0",
+		"typescript": "^5.3.3"
+	},
+	"engines": {
+		"node": ">=18.19.0"
+	}
+}
