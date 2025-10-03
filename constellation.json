@@ -1,13 +1,16 @@
 {
-	"namespace": "constellation-mcp-server",
-	"branch": "feat/api-mvp",
-	"apiUrl": "http://localhost:3000",
+	"namespace": "constellation-mcp",
+	"branch": "main",
 	"languages": {
 		"typescript": {
-			"fileExtensions": [".ts", ".tsx"]
+			"fileExtensions": [
+				".ts"
+			]
 		},
 		"javascript": {
-			"fileExtensions": [".js", ".jsx"]
+			"fileExtensions": [
+				".js"
+			]
 		}
 	}
 }
