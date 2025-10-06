@@ -1,5 +1,5 @@
 {
-	"name": "@constellation/mcp",
+	"name": "@constellationdev/mcp",
 	"version": "0.0.1",
 	"description": "Constellation MCP Server",
 	"type": "module",

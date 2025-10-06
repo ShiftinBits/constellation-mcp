@@ -44,7 +44,7 @@ Source: `core/`
 - **Data**: Only AST metadata and extracted intelligence, never source code
 - **Performance**: Redis caching for millisecond response times
 
-#### 3. MCP Server (`@constellation/mcp-server`)
+#### 3. MCP Server (`@constellationdev/mcp-server`)
 
 - **Purpose**: Bridge AI assistants to central service
 - **Technology**: Model Context Protocol implementation
@@ -130,7 +130,7 @@ constellation/
 │   │   └── services/         # Business logic
 │   ├── test/
 │   └── package.json
-├── mcp-server/               # @constellation/mcp-server (future)
+├── mcp-server/               # @constellationdev/mcp-server (future)
 │   ├── src/
 │   │   ├── handlers/         # MCP request handlers
 │   │   ├── queries/          # Query translations
@@ -206,18 +206,18 @@ interface ApiResponse<T> {
 
 ```typescript
 // Example test structure
-describe("AST Generation", () => {
-	it("should generate valid AST from TypeScript", async () => {
-		const ast = await parseFile("sample.ts");
+describe('AST Generation', () => {
+	it('should generate valid AST from TypeScript', async () => {
+		const ast = await parseFile('sample.ts');
 		const serialized = serializeAST(ast);
-		expect(serialized.type).toBe("program");
+		expect(serialized.type).toBe('program');
 		expect(serialized.children).toBeDefined();
 	});
 });
 
 // Server-side test
-describe("Intelligence Extraction", () => {
-	it("should extract function definitions from AST", async () => {
+describe('Intelligence Extraction', () => {
+	it('should extract function definitions from AST', async () => {
 		const serializedAST = getTestAST();
 		const intelligence = extractIntelligence(serializedAST);
 		expect(intelligence.functions).toHaveLength(3);
@@ -268,10 +268,10 @@ describe("Intelligence Extraction", () => {
 
 ```typescript
 enum ErrorType {
-	PARSING_ERROR = "PARSING_ERROR",
-	NETWORK_ERROR = "NETWORK_ERROR",
-	VALIDATION_ERROR = "VALIDATION_ERROR",
-	PERMISSION_ERROR = "PERMISSION_ERROR",
+	PARSING_ERROR = 'PARSING_ERROR',
+	NETWORK_ERROR = 'NETWORK_ERROR',
+	VALIDATION_ERROR = 'VALIDATION_ERROR',
+	PERMISSION_ERROR = 'PERMISSION_ERROR',
 }
 ```
 
