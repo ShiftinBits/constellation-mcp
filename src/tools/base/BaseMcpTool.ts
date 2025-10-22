@@ -18,7 +18,7 @@ import { mapErrorToMessage } from '../../client/error-mapper.js';
  *
  * Implements the MCP Tool interface and provides common utilities
  */
-export abstract class BaseMcpTool<TInput, TOutput = string> extends MCPTool<TInput> {
+export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = string> extends MCPTool<TInput> {
 	/**
 	 * Get the HTTP client for API communication
 	 *

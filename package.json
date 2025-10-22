@@ -16,7 +16,11 @@
 		"inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
 		"lint": "eslint",
 		"lint:fix": "eslint --fix",
-		"lint:errors": "eslint --quiet"
+		"lint:errors": "eslint --quiet",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"test:ci": "jest --ci --coverage --maxWorkers=2"
 	},
 	"dependencies": {
 		"mcp-framework": "^0.2.2",
@@ -26,12 +30,16 @@
 	"devDependencies": {
 		"@eslint/compat": "^1",
 		"@types/node": "^20.11.24",
+		"@jest/globals": "^30.2.0",
+		"@types/jest": "^30.0.0",
 		"rimraf": "^6.0.1",
+		"ts-jest": "^29.4.4",
 		"tsup": "^8.5.0",
 		"typescript": "^5.3.3",
 		"eslint": "^9",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
+		"jest": "^30.2.0",
 		"prettier": "^3.6.2"
 	},
 	"engines": {
