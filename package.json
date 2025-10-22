@@ -13,7 +13,7 @@
 		"build": "rimraf dist && tsup && node utils/postbuild.js",
 		"watch": "tsc --watch",
 		"start": "npm run build && node dist/index.js",
-		"inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
+		"inspector": "npm run build && npx @modelcontextprotocol/inspector@latest node dist/index.js",
 		"lint": "eslint",
 		"lint:fix": "eslint --fix",
 		"lint:errors": "eslint --quiet",
