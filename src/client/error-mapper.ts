@@ -4,12 +4,12 @@
  * Maps HTTP errors and API responses into user-friendly guidance
  */
 
-import {
-	AuthenticationError,
-	NotFoundError,
-	ToolNotFoundError,
-} from './constellation-client.js';
 import { getConfigContext } from '../config/config-manager.js';
+import {
+    AuthenticationError,
+    NotFoundError,
+    ToolNotFoundError,
+} from './constellation-client.js';
 
 /**
  * Map an error to a helpful message with actionable guidance
@@ -59,7 +59,7 @@ The Constellation API rejected your access key.
 **Example:**
 export CONSTELLATION_API_KEY="your-api-key-here"
 
-For more information, visit: https://docs.constellation.dev/authentication
+For more information, visit: https://docs.constellationdev.io/authentication
 `;
 }
 
@@ -90,7 +90,7 @@ The tool "${toolName}" cannot find your project in the Constellation index.
 **Note:** Each branch maintains a separate index. If you switched branches,
 you'll need to index the new branch first.
 
-For more information, visit: https://docs.constellation.dev/getting-started
+For more information, visit: https://docs.constellationdev.io/getting-started
 `;
 }
 
@@ -112,7 +112,7 @@ ${message}
 **To see all available tools:**
   Query the tool catalog through the MCP interface or API
 
-For more information, visit: https://docs.constellation.dev/tools
+For more information, visit: https://docs.constellationdev.io/tools
 `;
 }
 

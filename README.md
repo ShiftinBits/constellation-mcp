@@ -3,287 +3,142 @@
 <img src="https://img.shields.io/badge/mcp-@constellationdev/mcp-lightgray.svg?logo=modelcontextprotocol" alt="MCP Server">
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-blue.svg" alt="License"></a>
 
-**Status: Complete - All 22 Tools Implemented** ✅
-**Progress: 22/22 tools implemented** (100% complete)
+AI-powered code intelligence for your development workflow. Constellation provides powerful specialized tools that enable AI assistants to understand your codebase through advanced analysis.
 
-AI-optimized MCP server providing 22 code intelligence tools for AI assistants like Claude Code. Built on proven infrastructure from `@constellation-cli` with automatic configuration and git-based project detection.
+## Installation
 
-## Quick Start
+### Claude Code
 
-### Installation
+Add to your Claude Code configuration `mcpServers` section:
 
-```bash
-cd constellation-mcp
-npm install
-npm run build
+**macOS**: `~/.claude.json`
+**Windows**: `%CURRENTUSER%/claude.json`
+
+```json
+{
+	"mcpServers": {
+		"constellation": {
+			"command": "npx",
+			"args": ["-y", "@constellationdev/mcp@latest"],
+			"env": {
+				"CONSTELLATION_API_KEY": "your-api-key-here"
+			}
+		}
+	}
+}
 ```
 
-### Configuration
+### Cline / Continue / Other MCP-Compatible Tools
 
-1. **Set environment variable** (required):
+For tools using the Model Context Protocol, add to the proper section of your MCP configuration file:
+
+```json
+"constellation": {
+  "command": "npx",
+  "args": [
+    "-y",
+    "@constellationdev/mcp@latest"
+  ],
+  "env": {
+    "CONSTELLATION_API_KEY": "your-api-key-here"
+  }
+}
+```
+
+## Configuration
+
+### Prerequisites
+
+You'll need a Constellation API key and access to a Constellation service instance. Contact your team administrator or visit [constellationdev.io](https://constellationdev.io) to get started.
+
+### Environment Variables
+
+Set your API key (required):
+
 ```bash
 export CONSTELLATION_API_KEY="your-api-key-here"
 ```
 
-2. **Add to Claude Desktop config**:
+This can also be provided in the MCP server configuration JSON in the `env` section.
 
-**MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+## Available Tools
 
-```json
-{
-  "mcpServers": {
-    "constellation": {
-      "command": "node",
-      "args": ["/absolute/path/to/constellation-mcp/dist/index.js"],
-      "env": {
-        "CONSTELLATION_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
+### Discovery (4 tools)
 
-3. **Optional: Create constellation.json in your project**:
-```json
-{
-  "apiUrl": "http://localhost:3000",
-  "branch": "main",
-  "namespace": "my-project",
-  "languages": {
-    "typescript": { "fileExtensions": [".ts", ".tsx"] },
-    "javascript": { "fileExtensions": [".js", ".jsx"] }
-  }
-}
-```
+- `search_symbols` - Find functions, classes, variables, and other code symbols
+- `search_files` - Locate files by name pattern or path
+- `get_symbol_details` - Get detailed information about a specific symbol
+- `get_file_details` - Get file metadata, imports, exports, and dependencies
 
-## Architecture
+### Dependencies (5 tools)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  AI Assistant (Claude Code, etc.)                       │
-└────────────────────┬────────────────────────────────────┘
-                     │ MCP Protocol (STDIO)
-┌────────────────────▼────────────────────────────────────┐
-│  Constellation MCP Server (@constellation-mcp/)          │
-│  ├─ Config Manager (auto-detect git project/branch)     │
-│  ├─ ConstellationClient (HTTP with retry/auth)          │
-│  ├─ 22 MCP Tools (BaseMcpTool → API → formatted output)│
-│  └─ Error Mapper (helpful messages with guidance)       │
-└────────────────────┬────────────────────────────────────┘
-                     │ HTTP/REST
-┌────────────────────▼────────────────────────────────────┐
-│  Constellation API (@constellation-core/apps/client-api/)│
-│  ├─ MCP Tool Executors (business logic)                 │
-│  ├─ Neo4j Graph Engine (code intelligence)              │
-│  └─ Redis Cache (fast repeated queries)                 │
-└──────────────────────────────────────────────────────────┘
-```
+- `get_dependencies` - What does this file/symbol depend on?
+- `get_dependents` - What depends on this file/symbol?
+- `find_circular_dependencies` - Detect circular dependency chains
+- `trace_symbol_usage` - Track how a symbol is used across the codebase
+- `get_call_graph` - Generate function call hierarchy
 
-## Features
+### Impact Analysis (4 tools)
 
-### ✅ Implemented Foundation
+- `analyze_change_impact` - Understand the scope of a potential change
+- `analyze_breaking_changes` - Detect API contract violations
+- `impact_analysis` - Comprehensive change impact assessment
+- `find_orphaned_code` - Identify unused or unreachable code
 
-1. **HTTP Client** - Adapted from battle-tested CLI client with retry logic
-2. **Config Manager** - Auto-loads config + environment variable overrides
-3. **Git Auto-Detection** - Detects project ID from git remote, branch from current branch
-4. **Base Tool Class** - Abstract base for all 22 tools with error handling
-5. **Response Formatter** - AI-friendly text output (not raw JSON)
-6. **Error Mapper** - Helpful messages with actionable guidance
-7. **Type Safety** - TypeScript interfaces mirroring API DTOs
+### Architecture (5 tools)
 
-### Tool Catalog (22 Total)
+- `get_architecture_overview` - High-level system structure and patterns
+- `get_module_overview` - Detailed module organization
+- `detect_architecture_violations` - Find violations of architectural patterns
+- `analyze_package_usage` - External dependency analysis
+- `compare_modules` - Side-by-side module comparison
 
-#### Discovery Tools (4) - ✅ 4/4 complete
-- ✅ **search_symbols** - Find functions/classes/variables
-- ✅ **search_files** - Find files by pattern
-- ✅ **get_symbol_details** - Deep dive into specific symbol
-- ✅ **get_file_details** - File metadata + dependencies
+### Refactoring (4 tools)
 
-#### Dependency Tools (5) - ✅ 5/5 complete
-- ✅ **get_dependencies** - What does X depend on?
-- ✅ **get_dependents** - What depends on X?
-- ✅ **find_circular_dependencies** - Detect cycles
-- ✅ **trace_symbol_usage** - Track symbol usage
-- ✅ **get_call_graph** - Function invocation map
+- `find_similar_patterns` - Discover duplicate or similar code patterns
+- `find_entry_points` - Identify main execution entry points
+- `get_inheritance_hierarchy` - Explore class inheritance trees
+- `contextual_symbol_resolution` - Resolve symbols with full context
 
-#### Impact Analysis Tools (4) - ✅ 4/4 complete
-- ✅ **analyze_change_impact** - What breaks if I change this?
-- ✅ **analyze_breaking_changes** - API contract violations
-- ✅ **impact_analysis** - Comprehensive change analysis
-- ✅ **find_orphaned_code** - Dead code detection
+## Troubleshooting
 
-#### Architecture Tools (5) - ✅ 5/5 complete
-- ✅ **get_architecture_overview** - High-level system view
-- ✅ **get_module_overview** - Module structure
-- ✅ **detect_architecture_violations** - Pattern violations
-- ✅ **analyze_package_usage** - External dependencies
-- ✅ **compare_modules** - Module comparison
+### Authentication Error
 
-#### Refactoring Tools (4) - ✅ 4/4 complete
-- ✅ **find_similar_patterns** - Duplicate/similar code
-- ✅ **find_entry_points** - Main execution paths
-- ✅ **get_inheritance_hierarchy** - Class hierarchies
-- ✅ **contextual_symbol_resolution** - Full context resolution
-
-## Implementation Guide
-
-### Adding a New Tool
-
-See `src/tools/discovery/SearchSymbolsTool.ts` for complete example.
-
-**Template**:
-```typescript
-import { z } from 'zod';
-import { BaseMcpTool } from '../base/BaseMcpTool.js';
-import { YourParams, YourResult } from '../../types/api-types.js';
-
-class YourTool extends BaseMcpTool<YourParams, YourResult> {
-  name = 'your_tool_name';
-  description = 'What this tool does...';
-
-  schema = {
-    param1: {
-      type: z.string().min(1),
-      description: 'Parameter description',
-    },
-    // ... more parameters
-  };
-
-  protected formatResult(data: YourResult, metadata: any): string {
-    // Format data for AI-friendly output
-    return `Formatted output: ${JSON.stringify(data, null, 2)}`;
-  }
-}
-
-export default YourTool;
-```
-
-**Steps**:
-1. Create tool file in appropriate category folder
-2. Extend `BaseMcpTool<InputType, OutputType>`
-3. Define `name`, `description`, and Zod `schema`
-4. Override `formatResult()` for custom formatting
-5. Add types to `src/types/api-types.ts` if needed
-6. Register in `src/index.ts`
-
-## Development
-
-### Build
-```bash
-npm run build
-```
-
-### Run (STDIO mode)
-```bash
-npm start
-```
-
-### Debug with MCP Inspector
-```bash
-npm run inspector
-# Opens web interface for testing tools
-```
-
-### Watch mode
-```bash
-npm run watch
-```
-
-## Configuration Options
-
-### Environment Variables
-- `CONSTELLATION_API_KEY` - **Required** - API authentication key
-- `CONSTELLATION_API_URL` - Optional - API endpoint (default: http://localhost:3000)
-- `CONSTELLATION_PROJECT_ID` - Optional - Override auto-detected project ID
-- `CONSTELLATION_BRANCH` - Optional - Override auto-detected branch
-
-### constellation.json (Project Root)
-```json
-{
-  "apiUrl": "http://localhost:3000",
-  "branch": "main",
-  "namespace": "my-project",
-  "languages": {
-    "typescript": { "fileExtensions": [".ts", ".tsx"] },
-    "javascript": { "fileExtensions": [".js", ".jsx"] },
-    "python": { "fileExtensions": [".py"] }
-  }
-}
-```
-
-### Auto-Detection (Fallback)
-- Project ID: from git remote URL (normalized)
-- Branch: from current git branch
-- API URL: defaults to http://localhost:3000
-
-## File Structure
-
-```
-constellation-mcp/
-├── src/
-│   ├── index.ts                    # Server entry + initialization
-│   ├── client/
-│   │   ├── constellation-client.ts # HTTP client (from CLI)
-│   │   └── error-mapper.ts         # Error → helpful messages
-│   ├── config/
-│   │   ├── config.ts               # Config types
-│   │   ├── config.loader.ts        # Config file loading
-│   │   └── config-manager.ts       # Singleton manager
-│   ├── tools/
-│   │   ├── base/
-│   │   │   └── BaseMcpTool.ts     # Abstract base class
-│   │   ├── discovery/              # 4 tools (1 complete)
-│   │   ├── dependency/             # 5 tools (todo)
-│   │   ├── impact/                 # 4 tools (todo)
-│   │   ├── architecture/           # 5 tools (todo)
-│   │   └── refactoring/            # 4 tools (todo)
-│   ├── types/
-│   │   └── api-types.ts            # TypeScript interfaces
-│   └── utils/
-│       ├── git-utils.ts            # Git auto-detection
-│       └── format-helpers.ts       # Response formatting
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## Error Handling
-
-All tools automatically provide helpful error messages:
-
-**Authentication Error**:
 ```
 ❌ Authentication Failed
-
 Set CONSTELLATION_API_KEY environment variable.
-Get your API key from your Constellation administrator.
 ```
 
-**Project Not Indexed**:
+**Solution**: Verify your API key is set correctly in environment variables or tool configuration.
+
+### Project Not Indexed
+
 ```
 ❌ Project Not Indexed
-
 Run 'constellation index' to parse your codebase first.
-
-Project: github.com/user/repo
-Branch: main
 ```
 
-## Next Steps
+**Solution**: Your project needs to be indexed first. If you have the Constellation CLI installed:
 
-1. ✅ Foundation infrastructure (complete)
-2. ✅ All 22 tools implemented (complete)
-3. ⏳ Integration testing with live API
-4. ⏳ Production deployment and monitoring
-5. ⏳ Performance optimization and caching strategies
+```bash
+constellation index
+```
 
-## Resources
+Otherwise, contact your team administrator.
 
-- **Example Tool**: `src/tools/discovery/SearchSymbolsTool.ts`
-- **MCP Framework**: https://github.com/anthropics/mcp-framework
-- **Constellation API**: See `constellation-core/apps/client-api/`
+### Connection Error
 
----
+```
+❌ Cannot connect to Constellation API
+```
 
-**Built for AI coders by AI coders** ❤️
+**Solution**: Confirm internet connectivity and DNS resolution to `api.constellationdev.io`.
+
+## Support
+
+- **Documentation**: [docs.constellationdev.io](https://docs.constellationdev.io)
+- **Issues**: [github.com/constellationdev/mcp/issues](https://github.com/constellationdev/mcp/issues)
+
+## License
+
+AGPL-3.0 - See [LICENSE](LICENSE) for details.
