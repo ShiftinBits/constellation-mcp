@@ -18,6 +18,7 @@ Add to your Claude Code configuration `mcpServers` section:
 {
 	"mcpServers": {
 		"constellation": {
+			"type": "stdio",
 			"command": "npx",
 			"args": ["-y", "@constellationdev/mcp@latest"],
 			"env": {
@@ -34,6 +35,7 @@ For tools using the Model Context Protocol, add to the proper section of your MC
 
 ```json
 "constellation": {
+  "type": "stdio",
   "command": "npx",
   "args": [
     "-y",
