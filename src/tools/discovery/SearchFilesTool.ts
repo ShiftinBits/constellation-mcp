@@ -32,16 +32,16 @@ class SearchFilesTool extends BaseMcpTool<
 				'Filter by programming language (e.g., "typescript", "javascript", "python")',
 		},
 		limit: {
-			type: z.number().int().min(1).max(100).optional().default(50),
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
 				'Maximum number of results to return (default: 50, max: 100)',
 		},
 		offset: {
-			type: z.number().int().min(0).optional().default(0),
+			type: z.coerce.number().int().min(0).optional().default(0),
 			description: 'Offset for pagination (default: 0)',
 		},
 		includeStats: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include file statistics (size, symbol count, last modified)',
 		},

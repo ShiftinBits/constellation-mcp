@@ -26,7 +26,7 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 				'Optional: Start search from a specific file to find cycles involving it',
 		},
 		maxDepth: {
-			type: z.number().int().min(2).max(10).optional().default(5),
+			type: z.coerce.number().int().min(2).max(10).optional().default(5),
 			description:
 				'Maximum cycle depth to search for (default: 5, max: 10)',
 		},
@@ -39,34 +39,45 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 		data: FindCircularDependenciesResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
 		const { cycles, totalCycles } = data;
+		const cyclesArray = cycles || [];
+		const total = totalCycles || 0;
 
 		let output = `Circular Dependencies Analysis\n\n`;
 
-		if (totalCycles === 0) {
+		if (total === 0 || cyclesArray.length === 0) {
 			output += '✅ No circular dependencies found! Your codebase has a clean dependency graph.';
 		} else {
-			output += `⚠️  Found ${totalCycles} circular ${totalCycles === 1 ? 'dependency' : 'dependencies'}\n\n`;
+			output += `⚠️  Found ${total} circular ${total === 1 ? 'dependency' : 'dependencies'}\n\n`;
 
 			// Sort by cycle length (shortest first, as they're usually more problematic)
-			const sortedCycles = [...cycles].sort((a, b) => a.length - b.length);
+			const sortedCycles = [...cyclesArray].sort((a, b) => (a?.length || 0) - (b?.length || 0));
 
 			for (let i = 0; i < Math.min(sortedCycles.length, 10); i++) {
 				const cycle = sortedCycles[i];
-				output += `## Cycle ${i + 1} (length: ${cycle.length})\n`;
+				const cycleFiles = cycle?.cycle || [];
+				const cycleLength = cycle?.length || cycleFiles.length;
 
-				for (let j = 0; j < cycle.cycle.length; j++) {
-					const file = cycle.cycle[j];
-					const nextFile = cycle.cycle[(j + 1) % cycle.cycle.length];
+				output += `## Cycle ${i + 1} (length: ${cycleLength})\n`;
+
+				for (let j = 0; j < cycleFiles.length; j++) {
+					const file = cycleFiles[j];
 					output += `  ${file}\n`;
 					output += `    ↓ depends on\n`;
 				}
 				// Close the cycle
-				output += `  ${cycle.cycle[0]} (completes cycle)\n\n`;
+				if (cycleFiles.length > 0) {
+					output += `  ${cycleFiles[0]} (completes cycle)\n\n`;
+				}
 			}
 
-			if (totalCycles > 10) {
-				output += `\n... and ${totalCycles - 10} more cycles\n`;
+			if (total > 10) {
+				output += `\n... and ${total - 10} more cycles\n`;
 			}
 
 			output += '\n💡 **How to fix:**\n';

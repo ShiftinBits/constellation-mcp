@@ -32,30 +32,30 @@ export class ConfigLoader {
 			const configPath = await this.findConfigFile(startDir);
 
 			if (configPath) {
-				console.log(`[Constellation] Loading configuration from: ${configPath}`);
+				console.error(`[Constellation] Loading configuration from: ${configPath}`);
 				const fileContents = await FileUtils.readFile(configPath);
 				const parsed = JSON.parse(fileContents);
 				const config = ConstellationConfig.fromJSON(parsed);
 
 				// Cache the loaded configuration
 				this.configCache = config;
-				console.log(`[Constellation] Configuration loaded successfully`);
-				console.log(`[Constellation] Project: ${config.namespace}`);
-				console.log(`[Constellation] API URL: ${config.apiUrl}`);
-				console.log(`[Constellation] Branch: ${config.branch}`);
+				console.error(`[Constellation] Configuration loaded successfully`);
+				console.error(`[Constellation] Project: ${config.namespace}`);
+				console.error(`[Constellation] API URL: ${config.apiUrl}`);
+				console.error(`[Constellation] Branch: ${config.branch}`);
 
 				return config;
 			}
 
 			// No config file found
 			if (useDefaults) {
-				console.log('[Constellation] No configuration file found, using defaults');
+				console.error('[Constellation] No configuration file found, using defaults');
 				const defaultConfig = ConstellationConfig.createDefault();
 				this.configCache = defaultConfig;
 				return defaultConfig;
 			}
 
-			console.log('[Constellation] No configuration file found');
+			console.error('[Constellation] No configuration file found');
 			return null;
 
 		} catch (error) {
@@ -68,35 +68,33 @@ export class ConfigLoader {
 	}
 
 	/**
-	 * Searches for a constellation.json file starting from the given directory
-	 * and moving up the directory tree until finding the file or reaching the root.
+	 * Finds constellation.json by checking git repository roots.
+	 * For nested git repositories (submodules, etc.), checks innermost first,
+	 * then walks up to outer repositories until a config file is found.
+	 *
 	 * @param startDir Starting directory for the search
-	 * @returns Path to the configuration file if found, null otherwise
+	 * @returns Path to the configuration file if found at any git root, null otherwise
 	 */
 	private static async findConfigFile(startDir: string): Promise<string | null> {
 		let currentDir = path.resolve(startDir);
 
+		// Walk up the directory tree, checking each git repository root
 		while (true) {
-			const configPath = path.join(currentDir, this.CONFIG_FILENAME);
-
-			// Check if config file exists in current directory
-			if (await FileUtils.fileIsReadable(configPath)) {
-				return configPath;
-			}
-
-			// Stop if we've reached the root directory
-			if (FileUtils.isRootDirectory(currentDir)) {
-				break;
-			}
-
-			// Stop if we've reached a git repository root (optional behavior)
-			// This prevents searching beyond the project boundary
+			// Check if this directory is a git repository root
 			if (await FileUtils.isGitRepository(currentDir)) {
-				// Check one more time in the git root
-				const gitRootConfig = path.join(currentDir, this.CONFIG_FILENAME);
-				if (await FileUtils.fileIsReadable(gitRootConfig)) {
-					return gitRootConfig;
+				const configPath = path.join(currentDir, this.CONFIG_FILENAME);
+
+				if (await FileUtils.fileIsReadable(configPath)) {
+					console.error(`[Constellation] Found ${this.CONFIG_FILENAME} at git root: ${currentDir}`);
+					return configPath;
 				}
+
+				// Found a git root but no config file, continue searching upward
+				console.error(`[Constellation] No ${this.CONFIG_FILENAME} at git root: ${currentDir}, checking parent repositories...`);
+			}
+
+			// Stop if we've reached the filesystem root
+			if (FileUtils.isRootDirectory(currentDir)) {
 				break;
 			}
 
@@ -104,6 +102,7 @@ export class ConfigLoader {
 			currentDir = path.dirname(currentDir);
 		}
 
+		console.error('[Constellation] No constellation.json found in any git repository');
 		return null;
 	}
 
@@ -134,13 +133,13 @@ export class ConfigLoader {
 		const configPath = await this.findConfigFile(process.cwd());
 
 		if (!configPath) {
-			console.log('[Constellation] No configuration file to watch');
+			console.error('[Constellation] No configuration file to watch');
 			return () => {};
 		}
 
 		const watcher = watch(configPath, async (eventType) => {
 			if (eventType === 'change') {
-				console.log('[Constellation] Configuration file changed, reloading...');
+				console.error('[Constellation] Configuration file changed, reloading...');
 				this.clearCache();
 				try {
 					const newConfig = await this.loadConfig();

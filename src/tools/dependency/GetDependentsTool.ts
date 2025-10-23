@@ -24,19 +24,41 @@ class GetDependentsTool extends BaseMcpTool<
 		filePath: {
 			type: z.string().optional(),
 			description:
-				'File path to analyze (e.g., "src/utils/helpers.ts")',
+				'File path to analyze dependents for (e.g., "src/utils/helpers.ts"). Required if symbolId not provided.',
 		},
 		symbolId: {
 			type: z.string().optional(),
 			description:
-				'Symbol ID to analyze (alternative to filePath)',
+				'Symbol ID to analyze (alternative to filePath + symbolName)',
+		},
+		symbolName: {
+			type: z.string().optional(),
+			description:
+				'Symbol name when analyzing a specific symbol (optional, use with filePath)',
 		},
 		depth: {
-			type: z.number().int().min(1).max(5).optional().default(1),
+			type: z.coerce.number().int().min(1).max(5).optional().default(1),
 			description:
 				'How many levels deep to traverse dependents (default: 1, max: 5)',
 		},
 	};
+
+	/**
+	 * Override execute to generate symbolId from filePath + symbolName if needed
+	 */
+	async execute(input: GetDependentsParams & { symbolName?: string }): Promise<string> {
+		// If symbolName provided with filePath but no symbolId, generate it
+		if (!input.symbolId && input.filePath && input.symbolName) {
+			input.symbolId = this.generateSymbolId(input.filePath, input.symbolName);
+		}
+
+		// Validate that we have either filePath or symbolId
+		if (!input.filePath && !input.symbolId) {
+			return 'Error: Either filePath or symbolId (or filePath + symbolName) must be provided';
+		}
+
+		return super.execute(input);
+	}
 
 	/**
 	 * Format the dependents for AI-friendly output
@@ -45,50 +67,88 @@ class GetDependentsTool extends BaseMcpTool<
 		data: GetDependentsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { dependents, totalCount } = data;
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		const { file, directDependents, transitiveDependents, detailedMetrics } = data;
 
 		let output = `Dependents Analysis\n\n`;
-		output += `Total: ${totalCount} ${totalCount === 1 ? 'dependent' : 'dependents'}\n\n`;
+		output += `File: ${file || 'unknown'}\n\n`;
 
-		if (dependents.length === 0) {
-			output += 'No dependents found. This file/symbol is not used anywhere (may be orphaned code).';
+		// Direct dependents
+		const directCount = directDependents?.length || 0;
+		if (directCount > 0) {
+			output += `## Direct Dependents (${directCount})\n\n`;
+			for (const dep of directDependents!) {
+				output += `← ${dep?.filePath || 'unknown'}`;
+				if (dep?.usedSymbols && dep.usedSymbols.length > 0) {
+					output += `\n  Uses: ${dep.usedSymbols.join(', ')}`;
+				}
+				output += '\n';
+			}
+		}
+
+		// Transitive dependents
+		const transitiveCount = transitiveDependents?.length || 0;
+		if (transitiveCount > 0) {
+			output += `\n## Transitive Dependents (${transitiveCount})\n\n`;
+			for (const dep of transitiveDependents!.slice(0, 20)) {
+				output += `← ${dep?.filePath || 'unknown'}`;
+				if (dep?.distance !== undefined) {
+					output += ` (distance: ${dep.distance})`;
+				}
+				if (dep?.path && dep.path.length > 0) {
+					output += `\n  Path: ${dep.path.join(' ← ')}`;
+				}
+				output += '\n';
+			}
+			if (transitiveCount > 20) {
+				output += `\n... and ${transitiveCount - 20} more\n`;
+			}
+		}
+
+		// Detailed metrics
+		if (detailedMetrics) {
+			output += `\n## Detailed Metrics\n`;
+
+			if (detailedMetrics.byDepth && Object.keys(detailedMetrics.byDepth).length > 0) {
+				output += `\n### By Depth\n`;
+				for (const [depth, count] of Object.entries(detailedMetrics.byDepth)) {
+					output += `  Depth ${depth}: ${count} file${count === 1 ? '' : 's'}\n`;
+				}
+			}
+
+			if (detailedMetrics.criticalPaths && detailedMetrics.criticalPaths.length > 0) {
+				output += `\n### Critical Impact Paths\n`;
+				for (const path of detailedMetrics.criticalPaths.slice(0, 5)) {
+					output += `  ${path.join(' → ')}\n`;
+				}
+				if (detailedMetrics.criticalPaths.length > 5) {
+					output += `  ... and ${detailedMetrics.criticalPaths.length - 5} more\n`;
+				}
+			}
+
+			if (detailedMetrics.mostImpactedFiles && detailedMetrics.mostImpactedFiles.length > 0) {
+				output += `\n### Most Impacted Files\n`;
+				for (const file of detailedMetrics.mostImpactedFiles.slice(0, 5)) {
+					output += `  • ${file}\n`;
+				}
+			}
+		}
+
+		// Summary
+		if (directCount === 0 && transitiveCount === 0) {
+			output += 'No dependents found. This file is not used anywhere (may be orphaned code).\n';
 		} else {
-			// Group by usage count if available
-			const withUsageCount = dependents.filter((d) => d.usageCount);
-			const withoutUsageCount = dependents.filter((d) => !d.usageCount);
-
-			if (withUsageCount.length > 0) {
-				// Sort by usage count descending
-				withUsageCount.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
-
-				output += '## Most Frequently Used By:\n';
-				for (const dep of withUsageCount.slice(0, 10)) {
-					output += `→ ${dep.source}`;
-					if (dep.type !== 'dependency') {
-						output += ` (${dep.type})`;
-					}
-					output += ` - ${dep.usageCount} ${dep.usageCount === 1 ? 'usage' : 'usages'}\n`;
-				}
-
-				if (withUsageCount.length > 10) {
-					output += `\n... and ${withUsageCount.length - 10} more files\n`;
-				}
+			output += `\n## Summary\n`;
+			output += `Direct: ${directCount}\n`;
+			if (transitiveCount > 0) {
+				output += `Transitive: ${transitiveCount}\n`;
 			}
-
-			if (withoutUsageCount.length > 0) {
-				if (withUsageCount.length > 0) {
-					output += '\n## Other Dependents:\n';
-				}
-				output += formatDependencies(withoutUsageCount.slice(0, 20));
-
-				if (withoutUsageCount.length > 20) {
-					output += `\n... and ${withoutUsageCount.length - 20} more\n`;
-				}
-			}
-
-			if (dependents.length < totalCount) {
-				output += `\n(Showing ${dependents.length} of ${totalCount} dependents)`;
-			}
+			const totalCount = directCount + transitiveCount;
+			output += `Total Impact: ${totalCount} file${totalCount === 1 ? '' : 's'}\n`;
 		}
 
 		if (metadata.cached) {

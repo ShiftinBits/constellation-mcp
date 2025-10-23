@@ -68,7 +68,7 @@ class FindEntryPointsTool extends BaseMcpTool<
 				'Type of entry points to find (default: all)',
 		},
 		includeMetadata: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description:
 				'Include detailed metadata (routes, commands, etc.) - default: true',
 		},
@@ -81,31 +81,42 @@ class FindEntryPointsTool extends BaseMcpTool<
 		data: FindEntryPointsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
 		const { summary, entryPoints, executionPaths, recommendations } = data;
+		const entryPointsArray = entryPoints || [];
+		const pathsArray = executionPaths || [];
+		const recommendationsArray = recommendations || [];
 
 		let output = `Entry Points Analysis\n\n`;
 
 		// Summary
 		output += `## Summary\n`;
-		output += `Total Entry Points: ${summary.totalEntryPoints}\n\n`;
+		output += `Total Entry Points: ${summary?.totalEntryPoints || 0}\n\n`;
 
-		output += `By Type:\n`;
-		for (const [type, count] of Object.entries(summary.byType)) {
-			output += `  ${this.getTypeEmoji(type)} ${type}: ${count}\n`;
+		if (summary?.byType && Object.keys(summary.byType).length > 0) {
+			output += `By Type:\n`;
+			for (const [type, count] of Object.entries(summary.byType)) {
+				output += `  ${this.getTypeEmoji(type)} ${type}: ${count}\n`;
+			}
 		}
 
 		output += `\nBy Complexity:\n`;
-		output += `  🟢 Low: ${summary.byComplexity.low}\n`;
-		output += `  🟡 Medium: ${summary.byComplexity.medium}\n`;
-		output += `  🔴 High: ${summary.byComplexity.high}\n`;
+		output += `  🟢 Low: ${summary?.byComplexity?.low || 0}\n`;
+		output += `  🟡 Medium: ${summary?.byComplexity?.medium || 0}\n`;
+		output += `  🔴 High: ${summary?.byComplexity?.high || 0}\n`;
 
 		// Group entry points by type
 		const byType = new Map<string, EntryPoint[]>();
-		for (const ep of entryPoints) {
-			if (!byType.has(ep.type)) {
-				byType.set(ep.type, []);
+		for (const ep of entryPointsArray) {
+			const type = ep?.type || 'unknown';
+			if (!byType.has(type)) {
+				byType.set(type, []);
 			}
-			byType.get(ep.type)!.push(ep);
+			byType.get(type)!.push(ep);
 		}
 
 		// Display by type
@@ -113,45 +124,52 @@ class FindEntryPointsTool extends BaseMcpTool<
 			output += `\n## ${this.getTypeEmoji(type)} ${this.capitalize(type.replace(/-/g, ' '))} (${points.length})\n\n`;
 
 			for (const ep of points.slice(0, 20)) {
-				output += `### ${ep.name}\n`;
-				output += `File: ${ep.filePath}:${ep.line}\n`;
+				const name = ep?.name || 'unknown';
+				const filePath = ep?.filePath || 'unknown';
+				const line = ep?.line || 0;
+				const metadata = ep?.metadata || {};
+				const dependencies = ep?.dependencies || [];
+				const complexity = ep?.complexity || 'MEDIUM';
 
-				if (ep.signature) {
+				output += `### ${name}\n`;
+				output += `File: ${filePath}:${line}\n`;
+
+				if (ep?.signature) {
 					output += `Signature: ${ep.signature}\n`;
 				}
 
-				if (ep.description) {
+				if (ep?.description) {
 					output += `Description: ${ep.description}\n`;
 				}
 
 				// Type-specific metadata
-				if (ep.metadata.httpMethod && ep.metadata.route) {
-					output += `Route: ${ep.metadata.httpMethod} ${ep.metadata.route}\n`;
+				if (metadata?.httpMethod && metadata?.route) {
+					output += `Route: ${metadata.httpMethod} ${metadata.route}\n`;
 				}
 
-				if (ep.metadata.commandName) {
-					output += `Command: ${ep.metadata.commandName}\n`;
+				if (metadata?.commandName) {
+					output += `Command: ${metadata.commandName}\n`;
 				}
 
-				if (ep.metadata.eventType) {
-					output += `Event: ${ep.metadata.eventType}\n`;
+				if (metadata?.eventType) {
+					output += `Event: ${metadata.eventType}\n`;
 				}
 
-				output += `Visibility: ${ep.metadata.isPublic ? 'Public' : 'Internal'}\n`;
-				output += `Async: ${ep.metadata.isAsync ? 'Yes' : 'No'}\n`;
-				output += `Complexity: ${this.getComplexityEmoji(ep.complexity)} ${ep.complexity}\n`;
+				output += `Visibility: ${metadata?.isPublic ? 'Public' : 'Internal'}\n`;
+				output += `Async: ${metadata?.isAsync ? 'Yes' : 'No'}\n`;
+				output += `Complexity: ${this.getComplexityEmoji(complexity)} ${complexity}\n`;
 
-				if (ep.dependencies.length > 0) {
-					output += `Dependencies: ${ep.dependencies.length}\n`;
-					if (ep.dependencies.length <= 3) {
-						for (const dep of ep.dependencies) {
+				if (dependencies.length > 0) {
+					output += `Dependencies: ${dependencies.length}\n`;
+					if (dependencies.length <= 3) {
+						for (const dep of dependencies) {
 							output += `  • ${dep}\n`;
 						}
 					} else {
-						for (const dep of ep.dependencies.slice(0, 3)) {
+						for (const dep of dependencies.slice(0, 3)) {
 							output += `  • ${dep}\n`;
 						}
-						output += `  ... and ${ep.dependencies.length - 3} more\n`;
+						output += `  ... and ${dependencies.length - 3} more\n`;
 					}
 				}
 
@@ -164,29 +182,32 @@ class FindEntryPointsTool extends BaseMcpTool<
 		}
 
 		// Execution paths
-		if (executionPaths.length > 0) {
-			output += `## Execution Paths (${executionPaths.length})\n`;
+		if (pathsArray.length > 0) {
+			output += `## Execution Paths (${pathsArray.length})\n`;
 			output += `Common execution flows through the system:\n\n`;
 
-			for (const path of executionPaths.slice(0, 5)) {
-				output += `**${path.description}**\n`;
-				output += `${path.from} →\n`;
-				for (const step of path.to) {
+			for (const path of pathsArray.slice(0, 5)) {
+				const description = path?.description || 'Execution path';
+				const from = path?.from || 'unknown';
+				const to = path?.to || [];
+				output += `**${description}**\n`;
+				output += `${from} →\n`;
+				for (const step of to) {
 					output += `  → ${step}\n`;
 				}
 				output += '\n';
 			}
 
-			if (executionPaths.length > 5) {
-				output += `... and ${executionPaths.length - 5} more execution paths\n\n`;
+			if (pathsArray.length > 5) {
+				output += `... and ${pathsArray.length - 5} more execution paths\n\n`;
 			}
 		}
 
 		// Recommendations
-		if (recommendations.length > 0) {
+		if (recommendationsArray.length > 0) {
 			output += `## 💡 Recommendations\n\n`;
-			for (let i = 0; i < recommendations.length; i++) {
-				output += `${i + 1}. ${recommendations[i]}\n`;
+			for (let i = 0; i < recommendationsArray.length; i++) {
+				output += `${i + 1}. ${recommendationsArray[i]}\n`;
 			}
 			output += '\n';
 		}

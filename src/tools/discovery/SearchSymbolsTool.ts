@@ -38,7 +38,7 @@ class SearchSymbolsTool extends BaseMcpTool<
 				'Filter by access level: public, private, protected',
 		},
 		isExported: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Only return exported symbols (true) or only non-exported (false)',
 		},
@@ -48,21 +48,21 @@ class SearchSymbolsTool extends BaseMcpTool<
 				'Limit to file paths matching this pattern (e.g., "src/utils/**")',
 		},
 		limit: {
-			type: z.number().int().min(1).max(100).optional().default(50),
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
 				'Maximum number of results to return (default: 50, max: 100)',
 		},
 		offset: {
-			type: z.number().int().min(0).optional().default(0),
+			type: z.coerce.number().int().min(0).optional().default(0),
 			description: 'Offset for pagination (default: 0)',
 		},
 		includeUsageCount: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include count of how many places use this symbol',
 		},
 		includeDocumentation: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include full documentation/docstrings for symbols',
 		},
@@ -75,7 +75,15 @@ class SearchSymbolsTool extends BaseMcpTool<
 		data: SearchSymbolsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const formatted = formatSymbolList(data.symbols, data.pagination);
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		const symbols = data.symbols || [];
+		const pagination = data.pagination;
+
+		const formatted = formatSymbolList(symbols, pagination);
 
 		// Add performance metadata if useful
 		let output = formatted;

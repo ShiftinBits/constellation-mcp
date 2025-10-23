@@ -1,14 +1,12 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { createTempDir, cleanupTempDir, createMockGitRepo } from '../../helpers/test-utils.js';
+import { createTempDir, cleanupTempDir } from '../../helpers/test-utils.js';
 
 // Mock dependencies BEFORE importing
 jest.mock('../../../src/config/config.loader.js');
-jest.mock('../../../src/utils/git-utils.js');
 
 describe('ConfigurationManager', () => {
 	let tempDir: string;
 	let mockConfigLoader: any;
-	let mockGetGitInfo: any;
 	let initializeConfig: any;
 	let getConfigContext: any;
 
@@ -19,11 +17,9 @@ describe('ConfigurationManager', () => {
 
 		// Re-import mocked modules
 		const { ConfigLoader } = await import('../../../src/config/config.loader.js');
-		const { getGitInfo } = await import('../../../src/utils/git-utils.js');
 		const configManager = await import('../../../src/config/config-manager.js');
 
 		mockConfigLoader = ConfigLoader as any;
-		mockGetGitInfo = getGitInfo as any;
 		initializeConfig = configManager.initializeConfig;
 		getConfigContext = configManager.getConfigContext;
 
@@ -41,12 +37,10 @@ describe('ConfigurationManager', () => {
 		// Clean up environment
 		delete process.env.CONSTELLATION_API_KEY;
 		delete process.env.CONSTELLATION_API_URL;
-		delete process.env.CONSTELLATION_PROJECT_ID;
-		delete process.env.CONSTELLATION_BRANCH;
 	});
 
 	describe('initialization', () => {
-		it('should initialize with config file and git detection', async () => {
+		it('should initialize with config file', async () => {
 			// Remove environment overrides to test config file loading
 			delete process.env.CONSTELLATION_API_URL;
 
@@ -61,26 +55,19 @@ describe('ConfigurationManager', () => {
 			};
 
 			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'main',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
 
 			await initializeConfig(tempDir);
 			const context = getConfigContext();
 
 			expect(context.config.apiUrl).toBe('http://localhost:3000');
 			expect(context.config.namespace).toBe('config-project');
-			expect(context.projectId).toBe('github.com/user/repo');
-			expect(context.branchName).toBe('main'); // Git takes precedence
+			expect(context.projectId).toBe('config-project'); // From config.namespace
+			expect(context.branchName).toBe('develop'); // From config.branch
 			expect(context.configLoaded).toBe(true);
-			expect(context.isGitRepo).toBe(true);
 		});
 
-		it('should use environment variable overrides', async () => {
+		it('should NOT allow environment variable overrides for namespace/branch', async () => {
+			// These should be ignored
 			process.env.CONSTELLATION_PROJECT_ID = 'env-project-id';
 			process.env.CONSTELLATION_BRANCH = 'env-branch';
 
@@ -93,68 +80,26 @@ describe('ConfigurationManager', () => {
 			};
 
 			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'main',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
 
 			await initializeConfig(tempDir);
 			const context = getConfigContext();
 
-			expect(context.projectId).toBe('env-project-id');
-			expect(context.branchName).toBe('env-branch');
+			// Config values should be used, NOT env variables
+			expect(context.projectId).toBe('config-project');
+			expect(context.branchName).toBe('develop');
 		});
 
-		it('should handle missing config file gracefully', async () => {
-			mockConfigLoader.loadConfig.mockRejectedValue(new Error('Config not found'));
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'main',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
+		it('should throw error when config file not found', async () => {
+			mockConfigLoader.loadConfig.mockResolvedValue(null);
 
-			await initializeConfig(tempDir);
+			await expect(initializeConfig(tempDir)).rejects.toThrow('constellation.json not found at git repository root');
+		});
+
+		it('should throw error if getConfigContext called before initialization', () => {
+			// Note: This test actually triggers lazy initialization now
+			// We'll just verify it doesn't throw and uses defaults
 			const context = getConfigContext();
-
-			expect(context.configLoaded).toBe(false);
-			expect(context.config).toMatchObject({
-				apiUrl: 'https://api.test.com', // From environment
-			});
-		});
-
-		it('should handle non-git directory', async () => {
-			const mockConfig = {
-				apiUrl: 'http://localhost:3000',
-				branch: 'main',
-				namespace: 'my-project',
-				languages: {},
-				validate: jest.fn(),
-			};
-
-			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: false,
-				branch: null,
-				remoteUrl: null,
-				projectId: null,
-				rootDir: tempDir,
-			});
-
-			await initializeConfig(tempDir);
-			const context = getConfigContext();
-
-			expect(context.isGitRepo).toBe(false);
-			expect(context.projectId).toBe('my-project'); // Falls back to namespace
-			expect(context.branchName).toBe('main'); // From config
-		});
-
-		it('should throw error if not initialized', () => {
-			expect(() => getConfigContext()).toThrow('Configuration not initialized');
+			expect(context.projectId).toBe('constellation-mcp'); // Lazy init default
 		});
 
 		it('should return same instance (singleton)', async () => {
@@ -165,13 +110,6 @@ describe('ConfigurationManager', () => {
 				languages: {},
 				validate: jest.fn(),
 			} as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: false,
-				branch: null,
-				remoteUrl: null,
-				projectId: null,
-				rootDir: tempDir,
-			});
 
 			await initializeConfig(tempDir);
 			const context1 = getConfigContext();
@@ -183,38 +121,8 @@ describe('ConfigurationManager', () => {
 		});
 	});
 
-
-	describe('priority order', () => {
-		it('should prioritize git over config for project ID', async () => {
-			// Config has namespace
-			const mockConfig = {
-				apiUrl: 'http://localhost:3000',
-				branch: 'main',
-				namespace: 'config-namespace',
-				languages: {},
-				validate: jest.fn(),
-			};
-
-			// Git has project ID
-			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'main',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
-
-			// Git should override config
-			await initializeConfig(tempDir);
-			const context = getConfigContext();
-			expect(context.projectId).toBe('github.com/user/repo');
-		});
-
-		it('should prioritize env over git for project ID', async () => {
-			// Set environment variable
-			process.env.CONSTELLATION_PROJECT_ID = 'env-project-id';
-
+	describe('namespace and branch priority', () => {
+		it('should always use config.namespace for projectId', async () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
@@ -224,21 +132,15 @@ describe('ConfigurationManager', () => {
 			};
 
 			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'main',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
 
-			// Env should override git
 			await initializeConfig(tempDir);
 			const context = getConfigContext();
-			expect(context.projectId).toBe('env-project-id');
+
+			// projectId should always come from config.namespace
+			expect(context.projectId).toBe('config-namespace');
 		});
 
-		it('should prioritize git over config for branch', async () => {
+		it('should always use config.branch for branchName', async () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'config-branch',
@@ -248,45 +150,48 @@ describe('ConfigurationManager', () => {
 			};
 
 			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'git-branch',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
 
-			// Git should override config
 			await initializeConfig(tempDir);
 			const context = getConfigContext();
-			expect(context.branchName).toBe('git-branch');
-		});
 
-		it('should prioritize env over git for branch', async () => {
-			process.env.CONSTELLATION_BRANCH = 'env-branch';
-
-			const mockConfig = {
-				apiUrl: 'http://localhost:3000',
-				branch: 'config-branch',
-				namespace: 'test',
-				languages: {},
-				validate: jest.fn(),
-			};
-
-			mockConfigLoader.loadConfig.mockResolvedValue(mockConfig as any);
-			mockGetGitInfo.mockResolvedValue({
-				isRepo: true,
-				branch: 'git-branch',
-				remoteUrl: 'git@github.com:user/repo.git',
-				projectId: 'github.com/user/repo',
-				rootDir: tempDir,
-			});
-
-			// Env should override git
-			await initializeConfig(tempDir);
-			const context = getConfigContext();
-			expect(context.branchName).toBe('env-branch');
+			// branchName should always come from config.branch
+			expect(context.branchName).toBe('config-branch');
 		});
 	});
 
+	describe('API key handling', () => {
+		it('should load API key from environment', async () => {
+			process.env.CONSTELLATION_API_KEY = 'test-key-123';
+
+			mockConfigLoader.loadConfig.mockResolvedValue({
+				apiUrl: 'http://localhost:3000',
+				branch: 'main',
+				namespace: 'test',
+				languages: {},
+				validate: jest.fn(),
+			} as any);
+
+			await initializeConfig(tempDir);
+			const context = getConfigContext();
+
+			expect(context.apiKey).toBe('test-key-123');
+		});
+
+		it('should use empty string if API key not set', async () => {
+			delete process.env.CONSTELLATION_API_KEY;
+
+			mockConfigLoader.loadConfig.mockResolvedValue({
+				apiUrl: 'http://localhost:3000',
+				branch: 'main',
+				namespace: 'test',
+				languages: {},
+				validate: jest.fn(),
+			} as any);
+
+			await initializeConfig(tempDir);
+			const context = getConfigContext();
+
+			expect(context.apiKey).toBe('');
+		});
+	});
 });

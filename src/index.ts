@@ -1,105 +1,97 @@
 import { MCPServer } from "mcp-framework";
 import { initializeConfig, getConfigContext } from "./config/config-manager.js";
-
-// Discovery Tools (4/4 implemented)
-import SearchSymbolsTool from "./tools/discovery/SearchSymbolsTool.js";
-import SearchFilesTool from "./tools/discovery/SearchFilesTool.js";
-import GetSymbolDetailsTool from "./tools/discovery/GetSymbolDetailsTool.js";
-import GetFileDetailsTool from "./tools/discovery/GetFileDetailsTool.js";
-
-// Dependency Tools (5/5 implemented)
-import GetDependenciesTool from "./tools/dependency/GetDependenciesTool.js";
-import GetDependentsTool from "./tools/dependency/GetDependentsTool.js";
-import FindCircularDependenciesTool from "./tools/dependency/FindCircularDependenciesTool.js";
-import TraceSymbolUsageTool from "./tools/dependency/TraceSymbolUsageTool.js";
-import GetCallGraphTool from "./tools/dependency/GetCallGraphTool.js";
-
-// Impact Analysis Tools (4/4 implemented)
-import AnalyzeChangeImpactTool from "./tools/impact/AnalyzeChangeImpactTool.js";
-import FindOrphanedCodeTool from "./tools/impact/FindOrphanedCodeTool.js";
-import AnalyzeBreakingChangesTool from "./tools/impact/AnalyzeBreakingChangesTool.js";
-import ImpactAnalysisTool from "./tools/impact/ImpactAnalysisTool.js";
-
-// Architecture Tools (5/5 implemented)
-import GetArchitectureOverviewTool from "./tools/architecture/GetArchitectureOverviewTool.js";
-import GetModuleOverviewTool from "./tools/architecture/GetModuleOverviewTool.js";
-import DetectArchitectureViolationsTool from "./tools/architecture/DetectArchitectureViolationsTool.js";
-import AnalyzePackageUsageTool from "./tools/architecture/AnalyzePackageUsageTool.js";
-import CompareModulesTool from "./tools/architecture/CompareModulesTool.js";
-
-// Refactoring Tools (4/4 implemented)
-import FindSimilarPatternsTool from "./tools/refactoring/FindSimilarPatternsTool.js";
-import FindEntryPointsTool from "./tools/refactoring/FindEntryPointsTool.js";
-import GetInheritanceHierarchyTool from "./tools/refactoring/GetInheritanceHierarchyTool.js";
-import ContextualSymbolResolutionTool from "./tools/refactoring/ContextualSymbolResolutionTool.js";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 /**
  * Initializes and starts the Constellation MCP Server.
  */
 async function startServer() {
 	try {
-		console.log("[Constellation MCP] Starting server...");
+		console.error("[Constellation MCP] Starting server...");
+		console.error("[Constellation MCP] Environment check:");
+		console.error(`  CONSTELLATION_API_KEY: ${process.env.CONSTELLATION_API_KEY ? '***SET***' : 'NOT SET'}`);
+		console.error(`  Working directory: ${process.cwd()}`);
 
-		// Initialize configuration (loads from file + auto-detects from git)
+		// Initialize configuration FIRST (before creating MCPServer)
+		// The mcp-framework creates tool instances during MCPServer construction,
+		// so configuration must be ready before that happens
 		await initializeConfig(process.cwd());
 
 		const context = getConfigContext();
-		console.log("[Constellation MCP] Configuration loaded:");
-		console.log(`  API: ${context.config.apiUrl}`);
-		console.log(`  Project: ${context.projectId}`);
-		console.log(`  Branch: ${context.branchName}`);
-		console.log(`  Config from file: ${context.configLoaded ? 'yes' : 'no (using defaults)'}`);
-		console.log(`  Git repository: ${context.isGitRepo ? 'yes' : 'no'}`);
+		console.error("[Constellation MCP] Configuration loaded:");
+		console.error(`  API: ${context.config.apiUrl}`);
+		console.error(`  Project: ${context.projectId}`);
+		console.error(`  Branch: ${context.branchName}`);
+		console.error(`  Config from file: ${context.configLoaded ? 'yes' : 'no (using defaults)'}`);
 
 		// Create and configure MCP server
-		const server = new MCPServer();
+		// Set basePath to the directory containing this file (dist/) so tools are found
+		// This is necessary for npm link to work correctly
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = dirname(__filename);
 
-		// Register all implemented tools
-		// Note: MCP framework auto-discovers tools from default exports
-		// Tools are automatically registered when imported
+		const server = new MCPServer({
+			name: '@constellationdev/mcp',
+			version: '0.0.1',
+			basePath: __dirname,
+		});
 
-		console.log("[Constellation MCP] Server started successfully");
-		console.log("[Constellation MCP] Available tools (22/22 implemented - 100%):");
-		console.log("");
-		console.log("  ✅ Discovery Tools (4/4):");
-		console.log("    - search_symbols");
-		console.log("    - search_files");
-		console.log("    - get_symbol_details");
-		console.log("    - get_file_details");
-		console.log("");
-		console.log("  ✅ Dependency Tools (5/5):");
-		console.log("    - get_dependencies");
-		console.log("    - get_dependents");
-		console.log("    - find_circular_dependencies");
-		console.log("    - trace_symbol_usage");
-		console.log("    - get_call_graph");
-		console.log("");
-		console.log("  ✅ Impact Analysis Tools (4/4):");
-		console.log("    - analyze_change_impact");
-		console.log("    - find_orphaned_code");
-		console.log("    - analyze_breaking_changes");
-		console.log("    - impact_analysis");
-		console.log("");
-		console.log("  ✅ Architecture Tools (5/5):");
-		console.log("    - get_architecture_overview");
-		console.log("    - get_module_overview");
-		console.log("    - detect_architecture_violations");
-		console.log("    - analyze_package_usage");
-		console.log("    - compare_modules");
-		console.log("");
-		console.log("  ✅ Refactoring Tools (4/4):");
-		console.log("    - find_similar_patterns");
-		console.log("    - find_entry_points");
-		console.log("    - get_inheritance_hierarchy");
-		console.log("    - contextual_symbol_resolution");
-		console.log("");
-		console.log("  🎉 ALL 22 TOOLS IMPLEMENTED!");
+		// Tools are automatically discovered from dist/tools directory
+		// The MCP framework will scan for default exports in tools/ subdirectories
+
+		console.error("[Constellation MCP] Server started successfully");
+		console.error("[Constellation MCP] Available tools (22/22 implemented - 100%):");
+		console.error("");
+		console.error("  ✅ Discovery Tools (4/4):");
+		console.error("    - search_symbols");
+		console.error("    - search_files");
+		console.error("    - get_symbol_details");
+		console.error("    - get_file_details");
+		console.error("");
+		console.error("  ✅ Dependency Tools (5/5):");
+		console.error("    - get_dependencies");
+		console.error("    - get_dependents");
+		console.error("    - find_circular_dependencies");
+		console.error("    - trace_symbol_usage");
+		console.error("    - get_call_graph");
+		console.error("");
+		console.error("  ✅ Impact Analysis Tools (4/4):");
+		console.error("    - analyze_change_impact");
+		console.error("    - find_orphaned_code");
+		console.error("    - analyze_breaking_changes");
+		console.error("    - impact_analysis");
+		console.error("");
+		console.error("  ✅ Architecture Tools (5/5):");
+		console.error("    - get_architecture_overview");
+		console.error("    - get_module_overview");
+		console.error("    - detect_architecture_violations");
+		console.error("    - analyze_package_usage");
+		console.error("    - compare_modules");
+		console.error("");
+		console.error("  ✅ Refactoring Tools (4/4):");
+		console.error("    - find_similar_patterns");
+		console.error("    - find_entry_points");
+		console.error("    - get_inheritance_hierarchy");
+		console.error("    - contextual_symbol_resolution");
+		console.error("");
+		console.error("  🎉 ALL 22 TOOLS IMPLEMENTED!");
 
 		// Start the server
 		await server.start();
 
 	} catch (error) {
-		console.error("[Constellation MCP] Failed to start server:", error);
+		console.error("\n==========================================================");
+		console.error("❌ CONSTELLATION MCP SERVER FAILED TO START");
+		console.error("==========================================================\n");
+
+		if (error instanceof Error) {
+			console.error(error.message);
+		} else {
+			console.error("Unknown error:", error);
+		}
+
+		console.error("\n==========================================================\n");
 		process.exit(1);
 	}
 }

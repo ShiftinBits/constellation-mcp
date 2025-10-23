@@ -92,16 +92,16 @@ class CompareModulesTool extends BaseMcpTool<
 			description: 'Path to second module (e.g., "src/services/users")',
 		},
 		compareStructure: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description:
 				'Compare module structure and organization (default: true)',
 		},
 		compareDependencies: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Compare dependencies (default: true)',
 		},
 		compareApi: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Compare exported APIs (default: true)',
 		},
 	};
@@ -113,59 +113,98 @@ class CompareModulesTool extends BaseMcpTool<
 		data: CompareModulesResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { modules, comparison } = data;
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		// Backend DTO uses moduleA, moduleB, structure, patterns, dependencies, similarity, insights
+		const { moduleA, moduleB, structure, patterns, dependencies, similarity, insights } = data as any;
 
 		let output = `Module Comparison\n\n`;
 
 		// Module info
 		output += `## Modules\n\n`;
-		output += `**Module 1:** ${modules.module1.name}\n`;
-		output += `  Path: ${modules.module1.path}\n`;
-		output += `  Files: ${modules.module1.files}\n`;
-		output += `  Symbols: ${modules.module1.symbols}\n\n`;
+		output += `**Module A:** ${moduleA?.name || 'unknown'}\n`;
+		output += `  Path: ${moduleA?.path || 'unknown'}\n`;
+		if (moduleA?.exists !== undefined) {
+			output += `  Exists: ${moduleA.exists ? 'Yes' : 'No'}\n`;
+		}
+		output += '\n';
 
-		output += `**Module 2:** ${modules.module2.name}\n`;
-		output += `  Path: ${modules.module2.path}\n`;
-		output += `  Files: ${modules.module2.files}\n`;
-		output += `  Symbols: ${modules.module2.symbols}\n\n`;
+		output += `**Module B:** ${moduleB?.name || 'unknown'}\n`;
+		output += `  Path: ${moduleB?.path || 'unknown'}\n`;
+		if (moduleB?.exists !== undefined) {
+			output += `  Exists: ${moduleB.exists ? 'Yes' : 'No'}\n`;
+		}
+		output += '\n';
 
-		// Analysis summary
-		output += `## Analysis\n`;
-		output += `Similarity: ${comparison.analysis.similarity}%\n`;
-		output += `Relationship: ${comparison.analysis.relationship}\n\n`;
+		// Similarity score
+		if (similarity) {
+			output += `## Similarity Analysis\n`;
+			output += `Overall Score: ${((similarity?.overallScore || 0) * 100).toFixed(1)}%\n`;
+			if (similarity?.structuralSimilarity !== undefined) {
+				output += `Structural Similarity: ${(similarity.structuralSimilarity * 100).toFixed(1)}%\n`;
+			}
+			if (similarity?.apiSimilarity !== undefined) {
+				output += `API Similarity: ${(similarity.apiSimilarity * 100).toFixed(1)}%\n`;
+			}
+			if (similarity?.dependencySimilarity !== undefined) {
+				output += `Dependency Similarity: ${(similarity.dependencySimilarity * 100).toFixed(1)}%\n`;
+			}
+			output += '\n';
+		}
 
 		// Structure comparison
-		if (comparison.structure) {
+		if (structure) {
 			output += `## Structure Comparison\n\n`;
 
-			const fileDiff = comparison.structure.fileCountDiff;
-			const symbolDiff = comparison.structure.symbolCountDiff;
-			const locDiff = comparison.structure.locDiff;
-
-			if (fileDiff !== 0) {
-				const larger = fileDiff > 0 ? 'Module 1' : 'Module 2';
-				output += `${larger} has ${Math.abs(fileDiff)} more files\n`;
+			if (structure?.fileCountDifference !== undefined) {
+				const diff = structure.fileCountDifference;
+				if (diff !== 0) {
+					const larger = diff > 0 ? 'Module A' : 'Module B';
+					output += `${larger} has ${Math.abs(diff)} more files\n`;
+				}
 			}
-			if (symbolDiff !== 0) {
-				const larger = symbolDiff > 0 ? 'Module 1' : 'Module 2';
-				output += `${larger} has ${Math.abs(symbolDiff)} more symbols\n`;
+			if (structure?.symbolCountDifference !== undefined) {
+				const diff = structure.symbolCountDifference;
+				if (diff !== 0) {
+					const larger = diff > 0 ? 'Module A' : 'Module B';
+					output += `${larger} has ${Math.abs(diff)} more symbols\n`;
+				}
 			}
-			if (locDiff !== 0) {
-				const larger = locDiff > 0 ? 'Module 1' : 'Module 2';
-				output += `${larger} has ${Math.abs(locDiff)} more lines of code\n`;
-			}
-
-			if (comparison.structure.similarities.length > 0) {
-				output += `\n### Similarities\n`;
-				for (const sim of comparison.structure.similarities) {
-					output += `  ✓ ${sim}\n`;
+			if (structure?.locDifference !== undefined) {
+				const diff = structure.locDifference;
+				if (diff !== 0) {
+					const larger = diff > 0 ? 'Module A' : 'Module B';
+					output += `${larger} has ${Math.abs(diff)} more lines of code\n`;
 				}
 			}
 
-			if (comparison.structure.differences.length > 0) {
-				output += `\n### Differences\n`;
-				for (const diff of comparison.structure.differences) {
-					output += `  • ${diff}\n`;
+			if (structure?.commonPatterns && structure.commonPatterns.length > 0) {
+				output += `\n### Common Patterns (${structure.commonPatterns.length})\n`;
+				for (const pattern of structure.commonPatterns) {
+					output += `  ✓ ${pattern}\n`;
+				}
+			}
+
+			if (structure?.uniqueToA && structure.uniqueToA.length > 0) {
+				output += `\n### Unique to Module A (${structure.uniqueToA.length})\n`;
+				for (const item of structure.uniqueToA.slice(0, 5)) {
+					output += `  • ${item}\n`;
+				}
+				if (structure.uniqueToA.length > 5) {
+					output += `  ... and ${structure.uniqueToA.length - 5} more\n`;
+				}
+			}
+
+			if (structure?.uniqueToB && structure.uniqueToB.length > 0) {
+				output += `\n### Unique to Module B (${structure.uniqueToB.length})\n`;
+				for (const item of structure.uniqueToB.slice(0, 5)) {
+					output += `  • ${item}\n`;
+				}
+				if (structure.uniqueToB.length > 5) {
+					output += `  ... and ${structure.uniqueToB.length - 5} more\n`;
 				}
 			}
 
@@ -173,123 +212,72 @@ class CompareModulesTool extends BaseMcpTool<
 		}
 
 		// Dependencies comparison
-		if (comparison.dependencies) {
+		if (dependencies) {
 			output += `## Dependencies\n\n`;
 
-			if (comparison.dependencies.sharedInternal.length > 0) {
-				output += `### Shared Internal Dependencies (${comparison.dependencies.sharedInternal.length})\n`;
+			const sharedCount = dependencies?.sharedDependencies?.length || 0;
+			if (sharedCount > 0) {
+				output += `### Shared Dependencies (${sharedCount})\n`;
 				output += `Both modules depend on:\n`;
-				for (const dep of comparison.dependencies.sharedInternal.slice(0, 10)) {
+				for (const dep of dependencies.sharedDependencies!.slice(0, 10)) {
 					output += `  • ${dep}\n`;
 				}
-				if (comparison.dependencies.sharedInternal.length > 10) {
-					output += `  ... and ${comparison.dependencies.sharedInternal.length - 10} more\n`;
+				if (sharedCount > 10) {
+					output += `  ... and ${sharedCount - 10} more\n`;
 				}
 				output += '\n';
 			}
 
-			if (comparison.dependencies.sharedExternal.length > 0) {
-				output += `### Shared External Dependencies (${comparison.dependencies.sharedExternal.length})\n`;
-				for (const dep of comparison.dependencies.sharedExternal.slice(0, 10)) {
+			const uniqueACount = dependencies?.uniqueToA?.length || 0;
+			if (uniqueACount > 0) {
+				output += `### Unique to Module A (${uniqueACount})\n`;
+				for (const dep of dependencies.uniqueToA!.slice(0, 10)) {
 					output += `  • ${dep}\n`;
 				}
-				if (comparison.dependencies.sharedExternal.length > 10) {
-					output += `  ... and ${comparison.dependencies.sharedExternal.length - 10} more\n`;
+				if (uniqueACount > 10) {
+					output += `  ... and ${uniqueACount - 10} more\n`;
 				}
 				output += '\n';
 			}
 
-			if (comparison.dependencies.crossDependencies.length > 0) {
-				output += `### Cross Dependencies (${comparison.dependencies.crossDependencies.length})\n`;
+			const uniqueBCount = dependencies?.uniqueToB?.length || 0;
+			if (uniqueBCount > 0) {
+				output += `### Unique to Module B (${uniqueBCount})\n`;
+				for (const dep of dependencies.uniqueToB!.slice(0, 10)) {
+					output += `  • ${dep}\n`;
+				}
+				if (uniqueBCount > 10) {
+					output += `  ... and ${uniqueBCount - 10} more\n`;
+				}
+				output += '\n';
+			}
+
+			if (dependencies?.crossReferences && dependencies.crossReferences.length > 0) {
+				output += `### Cross References (${dependencies.crossReferences.length})\n`;
 				output += `Direct dependencies between the modules:\n`;
-				for (const dep of comparison.dependencies.crossDependencies) {
-					output += `  ${dep.from} → ${dep.to} (${dep.type})\n`;
-				}
-				output += '\n';
-			}
-
-			if (comparison.dependencies.uniqueToModule1.length > 0) {
-				output += `### Unique to ${modules.module1.name} (${comparison.dependencies.uniqueToModule1.length})\n`;
-				for (const dep of comparison.dependencies.uniqueToModule1.slice(0, 5)) {
-					output += `  • ${dep}\n`;
-				}
-				if (comparison.dependencies.uniqueToModule1.length > 5) {
-					output += `  ... and ${comparison.dependencies.uniqueToModule1.length - 5} more\n`;
-				}
-				output += '\n';
-			}
-
-			if (comparison.dependencies.uniqueToModule2.length > 0) {
-				output += `### Unique to ${modules.module2.name} (${comparison.dependencies.uniqueToModule2.length})\n`;
-				for (const dep of comparison.dependencies.uniqueToModule2.slice(0, 5)) {
-					output += `  • ${dep}\n`;
-				}
-				if (comparison.dependencies.uniqueToModule2.length > 5) {
-					output += `  ... and ${comparison.dependencies.uniqueToModule2.length - 5} more\n`;
+				for (const ref of dependencies.crossReferences) {
+					output += `  ${ref?.from || 'unknown'} → ${ref?.to || 'unknown'}`;
+					if (ref?.type) {
+						output += ` (${ref.type})`;
+					}
+					output += '\n';
 				}
 				output += '\n';
 			}
 		}
 
-		// API comparison
-		if (comparison.api) {
-			output += `## API Comparison\n\n`;
-
-			if (comparison.api.similarExports.length > 0) {
-				output += `### Similar Exports (${comparison.api.similarExports.length})\n`;
-				const identical = comparison.api.similarExports.filter(e => e.identical);
-				const similar = comparison.api.similarExports.filter(e => !e.identical);
-
-				if (identical.length > 0) {
-					output += `\nIdentical (${identical.length}):\n`;
-					for (const exp of identical.slice(0, 10)) {
-						output += `  ✓ ${exp.name}\n`;
-					}
-					if (identical.length > 10) {
-						output += `  ... and ${identical.length - 10} more\n`;
-					}
-				}
-
-				if (similar.length > 0) {
-					output += `\nSimilar but different (${similar.length}):\n`;
-					for (const exp of similar.slice(0, 5)) {
-						output += `  ~ ${exp.name}\n`;
-					}
-					if (similar.length > 5) {
-						output += `  ... and ${similar.length - 5} more\n`;
-					}
+		// Insights
+		if (insights && insights.length > 0) {
+			output += `## 💡 Insights & Recommendations\n\n`;
+			for (const insight of insights) {
+				const severity = insight?.severity || 'info';
+				const emoji = severity === 'critical' ? '🔴' : severity === 'warning' ? '🟡' : '🟢';
+				output += `${emoji} **${insight?.title || 'Insight'}**\n`;
+				output += `${insight?.description || 'No description'}\n`;
+				if (insight?.recommendation) {
+					output += `Recommendation: ${insight.recommendation}\n`;
 				}
 				output += '\n';
-			}
-
-			if (comparison.api.uniqueToModule1.length > 0) {
-				output += `### Unique to ${modules.module1.name} (${comparison.api.uniqueToModule1.length})\n`;
-				for (const exp of comparison.api.uniqueToModule1.slice(0, 10)) {
-					output += `  • ${exp}\n`;
-				}
-				if (comparison.api.uniqueToModule1.length > 10) {
-					output += `  ... and ${comparison.api.uniqueToModule1.length - 10} more\n`;
-				}
-				output += '\n';
-			}
-
-			if (comparison.api.uniqueToModule2.length > 0) {
-				output += `### Unique to ${modules.module2.name} (${comparison.api.uniqueToModule2.length})\n`;
-				for (const exp of comparison.api.uniqueToModule2.slice(0, 10)) {
-					output += `  • ${exp}\n`;
-				}
-				if (comparison.api.uniqueToModule2.length > 10) {
-					output += `  ... and ${comparison.api.uniqueToModule2.length - 10} more\n`;
-				}
-				output += '\n';
-			}
-		}
-
-		// Recommendations
-		if (comparison.analysis.recommendations.length > 0) {
-			output += `## 💡 Recommendations\n\n`;
-			for (let i = 0; i < comparison.analysis.recommendations.length; i++) {
-				output += `${i + 1}. ${comparison.analysis.recommendations[i]}\n`;
 			}
 		}
 

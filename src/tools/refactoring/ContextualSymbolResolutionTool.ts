@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface ContextualSymbolResolutionParams {
+	symbolId?: string;
 	symbolName: string;
 	filePath?: string;
 	line?: number;
@@ -111,23 +112,36 @@ class ContextualSymbolResolutionTool extends BaseMcpTool<
 				'Optional: File path where symbol is referenced (helps with disambiguation)',
 		},
 		line: {
-			type: z.number().optional(),
+			type: z.coerce.number().optional(),
 			description:
 				'Optional: Line number where symbol is referenced (provides precise context)',
 		},
 		includeScope: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Include scope chain information (default: true)',
 		},
 		includeTypes: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Include type information (default: true)',
 		},
 		includeUsages: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Include usage examples (default: true)',
 		},
 	};
+
+	/**
+	 * Override execute to generate symbolId from filePath + symbolName if needed
+	 */
+	async execute(input: ContextualSymbolResolutionParams): Promise<string> {
+		// If symbolId not provided but filePath and symbolName are, generate it
+		if (!input.symbolId && input.filePath && input.symbolName) {
+			const symbolId = this.generateSymbolId(input.filePath, input.symbolName);
+			input = { ...input, symbolId };
+		}
+
+		return super.execute(input);
+	}
 
 	/**
 	 * Format the contextual symbol resolution for AI-friendly output

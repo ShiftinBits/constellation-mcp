@@ -28,33 +28,50 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 		symbolId: {
 			type: z.string().optional(),
 			description:
-				'Unique symbol identifier (from search results)',
+				'Unique symbol identifier (from search results). If not provided, both symbolName and filePath are required.',
 		},
 		symbolName: {
 			type: z.string().optional(),
-			description: 'Symbol name to look up',
+			description: 'Symbol name to look up (required if symbolId not provided)',
 		},
 		filePath: {
 			type: z.string().optional(),
 			description:
-				'File path to narrow down search (required if symbolName is ambiguous)',
+				'File path containing the symbol (required if symbolId not provided)',
 		},
 		includeDependencies: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include what this symbol depends on (default: true)',
 		},
 		includeDependents: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include what depends on this symbol (default: true)',
 		},
 		includeUsages: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include all locations where this symbol is used (default: true)',
 		},
 	};
+
+	/**
+	 * Override execute to generate symbolId from filePath + symbolName if needed
+	 */
+	async execute(input: GetSymbolDetailsParams): Promise<string> {
+		// If symbolId not provided but filePath and symbolName are, generate it
+		if (!input.symbolId && input.filePath && input.symbolName) {
+			input.symbolId = this.generateSymbolId(input.filePath, input.symbolName);
+		}
+
+		// Validate that we have either symbolId or both filePath + symbolName
+		if (!input.symbolId && !(input.filePath && input.symbolName)) {
+			return 'Error: Either symbolId OR both filePath and symbolName must be provided';
+		}
+
+		return super.execute(input);
+	}
 
 	/**
 	 * Format the symbol details for AI-friendly output
@@ -63,52 +80,146 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 		data: GetSymbolDetailsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { symbol } = data;
-		let output = `Symbol Details: ${symbol.name}\n\n`;
+		// Defensive checks
+		if (!data || !data.symbol) {
+			return 'Error: No symbol data returned from API';
+		}
+
+		const { symbol, references, relationships, impactScore } = data;
+
+		const name = symbol?.name || 'unknown';
+		let output = `Symbol Details: ${name}\n\n`;
 
 		// Basic info
-		output += `Type: ${symbol.kind}\n`;
-		output += `Location: ${formatLocation(symbol.filePath, symbol.line, symbol.column)}\n`;
+		output += `Type: ${symbol?.kind || 'unknown'}\n`;
+		output += `Location: ${formatLocation(symbol?.filePath || 'unknown', symbol?.line, symbol?.column)}\n`;
 
-		if (symbol.qualifiedName && symbol.qualifiedName !== symbol.name) {
+		if (symbol?.qualifiedName && symbol.qualifiedName !== symbol.name) {
 			output += `Qualified Name: ${symbol.qualifiedName}\n`;
 		}
 
-		if (symbol.signature) {
+		if (symbol?.signature) {
 			output += `Signature: ${symbol.signature}\n`;
 		}
 
-		if (symbol.visibility) {
+		if (symbol?.visibility) {
 			output += `Visibility: ${symbol.visibility}\n`;
 		}
 
-		output += `Exported: ${symbol.isExported ? 'yes' : 'no'}\n`;
+		if (symbol?.modifiers) {
+			const modifiers = Array.isArray(symbol.modifiers) ? symbol.modifiers : [];
+			if (modifiers.length > 0) {
+				output += `Modifiers: ${modifiers.join(', ')}\n`;
+			}
+		}
 
-		if (symbol.documentation) {
+		output += `Exported: ${symbol?.isExported ? 'yes' : 'no'}\n`;
+
+		if (symbol?.isDeprecated) {
+			output += `⚠️ Deprecated: yes\n`;
+		}
+
+		if (symbol?.decorators) {
+			// Handle decorators - can be array or JSON string
+			let decorators = [];
+			if (Array.isArray(symbol.decorators)) {
+				decorators = symbol.decorators;
+			} else if (typeof symbol.decorators === 'string') {
+				try {
+					decorators = JSON.parse(symbol.decorators);
+				} catch {
+					decorators = [];
+				}
+			}
+			if (decorators.length > 0) {
+				output += `Decorators: ${decorators.join(', ')}\n`;
+			}
+		}
+
+		if (symbol?.documentation) {
 			output += `\nDocumentation:\n${symbol.documentation}\n`;
 		}
 
-		// Dependencies
-		if (symbol.dependencies && symbol.dependencies.length > 0) {
-			output += `\n## Dependencies (${symbol.dependencies.length})\n`;
-			output += formatDependencies(symbol.dependencies);
+		// References/Usages
+		if (references && references.length > 0) {
+			output += `\n## References (${references.length} locations)\n\n`;
+			for (const ref of references.slice(0, 20)) {
+				const location = formatLocation(ref?.filePath || 'unknown', ref?.line);
+				const usageType = ref?.usageType || 'reference';
+				output += `  ${location} (${usageType})`;
+				if (ref?.aliasName) {
+					output += ` as ${ref.aliasName}`;
+				}
+				output += '\n';
+			}
+			if (references.length > 20) {
+				output += `  ... and ${references.length - 20} more\n`;
+			}
 		}
 
-		// Dependents
-		if (symbol.dependents && symbol.dependents.length > 0) {
-			output += `\n\n## Dependents (${symbol.dependents.length})\n`;
-			output += formatDependencies(symbol.dependents);
+		// Relationships
+		if (relationships) {
+			let hasRelationships = false;
+
+			if (relationships.calls && relationships.calls.length > 0) {
+				output += `\n## Calls (${relationships.calls.length})\n`;
+				for (const call of relationships.calls.slice(0, 10)) {
+					output += `  → ${call}\n`;
+				}
+				if (relationships.calls.length > 10) {
+					output += `  ... and ${relationships.calls.length - 10} more\n`;
+				}
+				hasRelationships = true;
+			}
+
+			if (relationships.calledBy && relationships.calledBy.length > 0) {
+				output += `\n## Called By (${relationships.calledBy.length})\n`;
+				for (const caller of relationships.calledBy.slice(0, 10)) {
+					output += `  ← ${caller}\n`;
+				}
+				if (relationships.calledBy.length > 10) {
+					output += `  ... and ${relationships.calledBy.length - 10} more\n`;
+				}
+				hasRelationships = true;
+			}
+
+			if (relationships.inheritsFrom && relationships.inheritsFrom.length > 0) {
+				output += `\n## Inherits From\n`;
+				for (const parent of relationships.inheritsFrom) {
+					output += `  ↑ ${parent}\n`;
+				}
+				hasRelationships = true;
+			}
+
+			if (relationships.inheritedBy && relationships.inheritedBy.length > 0) {
+				output += `\n## Inherited By (${relationships.inheritedBy.length})\n`;
+				for (const child of relationships.inheritedBy.slice(0, 10)) {
+					output += `  ↓ ${child}\n`;
+				}
+				if (relationships.inheritedBy.length > 10) {
+					output += `  ... and ${relationships.inheritedBy.length - 10} more\n`;
+				}
+				hasRelationships = true;
+			}
+
+			if (relationships.children && relationships.children.length > 0) {
+				output += `\n## Children (${relationships.children.length})\n`;
+				for (const child of relationships.children.slice(0, 10)) {
+					output += `  • ${child}\n`;
+				}
+				if (relationships.children.length > 10) {
+					output += `  ... and ${relationships.children.length - 10} more\n`;
+				}
+				hasRelationships = true;
+			}
 		}
 
-		// Usages
-		if (symbol.usages && symbol.usages.length > 0) {
-			output += `\n\n## Usages (${symbol.usages.length} locations)\n`;
-			for (const usage of symbol.usages.slice(0, 20)) {
-				output += `  ${formatLocation(usage.filePath, usage.line)}\n`;
-			}
-			if (symbol.usages.length > 20) {
-				output += `  ... and ${symbol.usages.length - 20} more\n`;
-			}
+		// Impact Score
+		if (impactScore) {
+			output += `\n## Impact Analysis\n`;
+			output += `Direct Usage: ${impactScore.directUsage || 0} location${impactScore.directUsage === 1 ? '' : 's'}\n`;
+			output += `Transitive Impact: ${impactScore.transitiveImpact || 0}\n`;
+			output += `Risk Score: ${impactScore.riskScore || 0}/100 (${impactScore.riskLevel || 'unknown'})\n`;
 		}
 
 		if (metadata.cached) {

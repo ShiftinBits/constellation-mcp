@@ -86,24 +86,3 @@ export function mockGlobalFetch(): jest.Mock {
 	return mockFetch;
 }
 
-/**
- * Create a mock git repository structure
- */
-export async function createMockGitRepo(dirPath: string): Promise<void> {
-	const gitDir = path.join(dirPath, '.git');
-	await fs.mkdir(gitDir, { recursive: true });
-
-	const gitConfig = `[core]
-	repositoryformatversion = 0
-	filemode = true
-[remote "origin"]
-	url = git@github.com:test-user/test-repo.git
-	fetch = +refs/heads/*:refs/remotes/origin/*
-[branch "main"]
-	remote = origin
-	merge = refs/heads/main
-`;
-
-	await fs.writeFile(path.join(gitDir, 'config'), gitConfig, 'utf-8');
-	await fs.writeFile(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n', 'utf-8');
-}

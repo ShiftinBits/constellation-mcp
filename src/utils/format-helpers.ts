@@ -55,7 +55,7 @@ export function formatSymbolList(
 	symbols: any[],
 	pagination?: { total: number; returned: number; hasMore: boolean }
 ): string {
-	if (symbols.length === 0) {
+	if (!symbols || symbols.length === 0) {
 		return 'No symbols found.';
 	}
 
@@ -64,30 +64,32 @@ export function formatSymbolList(
 		: `Found ${symbols.length} symbol${symbols.length === 1 ? '' : 's'}:\n\n`;
 
 	for (const symbol of symbols) {
-		output += `${symbol.name} (${symbol.kind})\n`;
-		output += `  Location: ${formatLocation(symbol.filePath, symbol.line)}\n`;
+		const name = symbol?.name || 'unknown';
+		const kind = symbol?.kind || 'unknown';
+		output += `${name} (${kind})\n`;
+		output += `  Location: ${formatLocation(symbol?.filePath || 'unknown', symbol?.line)}\n`;
 
-		if (symbol.qualifiedName && symbol.qualifiedName !== symbol.name) {
+		if (symbol?.qualifiedName && symbol.qualifiedName !== symbol.name) {
 			output += `  Qualified: ${symbol.qualifiedName}\n`;
 		}
 
-		if (symbol.signature) {
+		if (symbol?.signature) {
 			output += `  Signature: ${symbol.signature}\n`;
 		}
 
-		if (symbol.visibility) {
+		if (symbol?.visibility) {
 			output += `  Visibility: ${symbol.visibility}\n`;
 		}
 
-		if (symbol.isExported !== undefined) {
+		if (symbol?.isExported !== undefined) {
 			output += `  Exported: ${symbol.isExported ? 'yes' : 'no'}\n`;
 		}
 
-		if (symbol.usageCount !== undefined) {
+		if (symbol?.usageCount !== undefined) {
 			output += `  Used in: ${symbol.usageCount} place${symbol.usageCount === 1 ? '' : 's'}\n`;
 		}
 
-		if (symbol.documentation) {
+		if (symbol?.documentation) {
 			output += `  Docs: ${symbol.documentation}\n`;
 		}
 
@@ -113,7 +115,7 @@ export function formatFileList(
 	files: any[],
 	pagination?: { total: number; returned: number; hasMore: boolean }
 ): string {
-	if (files.length === 0) {
+	if (!files || files.length === 0) {
 		return 'No files found.';
 	}
 
@@ -122,17 +124,19 @@ export function formatFileList(
 		: `Found ${files.length} file${files.length === 1 ? '' : 's'}:\n\n`;
 
 	for (const file of files) {
-		output += `${file.filePath}\n`;
+		// Backend returns 'path' not 'filePath' - use defensive access
+		const filePath = file?.path || file?.filePath || 'unknown';
+		output += `${filePath}\n`;
 
-		if (file.symbolCount !== undefined) {
+		if (file?.symbolCount !== undefined) {
 			output += `  Symbols: ${file.symbolCount}\n`;
 		}
 
-		if (file.language) {
+		if (file?.language) {
 			output += `  Language: ${file.language}\n`;
 		}
 
-		if (file.size !== undefined) {
+		if (file?.size !== undefined) {
 			output += `  Size: ${formatBytes(file.size)}\n`;
 		}
 
@@ -170,15 +174,15 @@ export function formatBytes(bytes: number): string {
  * @returns Formatted dependency tree
  */
 export function formatDependencies(dependencies: any[]): string {
-	if (dependencies.length === 0) {
+	if (!dependencies || dependencies.length === 0) {
 		return 'No dependencies found.';
 	}
 
 	let output = `Found ${dependencies.length} ${dependencies.length === 1 ? 'dependency' : 'dependencies'}:\n\n`;
 
 	for (const dep of dependencies) {
-		const target = dep.target || dep.to || dep.targetFile;
-		const type = dep.type || dep.dependencyType || 'dependency';
+		const target = dep?.target || dep?.to || dep?.targetFile || dep?.filePath || 'unknown';
+		const type = dep?.type || dep?.dependencyType || 'dependency';
 
 		output += `→ ${target}`;
 
@@ -186,7 +190,7 @@ export function formatDependencies(dependencies: any[]): string {
 			output += ` (${type})`;
 		}
 
-		if (dep.line) {
+		if (dep?.line) {
 			output += ` at line ${dep.line}`;
 		}
 

@@ -1,5 +1,12 @@
 {
 	"mcpServers": {
+		"constellation": {
+			"type": "stdio",
+			"command": "mcp-constellation",
+			"env": {
+				"CONSTELLATION_API_KEY": "your-api-key-here"
+			}
+		},
 		"memory": {
 			"type": "stdio",
 			"command": "npx",

@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface ImpactAnalysisParams {
+	symbolId?: string;
 	filePath?: string;
 	symbolName?: string;
 	changeType?: 'modify' | 'delete' | 'rename' | 'refactor';
@@ -75,19 +76,32 @@ class ImpactAnalysisTool extends BaseMcpTool<
 				'Type of change being analyzed (default: modify)',
 		},
 		includeTests: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Include test files in analysis (default: true)',
 		},
 		includeDocs: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description: 'Include documentation files in analysis (default: true)',
 		},
 		maxDepth: {
-			type: z.number().min(1).max(10).optional().default(5),
+			type: z.coerce.number().min(1).max(10).optional().default(5),
 			description:
 				'Maximum dependency depth to analyze (default: 5)',
 		},
 	};
+
+	/**
+	 * Override execute to generate symbolId from filePath + symbolName if needed
+	 */
+	async execute(input: ImpactAnalysisParams): Promise<string> {
+		// If symbolId not provided but filePath and symbolName are, generate it
+		if (!input.symbolId && input.filePath && input.symbolName) {
+			const symbolId = this.generateSymbolId(input.filePath, input.symbolName);
+			input = { ...input, symbolId };
+		}
+
+		return super.execute(input);
+	}
 
 	/**
 	 * Format the comprehensive impact analysis for AI-friendly output

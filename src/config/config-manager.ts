@@ -7,24 +7,21 @@
 
 import { ConstellationConfig } from "./config.js";
 import { ConfigLoader } from "./config.loader.js";
-import { getGitInfo } from "../utils/git-utils.js";
 
 /**
- * Configuration context with auto-detected values
+ * Configuration context
  */
 export interface ConfigContext {
 	/** Configuration instance (or default) */
 	config: ConstellationConfig;
-	/** Project ID (from git remote or config) */
+	/** Project ID (from config.namespace only) */
 	projectId: string;
-	/** Branch name (from git or config) */
+	/** Branch name (from config.branch only) */
 	branchName: string;
-	/** API access key (from env or config) */
+	/** API access key (from env only) */
 	apiKey: string;
 	/** Whether configuration was loaded from file */
 	configLoaded: boolean;
-	/** Whether we're in a git repository */
-	isGitRepo: boolean;
 }
 
 /**
@@ -53,40 +50,41 @@ class ConfigurationManager {
 	 * @param workingDir Working directory to search for config (defaults to cwd)
 	 */
 	async initialize(workingDir: string = process.cwd()): Promise<void> {
+		console.error(`[ConfigManager] initialize() called - already initialized: ${this.initialized}`);
 		if (this.initialized) {
+			console.error('[ConfigManager] Already initialized, skipping');
 			return;
 		}
 
-		// Try to load configuration from file
-		let config: ConstellationConfig | null = null;
-		let configLoaded = false;
+		// Try to load configuration from file (DO NOT use defaults)
+		let config = await ConfigLoader.loadConfig(workingDir, false);
 
-		try {
-			config = await ConfigLoader.loadConfig(workingDir, true);
-			configLoaded = !!config;
-		} catch (error) {
-			// Config loading failed, will use defaults
-		}
-
-		// If no config found, use defaults
 		if (!config) {
-			config = ConstellationConfig.createDefault();
+			throw new Error(
+				'constellation.json not found at git repository root.\n\n' +
+				'The Constellation MCP server requires a constellation.json configuration file ' +
+				'at the root of your git repository.\n\n' +
+				'To fix this:\n' +
+				'1. Navigate to your git repository root\n' +
+				'2. Create a constellation.json file with the following structure:\n' +
+				'   {\n' +
+				'     "namespace": "your-project-name",\n' +
+				'     "branch": "main",\n' +
+				'     "apiUrl": "https://api.constellation.dev",\n' +
+				'     "languages": {\n' +
+				'       "typescript": { "fileExtensions": [".ts", ".tsx"] }\n' +
+				'     }\n' +
+				'   }\n\n' +
+				'For more information, visit: https://docs.constellation.dev/setup'
+			);
 		}
 
-		// Get git information for auto-detection
-		const gitInfo = await getGitInfo(workingDir);
+		const configLoaded = true;
 
-		// Determine project ID (priority: env > git > config)
-		const projectId =
-			process.env.CONSTELLATION_PROJECT_ID ||
-			gitInfo.projectId ||
-			config.namespace;
-
-		// Determine branch name (priority: env > git > config)
-		const branchName =
-			process.env.CONSTELLATION_BRANCH ||
-			gitInfo.branch ||
-			config.branch;
+		// Project ID and branch come ONLY from constellation.json
+		// No environment variable overrides, no git detection
+		const projectId = config.namespace;
+		const branchName = config.branch;
 
 		// Determine API key (priority: env > error)
 		const apiKey = process.env.CONSTELLATION_API_KEY || '';
@@ -116,19 +114,20 @@ class ConfigurationManager {
 			branchName,
 			apiKey,
 			configLoaded,
-			isGitRepo: gitInfo.isRepo,
 		};
 
 		this.initialized = true;
 
+		console.error('[ConfigManager] Initialization COMPLETE');
+		console.error(`[ConfigManager] State: initialized=${this.initialized}, hasContext=${!!this.configContext}`);
+
 		// Log initialization info (only in debug mode)
 		if (process.env.DEBUG) {
-			console.log('[Constellation MCP] Configuration initialized:');
-			console.log(`  API URL: ${config.apiUrl}`);
-			console.log(`  Project ID: ${projectId}`);
-			console.log(`  Branch: ${branchName}`);
-			console.log(`  Config loaded from file: ${configLoaded}`);
-			console.log(`  Git repository: ${gitInfo.isRepo ? 'yes' : 'no'}`);
+			console.error('[Constellation MCP] Configuration initialized:');
+			console.error(`  API URL: ${config.apiUrl}`);
+			console.error(`  Project ID: ${projectId}`);
+			console.error(`  Branch: ${branchName}`);
+			console.error(`  Config loaded from file: ${configLoaded}`);
 		}
 	}
 
@@ -139,7 +138,10 @@ class ConfigurationManager {
 	 * @throws If not initialized
 	 */
 	getContext(): ConfigContext {
+		console.error(`[ConfigManager] getContext() called - initialized: ${this.initialized}, hasContext: ${!!this.configContext}`);
 		if (!this.initialized || !this.configContext) {
+			console.error('[ConfigManager] ERROR: Not initialized!');
+			console.error('[ConfigManager] Stack trace:', new Error().stack);
 			throw new Error(
 				'Configuration not initialized. Call initialize() first.'
 			);
@@ -173,9 +175,53 @@ export function getConfigManager(): ConfigurationManager {
 /**
  * Get current configuration context
  * Convenience function for tools
+ *
+ * If not initialized, performs lazy initialization with defaults
  */
 export function getConfigContext(): ConfigContext {
-	return getConfigManager().getContext();
+	const manager = getConfigManager();
+	if (!manager.isInitialized()) {
+		console.error('[ConfigManager] WARNING: getConfigContext() called before initialize()');
+		console.error('[ConfigManager] Performing lazy initialization');
+
+		// Load config synchronously if possible
+		try {
+			const fs = require('fs');
+			const path = require('path');
+			const configPath = path.join(process.cwd(), 'constellation.json');
+			let config = ConstellationConfig.createDefault();
+			let projectId = 'constellation-mcp'; // Default for this project
+
+			if (fs.existsSync(configPath)) {
+				const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+				config = ConstellationConfig.fromJSON(configData);
+				projectId = configData.namespace || projectId;
+				console.error(`[ConfigManager] Loaded config from file: ${configPath}`);
+			}
+
+			manager['configContext'] = {
+				config,
+				projectId: projectId, // Always from config.namespace
+				branchName: config.branch, // Always from config.branch
+				apiKey: process.env.CONSTELLATION_API_KEY || '',
+				configLoaded: fs.existsSync(configPath),
+			};
+			manager['initialized'] = true;
+		} catch (error) {
+			console.error('[ConfigManager] Error during lazy init:', error);
+			// Fallback to defaults
+			const defaultConfig = ConstellationConfig.createDefault();
+			manager['configContext'] = {
+				config: defaultConfig,
+				projectId: defaultConfig.namespace, // Always from config
+				branchName: defaultConfig.branch, // Always from config
+				apiKey: process.env.CONSTELLATION_API_KEY || '',
+				configLoaded: false,
+			};
+			manager['initialized'] = true;
+		}
+	}
+	return manager.getContext();
 }
 
 /**

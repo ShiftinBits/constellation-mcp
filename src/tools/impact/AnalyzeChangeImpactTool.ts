@@ -68,67 +68,124 @@ class AnalyzeChangeImpactTool extends BaseMcpTool<
 		data: AnalyzeChangeImpactResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { target, impactSummary, affectedFiles, recommendations } = data;
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		const { target, affectedDirectly, affectedTransitively, relatedTests, risk } = data;
 
 		let output = `Change Impact Analysis\n\n`;
-		output += `Target: ${target.name} (${target.type})\n`;
-		output += `Location: ${target.location}\n\n`;
 
-		// Impact summary
-		output += `## Impact Summary\n`;
-		output += `Total affected files: ${impactSummary.totalAffectedFiles}\n`;
-		output += `  🔴 High impact: ${impactSummary.highImpact}\n`;
-		output += `  🟡 Medium impact: ${impactSummary.mediumImpact}\n`;
-		output += `  🟢 Low impact: ${impactSummary.lowImpact}\n\n`;
-
-		if (affectedFiles.length === 0) {
-			output += '✅ No files will be affected by this change. Safe to proceed!\n';
-		} else {
-			// Group by impact level
-			const high = affectedFiles.filter((f) => f.impactLevel === 'high');
-			const medium = affectedFiles.filter((f) => f.impactLevel === 'medium');
-			const low = affectedFiles.filter((f) => f.impactLevel === 'low');
-
-			if (high.length > 0) {
-				output += `## 🔴 High Impact Files (${high.length})\n`;
-				output += 'These files will likely break:\n\n';
-				for (const file of high.slice(0, 10)) {
-					output += `  ${file.filePath}\n`;
-					output += `    ${file.reason}\n`;
-					if (file.affectedSymbols && file.affectedSymbols.length > 0) {
-						output += `    Symbols: ${file.affectedSymbols.join(', ')}\n`;
-					}
-					output += '\n';
-				}
-				if (high.length > 10) {
-					output += `  ... and ${high.length - 10} more\n\n`;
-				}
+		// Target info
+		if (target) {
+			output += `Target: ${target.path || 'unknown'}`;
+			if (target.name) {
+				output += ` (${target.name})`;
 			}
+			output += ` [${target.type || 'unknown'}]\n\n`;
+		}
 
-			if (medium.length > 0) {
-				output += `## 🟡 Medium Impact Files (${medium.length})\n`;
-				output += 'These files may need updates:\n\n';
-				for (const file of medium.slice(0, 5)) {
-					output += `  ${file.filePath}\n`;
-					output += `    ${file.reason}\n`;
-				}
-				if (medium.length > 5) {
-					output += `  ... and ${medium.length - 5} more\n`;
-				}
-				output += '\n';
-			}
+		// Count affected files
+		const directCount = affectedDirectly?.length || 0;
+		const transitiveCount = affectedTransitively?.length || 0;
+		const totalAffected = directCount + transitiveCount;
 
-			if (low.length > 0) {
-				output += `## 🟢 Low Impact Files (${low.length})\n`;
-				output += 'Review recommended but likely safe\n\n';
+		// Risk assessment
+		if (risk) {
+			output += `## Risk Assessment\n`;
+			output += `Level: ${risk.level?.toUpperCase() || 'UNKNOWN'}\n`;
+			output += `Score: ${risk.score || 0}/100\n\n`;
+
+			if (risk.factors) {
+				output += `### Risk Factors\n`;
+				output += `Files Affected: ${risk.factors.filesAffected || 0}\n`;
+				output += `Transitive Depth: ${risk.factors.transitiveDepth || 0}\n`;
+				output += `Public API Exposure: ${risk.factors.publicApiExposure ? 'yes' : 'no'}\n`;
+				output += `Test Coverage: ${risk.factors.testCoverage || 0}%\n`;
+				output += `Critical Files Affected: ${risk.factors.criticalFilesAffected || 0}\n\n`;
 			}
 		}
 
+		// Direct impact
+		if (directCount > 0) {
+			output += `## 🔴 Directly Affected Files (${directCount})\n\n`;
+			for (const file of affectedDirectly!.slice(0, 10)) {
+				output += `  ${file?.filePath || 'unknown'}`;
+				if (file?.critical) {
+					output += ` ⚠️ CRITICAL`;
+				}
+				output += `\n`;
+				if (file?.reason) {
+					output += `    ${file.reason}\n`;
+				}
+				if (file?.distance !== undefined) {
+					output += `    Distance: ${file.distance}\n`;
+				}
+				output += '\n';
+			}
+			if (directCount > 10) {
+				output += `  ... and ${directCount - 10} more\n\n`;
+			}
+		}
+
+		// Transitive impact
+		if (transitiveCount > 0) {
+			output += `## 🟡 Transitively Affected Files (${transitiveCount})\n\n`;
+			for (const file of affectedTransitively!.slice(0, 10)) {
+				output += `  ${file?.filePath || 'unknown'}`;
+				if (file?.critical) {
+					output += ` ⚠️ CRITICAL`;
+				}
+				if (file?.distance !== undefined) {
+					output += ` (distance: ${file.distance})`;
+				}
+				output += `\n`;
+				if (file?.reason) {
+					output += `    ${file.reason}\n`;
+				}
+				if (file?.chain && file.chain.length > 0) {
+					output += `    Chain: ${file.chain.join(' → ')}\n`;
+				}
+				output += '\n';
+			}
+			if (transitiveCount > 10) {
+				output += `  ... and ${transitiveCount - 10} more\n\n`;
+			}
+		}
+
+		// Related tests
+		const testCount = relatedTests?.length || 0;
+		if (testCount > 0) {
+			output += `## 🧪 Related Test Files (${testCount})\n\n`;
+			for (const test of relatedTests!.slice(0, 10)) {
+				output += `  • ${test}\n`;
+			}
+			if (testCount > 10) {
+				output += `  ... and ${testCount - 10} more\n`;
+			}
+			output += '\n';
+		}
+
 		// Recommendations
-		if (recommendations.length > 0) {
-			output += `## 💡 Recommendations\n`;
-			for (let i = 0; i < recommendations.length; i++) {
-				output += `${i + 1}. ${recommendations[i]}\n`;
+		if (risk?.recommendations && risk.recommendations.length > 0) {
+			output += `## 💡 Recommendations\n\n`;
+			for (let i = 0; i < risk.recommendations.length; i++) {
+				output += `${i + 1}. ${risk.recommendations[i]}\n`;
+			}
+			output += '\n';
+		}
+
+		// Summary
+		if (totalAffected === 0) {
+			output += '✅ No files will be affected by this change. Safe to proceed!\n';
+		} else {
+			output += `## Summary\n`;
+			output += `Total Affected: ${totalAffected} file${totalAffected === 1 ? '' : 's'}\n`;
+			output += `  - Direct: ${directCount}\n`;
+			output += `  - Transitive: ${transitiveCount}\n`;
+			if (testCount > 0) {
+				output += `  - Tests: ${testCount}\n`;
 			}
 		}
 

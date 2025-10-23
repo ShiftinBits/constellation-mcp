@@ -64,12 +64,16 @@ export class ConstellationConfig implements IConstellationConfig {
 			throw new Error('Invalid configuration: expected an object');
 		}
 
-		const parsed = data as IConstellationConfig;
+		const parsed = data as Partial<IConstellationConfig>;
+
+		// Provide defaults for optional fields
+		const defaultConfig = ConstellationConfig.createDefault();
+
 		const config = new ConstellationConfig(
-			parsed.apiUrl,
-			parsed.branch,
-			parsed.languages || {},
-			parsed.namespace
+			parsed.apiUrl || defaultConfig.apiUrl,
+			parsed.branch || defaultConfig.branch,
+			parsed.languages || defaultConfig.languages,
+			parsed.namespace || defaultConfig.namespace
 		);
 
 		// Validate the configuration immediately after creation

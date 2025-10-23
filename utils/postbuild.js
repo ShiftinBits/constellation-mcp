@@ -32,7 +32,12 @@ try {
 	// Write the updated content back to the file
 	fs.writeFileSync(filePath, newContent, 'utf8');
 
-	console.log('Successfully added shebang to dist/index.js');
+	// Make the file executable
+	fs.chmodSync(filePath, 0o755);
+
+	console.log(
+		'Successfully added shebang to dist/index.js and made it executable',
+	);
 } catch (error) {
 	console.error('Error processing dist/index.js:', error.message);
 	process.exit(1);

@@ -67,11 +67,47 @@ class AnalyzeBreakingChangesTool extends BaseMcpTool<
 				'Optional: Type of change to simulate (signature, visibility, deletion, rename, type)',
 		},
 		includeExternalConsumers: {
-			type: z.boolean().optional().default(false),
+			type: z.coerce.boolean().optional().default(false),
 			description:
 				'Include consumers from external packages (default: false)',
 		},
 	};
+
+	/**
+	 * Override execute to transform parameters before API call
+	 * Generate changes array based on changeType
+	 */
+	async execute(input: AnalyzeBreakingChangesParams): Promise<string> {
+		// Build changes array from parameters
+		const changes = [];
+
+		// If changeType is specified, create a change entry
+		if (input.changeType) {
+			const change: any = {
+				type: input.changeType,
+			};
+
+			// If symbolName provided, target specific symbol
+			if (input.symbolName) {
+				change.symbolName = input.symbolName;
+			}
+
+			changes.push(change);
+		} else {
+			// Default: analyze all exported symbols for potential breaking changes
+			changes.push({
+				type: 'signature', // Default change type
+			});
+		}
+
+		// Pass transformed parameters to API
+		const apiParams = {
+			...input,
+			changes,
+		};
+
+		return super.execute(apiParams);
+	}
 
 	/**
 	 * Format the breaking changes analysis for AI-friendly output
@@ -80,67 +116,90 @@ class AnalyzeBreakingChangesTool extends BaseMcpTool<
 		data: AnalyzeBreakingChangesResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { targetSymbol, breakingChanges, totalAffectedFiles, riskLevel, migrationComplexity } = data;
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
 
-		let output = `Breaking Changes Analysis: ${targetSymbol.name}\n\n`;
+		const { targetSymbol, breakingChanges, totalAffectedFiles, riskLevel, migrationComplexity } = data;
+		const changes = breakingChanges || [];
+		const affectedFiles = totalAffectedFiles || 0;
+		const risk = riskLevel || 'LOW';
+		const complexity = migrationComplexity || 'SIMPLE';
+
+		let output = `Breaking Changes Analysis: ${targetSymbol?.name || 'unknown'}\n\n`;
 
 		// Target info
-		output += `## Target Symbol\n`;
-		output += `Name: ${targetSymbol.name}\n`;
-		output += `File: ${targetSymbol.filePath}\n`;
-		output += `Kind: ${targetSymbol.kind}\n`;
-		if (targetSymbol.currentSignature) {
-			output += `Current Signature: ${targetSymbol.currentSignature}\n`;
+		if (targetSymbol) {
+			output += `## Target Symbol\n`;
+			output += `Name: ${targetSymbol.name || 'unknown'}\n`;
+			output += `File: ${targetSymbol.filePath || 'unknown'}\n`;
+			output += `Kind: ${targetSymbol.kind || 'unknown'}\n`;
+			if (targetSymbol.currentSignature) {
+				output += `Current Signature: ${targetSymbol.currentSignature}\n`;
+			}
 		}
 
 		// Risk assessment
 		output += `\n## Risk Assessment\n`;
-		output += `Overall Risk: ${this.getRiskEmoji(riskLevel)} ${riskLevel}\n`;
-		output += `Affected Files: ${totalAffectedFiles}\n`;
-		output += `Migration Complexity: ${migrationComplexity}\n`;
+		output += `Overall Risk: ${this.getRiskEmoji(risk)} ${risk}\n`;
+		output += `Affected Files: ${affectedFiles}\n`;
+		output += `Migration Complexity: ${complexity}\n`;
 
-		if (breakingChanges.length === 0) {
+		if (changes.length === 0) {
 			output += `\n✅ No breaking changes detected! This modification appears safe.\n`;
 		} else {
-			output += `\n## Breaking Changes (${breakingChanges.length})\n\n`;
+			output += `\n## Breaking Changes (${changes.length})\n\n`;
 
 			// Sort by severity
-			const sorted = [...breakingChanges].sort((a, b) => {
+			const sorted = [...changes].sort((a, b) => {
 				const severityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-				return severityOrder[a.severity] - severityOrder[b.severity];
+				const aSev = a?.severity || 'LOW';
+				const bSev = b?.severity || 'LOW';
+				return severityOrder[aSev] - severityOrder[bSev];
 			});
 
 			for (const change of sorted) {
-				output += `### ${this.getRiskEmoji(change.severity)} ${change.type} (${change.severity})\n`;
-				output += `${change.description}\n\n`;
+				const severity = change?.severity || 'MEDIUM';
+				const type = change?.type || 'change';
+				const description = change?.description || 'Breaking change detected';
+				const affectedConsumers = change?.affectedConsumers || [];
 
-				if (change.affectedConsumers.length > 0) {
-					output += `Affected Locations (${change.affectedConsumers.length}):\n`;
-					for (const consumer of change.affectedConsumers.slice(0, 10)) {
-						output += `  • ${consumer.filePath}:${consumer.line}\n`;
-						output += `    ${consumer.context}\n`;
+				output += `### ${this.getRiskEmoji(severity)} ${type} (${severity})\n`;
+				output += `${description}\n\n`;
+
+				if (affectedConsumers.length > 0) {
+					output += `Affected Locations (${affectedConsumers.length}):\n`;
+					for (const consumer of affectedConsumers.slice(0, 10)) {
+						const filePath = consumer?.filePath || 'unknown';
+						const line = consumer?.line || 0;
+						const context = consumer?.context || '';
+						output += `  • ${filePath}:${line}\n`;
+						if (context) {
+							output += `    ${context}\n`;
+						}
 					}
-					if (change.affectedConsumers.length > 10) {
-						output += `  ... and ${change.affectedConsumers.length - 10} more locations\n`;
+					if (affectedConsumers.length > 10) {
+						output += `  ... and ${affectedConsumers.length - 10} more locations\n`;
 					}
 					output += '\n';
 				}
 
-				if (change.suggestedMigration) {
+				if (change?.suggestedMigration) {
 					output += `**Migration Guide:**\n${change.suggestedMigration}\n\n`;
 				}
 			}
 
 			// Summary recommendations
 			output += `## Recommendations\n`;
-			if (riskLevel === 'CRITICAL' || riskLevel === 'HIGH') {
+			if (risk === 'CRITICAL' || risk === 'HIGH') {
 				output += `⚠️  **High Risk Change Detected**\n`;
 				output += `1. Consider deprecation period before removal\n`;
 				output += `2. Provide migration guide in changelog\n`;
 				output += `3. Add runtime warnings if possible\n`;
 				output += `4. Coordinate with affected teams\n`;
 				output += `5. Consider feature flags for gradual rollout\n`;
-			} else if (riskLevel === 'MEDIUM') {
+			} else if (risk === 'MEDIUM') {
 				output += `1. Document breaking change in release notes\n`;
 				output += `2. Update all affected consumers before release\n`;
 				output += `3. Consider adding backward compatibility layer\n`;

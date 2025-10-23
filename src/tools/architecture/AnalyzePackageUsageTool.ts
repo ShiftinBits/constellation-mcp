@@ -78,12 +78,12 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 				'Optional: Analyze specific package (e.g., "lodash"). If omitted, analyzes all packages.',
 		},
 		includeVersions: {
-			type: z.boolean().optional().default(true),
+			type: z.coerce.boolean().optional().default(true),
 			description:
 				'Include version information and compatibility analysis (default: true)',
 		},
 		includeUsageLocations: {
-			type: z.boolean().optional().default(false),
+			type: z.coerce.boolean().optional().default(false),
 			description:
 				'Include detailed usage locations (default: false, can be verbose)',
 		},
@@ -96,63 +96,85 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 		data: AnalyzePackageUsageResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { summary, packages, recommendations, heavyUsers } = data;
+		// Defensive checks
+		if (!data || !data.packages) {
+			return 'Error: No package data returned from API';
+		}
+
+		const { packages, duplicates, categories } = data;
 
 		let output = `Package Usage Analysis\n\n`;
 
 		// Summary
 		output += `## Summary\n`;
-		output += `Total Packages: ${summary.totalPackages}\n`;
-		output += `Total Import Statements: ${summary.totalUsages}\n`;
-		output += `\nBy Category:\n`;
-		output += `  Production: ${summary.byCategory.production}\n`;
-		output += `  Development: ${summary.byCategory.development}\n`;
-		if (summary.byCategory.peer > 0) {
-			output += `  Peer: ${summary.byCategory.peer}\n`;
+		output += `Total Packages Analyzed: ${packages?.length || 0}\n`;
+
+		// Calculate totals from packages
+		let totalUsages = 0;
+		for (const pkg of packages) {
+			totalUsages += pkg?.totalUsages || 0;
 		}
-		if (summary.byCategory.optional > 0) {
-			output += `  Optional: ${summary.byCategory.optional}\n`;
+		output += `Total Usages: ${totalUsages}\n`;
+
+		// Categories
+		if (categories && categories.length > 0) {
+			output += `\n### By Category\n`;
+			for (const cat of categories) {
+				output += `  ${cat?.category || 'unknown'}: ${cat?.count || 0} packages\n`;
+			}
 		}
 
 		// Top packages
 		if (packages.length > 0) {
-			output += `\n## Most Used Packages\n\n`;
+			output += `\n## Package Details\n\n`;
 
-			const sorted = [...packages].sort((a, b) => b.usageCount - a.usageCount);
+			const sorted = [...packages].sort((a, b) => (b?.totalUsages || 0) - (a?.totalUsages || 0));
 
 			for (const pkg of sorted.slice(0, 15)) {
-				output += `### ${pkg.name}`;
-				if (pkg.version) {
+				output += `### ${pkg?.packageName || 'unknown'}`;
+				if (pkg?.version) {
 					output += ` @${pkg.version}`;
 				}
 				output += '\n';
 
-				output += `Category: ${pkg.category}\n`;
-				output += `Used in: ${pkg.filesUsing} files (${pkg.usageCount} imports)\n`;
+				output += `Total Usages: ${pkg?.totalUsages || 0}\n`;
+				output += `Used in: ${pkg?.fileCount || 0} files\n`;
+				output += `Utilization Score: ${((pkg?.utilizationScore || 0) * 100).toFixed(1)}%\n`;
 
-				// Health indicators
-				if (pkg.health.isDeprecated) {
-					output += `⚠️  **DEPRECATED** - Consider migrating\n`;
-				}
-				if (pkg.health.hasSecurityIssues) {
-					output += `🔴 **SECURITY ISSUES** - Update immediately\n`;
-				}
-				if (pkg.health.alternatives && pkg.health.alternatives.length > 0) {
-					output += `Alternatives: ${pkg.health.alternatives.join(', ')}\n`;
+				// Most used symbols
+				if (pkg?.mostUsedSymbols && pkg.mostUsedSymbols.length > 0) {
+					output += `Most Used Symbols:\n`;
+					for (const sym of pkg.mostUsedSymbols.slice(0, 5)) {
+						output += `  • ${sym?.symbol || 'unknown'} (${sym?.count || 0} times)\n`;
+					}
+					if (pkg.mostUsedSymbols.length > 5) {
+						output += `  ... and ${pkg.mostUsedSymbols.length - 5} more\n`;
+					}
 				}
 
-				// Usage locations (if requested and available)
-				if (pkg.locations && pkg.locations.length > 0) {
-					output += `\nUsage Locations:\n`;
-					for (const loc of pkg.locations.slice(0, 5)) {
-						output += `  • ${loc.filePath}:${loc.line}`;
-						if (loc.importedSymbols.length > 0) {
-							output += ` (${loc.importedSymbols.join(', ')})`;
+				// Module breakdown
+				if (pkg?.moduleBreakdown && pkg.moduleBreakdown.length > 0) {
+					output += `\nModule Breakdown:\n`;
+					for (const mod of pkg.moduleBreakdown.slice(0, 5)) {
+						output += `  • ${mod?.moduleName || 'unknown'}: ${mod?.usageCount || 0} usages in ${mod?.fileCount || 0} files\n`;
+					}
+					if (pkg.moduleBreakdown.length > 5) {
+						output += `  ... and ${pkg.moduleBreakdown.length - 5} more modules\n`;
+					}
+				}
+
+				// Usage details
+				if (pkg?.usages && pkg.usages.length > 0) {
+					output += `\nUsage Locations (showing ${Math.min(5, pkg.usages.length)} of ${pkg.usages.length}):\n`;
+					for (const usage of pkg.usages.slice(0, 5)) {
+						output += `  • ${usage?.filePath || 'unknown'}`;
+						if (usage?.lineNumber) {
+							output += `:${usage.lineNumber}`;
+						}
+						if (usage?.importedSymbols && usage.importedSymbols.length > 0) {
+							output += ` - imports: ${usage.importedSymbols.join(', ')}`;
 						}
 						output += '\n';
-					}
-					if (pkg.locations.length > 5) {
-						output += `  ... and ${pkg.locations.length - 5} more locations\n`;
 					}
 				}
 
@@ -164,73 +186,37 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 			}
 		}
 
-		// Heavy users (files with many imports)
-		if (heavyUsers.length > 0) {
-			output += `## Files with Most Dependencies\n`;
-			output += `These files import many packages and may benefit from refactoring:\n\n`;
+		// Duplicates
+		if (duplicates && duplicates.length > 0) {
+			output += `## ⚠️  Duplicate Packages (${duplicates.length})\n`;
+			output += `Multiple versions of the same package detected:\n\n`;
 
-			for (const user of heavyUsers.slice(0, 10)) {
-				output += `  ${user.filePath} - ${user.packagesUsed} packages\n`;
-				if (user.packages.length <= 5) {
-					output += `    ${user.packages.join(', ')}\n`;
-				} else {
-					output += `    ${user.packages.slice(0, 5).join(', ')}, ...\n`;
+			for (const dup of duplicates) {
+				output += `  • ${dup?.packageName || 'unknown'}\n`;
+				output += `    Versions: ${dup?.versions?.join(', ') || 'unknown'}\n`;
+				if (dup?.potentialConflict) {
+					output += `    ⚠️  Potential conflict detected\n`;
 				}
 			}
 			output += '\n';
 		}
 
-		// Recommendations
-		if (
-			recommendations.toRemove.length > 0 ||
-			recommendations.toUpdate.length > 0 ||
-			recommendations.toReplace.length > 0
-		) {
-			output += `## 💡 Recommendations\n\n`;
-
-			if (recommendations.toRemove.length > 0) {
-				output += `### Remove Unused Dependencies (${recommendations.toRemove.length})\n`;
-				output += `These packages are declared but never imported:\n`;
-				for (const pkg of recommendations.toRemove.slice(0, 10)) {
-					output += `  • ${pkg}\n`;
-				}
-				if (recommendations.toRemove.length > 10) {
-					output += `  ... and ${recommendations.toRemove.length - 10} more\n`;
-				}
-				output += '\n';
-			}
-
-			if (recommendations.toUpdate.length > 0) {
-				output += `### Update These Packages (${recommendations.toUpdate.length})\n`;
-				output += `Outdated or have security issues:\n`;
-				for (const pkg of recommendations.toUpdate.slice(0, 10)) {
-					output += `  • ${pkg}\n`;
-				}
-				if (recommendations.toUpdate.length > 10) {
-					output += `  ... and ${recommendations.toUpdate.length - 10} more\n`;
-				}
-				output += '\n';
-			}
-
-			if (recommendations.toReplace.length > 0) {
-				output += `### Consider Replacing (${recommendations.toReplace.length})\n`;
-				for (const item of recommendations.toReplace) {
-					output += `  • ${item.package}\n`;
-					output += `    Reason: ${item.reason}\n`;
-					output += `    Alternative: ${item.alternative}\n`;
+		// Categories detail
+		if (categories && categories.length > 0) {
+			output += `## Package Categories\n\n`;
+			for (const cat of categories) {
+				output += `### ${cat?.category || 'unknown'} (${cat?.count || 0})\n`;
+				if (cat?.packages && cat.packages.length > 0) {
+					for (const pkg of cat.packages.slice(0, 10)) {
+						output += `  • ${pkg}\n`;
+					}
+					if (cat.packages.length > 10) {
+						output += `  ... and ${cat.packages.length - 10} more\n`;
+					}
 				}
 				output += '\n';
 			}
 		}
-
-		// Action items
-		output += `## 🎯 Action Items\n\n`;
-		output += `1. **Remove unused dependencies** to reduce bundle size\n`;
-		output += `2. **Update packages** with security issues immediately\n`;
-		output += `3. **Review deprecated packages** and plan migration\n`;
-		output += `4. **Refactor heavy users** to reduce coupling\n`;
-		output += `5. **Consider tree-shaking** for partially-used large libraries\n`;
-		output += `6. **Add dependency constraints** to prevent bloat\n`;
 
 		if (metadata.cached) {
 			output += '\n\n(Results served from cache)';

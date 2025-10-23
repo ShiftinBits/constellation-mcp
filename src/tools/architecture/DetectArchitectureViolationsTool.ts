@@ -82,59 +82,100 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 		data: DetectArchitectureViolationsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { summary, violations, patterns, compliance } = data;
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		// Backend DTO returns violations[], circularDependencies[], codeHealth{}
+		const { violations, circularDependencies, codeHealth } = data;
+
+		const violationsArray = violations || [];
+		const circularArray = circularDependencies || [];
 
 		let output = `Architecture Violations Report\n\n`;
 
-		// Compliance score
-		output += `## Compliance Score: ${this.getGradeEmoji(compliance.grade)} ${compliance.grade} (${compliance.score}/100)\n\n`;
+		// Code health metrics
+		if (codeHealth) {
+			output += `## Code Health Score: ${codeHealth.overallScore || 0}/100\n`;
+			output += `Maintainability Index: ${codeHealth.maintainabilityIndex || 0}\n`;
+			output += `Trend: ${codeHealth.trendDirection || 'unknown'}\n`;
 
-		if (summary.totalViolations === 0) {
+			if (codeHealth.technicalDebt) {
+				output += `\nTechnical Debt:\n`;
+				output += `  Estimated Hours: ${codeHealth.technicalDebt.estimatedHours || 0}\n`;
+				output += `  Critical Issues: ${codeHealth.technicalDebt.criticalIssues || 0}\n`;
+			}
+			output += '\n';
+		}
+
+		if (violationsArray.length === 0 && circularArray.length === 0) {
 			output += '✅ No architecture violations detected! Your codebase follows architectural principles.\n';
 		} else {
 			// Summary
 			output += `## Summary\n`;
-			output += `Total Violations: ${summary.totalViolations}\n\n`;
+			output += `Total Violations: ${violationsArray.length}\n`;
+			output += `Circular Dependencies: ${circularArray.length}\n\n`;
+
+			// Calculate by severity
+			const bySeverity: Record<string, number> = {};
+			for (const v of violationsArray) {
+				const sev = v?.severity || 'low';
+				bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+			}
 
 			output += `By Severity:\n`;
-			if (summary.bySeverity.critical > 0) {
-				output += `  🔴 Critical: ${summary.bySeverity.critical}\n`;
+			if (bySeverity.critical > 0) {
+				output += `  🔴 Critical: ${bySeverity.critical}\n`;
 			}
-			if (summary.bySeverity.high > 0) {
-				output += `  🟠 High: ${summary.bySeverity.high}\n`;
+			if (bySeverity.high > 0) {
+				output += `  🟠 High: ${bySeverity.high}\n`;
 			}
-			if (summary.bySeverity.medium > 0) {
-				output += `  🟡 Medium: ${summary.bySeverity.medium}\n`;
+			if (bySeverity.medium > 0) {
+				output += `  🟡 Medium: ${bySeverity.medium}\n`;
 			}
-			if (summary.bySeverity.low > 0) {
-				output += `  🟢 Low: ${summary.bySeverity.low}\n`;
+			if (bySeverity.low > 0) {
+				output += `  🟢 Low: ${bySeverity.low}\n`;
 			}
 
-			if (Object.keys(summary.byCategory).length > 0) {
-				output += `\nBy Category:\n`;
-				const sorted = Object.entries(summary.byCategory).sort(([, a], [, b]) => b - a);
-				for (const [category, count] of sorted) {
-					output += `  • ${category}: ${count}\n`;
+			// Group by type
+			const byType: Record<string, number> = {};
+			for (const v of violationsArray) {
+				const type = v?.type || 'unknown';
+				byType[type] = (byType[type] || 0) + 1;
+			}
+
+			if (Object.keys(byType).length > 0) {
+				output += `\nBy Type:\n`;
+				const sorted = Object.entries(byType).sort(([, a], [, b]) => b - a);
+				for (const [type, count] of sorted) {
+					output += `  • ${type}: ${count}\n`;
 				}
 			}
 
-			// Common patterns
-			if (patterns.commonIssues.length > 0) {
-				output += `\n## 🔍 Common Issues\n`;
-				for (const issue of patterns.commonIssues.slice(0, 5)) {
-					output += `\n### ${issue.pattern} (${issue.count} occurrences)\n`;
-					output += `${issue.description}\n`;
+			// Circular dependencies
+			if (circularArray.length > 0) {
+				output += `\n## ⚠️  Circular Dependencies (${circularArray.length})\n\n`;
+				for (const circ of circularArray.slice(0, 10)) {
+					output += `  Severity: ${circ?.severity || 'unknown'} | Length: ${circ?.length || 0}\n`;
+					if (circ?.cycle && circ.cycle.length > 0) {
+						output += `  Cycle: ${circ.cycle.join(' → ')}\n`;
+					}
+					output += '\n';
+				}
+				if (circularArray.length > 10) {
+					output += `  ... and ${circularArray.length - 10} more circular dependencies\n\n`;
 				}
 			}
 
 			// Detailed violations
-			output += `\n## Violations (${violations.length})\n\n`;
+			output += `\n## Violations (${violationsArray.length})\n\n`;
 
 			// Group by severity
-			const critical = violations.filter(v => v.severity === 'CRITICAL');
-			const high = violations.filter(v => v.severity === 'HIGH');
-			const medium = violations.filter(v => v.severity === 'MEDIUM');
-			const low = violations.filter(v => v.severity === 'LOW');
+			const critical = violationsArray.filter(v => v?.severity === 'critical');
+			const high = violationsArray.filter(v => v?.severity === 'high');
+			const medium = violationsArray.filter(v => v?.severity === 'medium');
+			const low = violationsArray.filter(v => v?.severity === 'low');
 
 			if (critical.length > 0) {
 				output += `### 🔴 Critical (${critical.length})\n`;
@@ -169,16 +210,16 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 			// Action items
 			output += `## 🎯 Recommended Actions\n\n`;
 
-			if (summary.bySeverity.critical > 0) {
+			if (bySeverity.critical > 0) {
 				output += `**Immediate Priority:**\n`;
-				output += `1. Fix all ${summary.bySeverity.critical} critical violations\n`;
+				output += `1. Fix all ${bySeverity.critical} critical violations\n`;
 				output += `2. These violate fundamental architectural principles\n`;
 				output += `3. May cause system instability or security issues\n\n`;
 			}
 
-			if (summary.bySeverity.high > 0) {
+			if (bySeverity.high > 0) {
 				output += `**High Priority:**\n`;
-				output += `1. Address ${summary.bySeverity.high} high severity violations\n`;
+				output += `1. Address ${bySeverity.high} high severity violations\n`;
 				output += `2. These create significant technical debt\n`;
 				output += `3. Plan refactoring work to resolve\n\n`;
 			}
@@ -198,21 +239,60 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 		return output.trim();
 	}
 
-	private formatViolation(v: ArchitectureViolation): string {
-		let output = `\n**${v.type}**\n`;
-		output += `${v.description}\n`;
-		output += `File: ${v.violatingFile}`;
-		if (v.violatingLine) {
-			output += `:${v.violatingLine}`;
-		}
-		output += `\n`;
-		output += `Rule: ${v.rule}\n`;
-		output += `Fix: ${v.suggestion}\n`;
+	private formatViolation(v: any): string {
+		// Backend DTO structure: type, severity, title, description, location{}, evidence[], suggestions[], impact
+		let output = `\n**${v?.title || v?.type || 'Violation'}**\n`;
+		output += `${v?.description || 'No description'}\n`;
 
-		if (v.examples && v.examples.length > 0) {
-			output += `Examples:\n`;
-			for (const example of v.examples) {
-				output += `  ${example}\n`;
+		// Location
+		if (v?.location) {
+			output += `File: ${v.location.filePath || 'unknown'}`;
+			if (v.location.symbolName) {
+				output += ` (${v.location.symbolName})`;
+			}
+			if (v.location.lineStart) {
+				output += `:${v.location.lineStart}`;
+				if (v.location.lineEnd && v.location.lineEnd !== v.location.lineStart) {
+					output += `-${v.location.lineEnd}`;
+				}
+			}
+			output += `\n`;
+		}
+
+		// Impact
+		if (v?.impact) {
+			output += `Impact: ${v.impact}\n`;
+		}
+
+		// Evidence
+		if (v?.evidence && v.evidence.length > 0) {
+			output += `Evidence:\n`;
+			for (const ev of v.evidence) {
+				output += `  • ${ev?.metric || 'unknown'}: ${ev?.value || 'N/A'}`;
+				if (ev?.threshold) {
+					output += ` (threshold: ${ev.threshold})`;
+				}
+				output += '\n';
+			}
+		}
+
+		// Suggestions
+		if (v?.suggestions && v.suggestions.length > 0) {
+			output += `Suggestions:\n`;
+			for (const sug of v.suggestions) {
+				output += `  • ${sug}\n`;
+			}
+		}
+
+		// Related items
+		if (v?.relatedItems && v.relatedItems.length > 0) {
+			output += `Related:\n`;
+			for (const item of v.relatedItems.slice(0, 3)) {
+				output += `  • ${item?.filePath || 'unknown'}`;
+				if (item?.symbolName) {
+					output += ` (${item.symbolName})`;
+				}
+				output += '\n';
 			}
 		}
 

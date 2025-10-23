@@ -32,17 +32,17 @@ class GetFileDetailsTool extends BaseMcpTool<
 				'Path to the file (relative to project root, e.g., "src/components/Button.tsx")',
 		},
 		includeSymbols: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include all symbols defined in the file (default: true)',
 		},
 		includeDependencies: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include files/modules this file depends on (default: true)',
 		},
 		includeDependents: {
-			type: z.boolean().optional(),
+			type: z.coerce.boolean().optional(),
 			description:
 				'Include files that depend on this file (default: true)',
 		},
@@ -55,36 +55,104 @@ class GetFileDetailsTool extends BaseMcpTool<
 		data: GetFileDetailsResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { file } = data;
-		let output = `File Details: ${file.filePath}\n\n`;
+		// Defensive checks
+		if (!data || !data.file) {
+			return 'Error: No file data returned from API';
+		}
+
+		const { file, symbols, dependencies, dependents } = data;
+
+		// Backend returns 'path' not 'filePath'
+		const filePath = file?.path || file?.filePath || 'unknown';
+		let output = `File Details: ${filePath}\n\n`;
 
 		// Basic info
-		output += `Language: ${file.language}\n`;
+		output += `Language: ${file?.language || 'unknown'}\n`;
 
-		if (file.stats) {
-			output += `Size: ${formatBytes(file.stats.size)}\n`;
-			output += `Symbols: ${file.stats.symbolCount}\n`;
-			if (file.stats.lastModified) {
-				output += `Last Modified: ${file.stats.lastModified}\n`;
+		// Symbol counts from file metadata
+		if (file?.symbolCounts && Object.keys(file.symbolCounts).length > 0) {
+			const totalSymbols = Object.values(file.symbolCounts).reduce((a, b) => a + b, 0);
+			output += `Symbols: ${totalSymbols}\n`;
+			output += `Symbol Breakdown:\n`;
+			for (const [kind, count] of Object.entries(file.symbolCounts)) {
+				output += `  - ${kind}: ${count}\n`;
+			}
+		}
+
+		// File characteristics
+		if (file?.paradigm) {
+			output += `Paradigm: ${file.paradigm}\n`;
+		}
+		if (file?.moduleType) {
+			output += `Module Type: ${file.moduleType}\n`;
+		}
+		if (file?.domain) {
+			output += `Domain: ${file.domain}\n`;
+		}
+		if (file?.isTest !== undefined) {
+			output += `Is Test: ${file.isTest ? 'yes' : 'no'}\n`;
+			if (file.testFramework) {
+				output += `Test Framework: ${file.testFramework}\n`;
+			}
+		}
+
+		// Metrics (if available)
+		if (file?.metrics) {
+			output += `\n## Metrics\n`;
+			output += `Dependency Count: ${file.metrics.dependencyCount || 0}\n`;
+			output += `Dependent Count: ${file.metrics.dependentCount || 0}\n`;
+			output += `Dependency Depth: ${file.metrics.dependencyDepth || 0}\n`;
+			if (file.metrics.linesOfCode) {
+				output += `Lines of Code: ${file.metrics.linesOfCode}\n`;
+			}
+			if (file.metrics.complexityScore) {
+				output += `Complexity Score: ${file.metrics.complexityScore.toFixed(2)}\n`;
 			}
 		}
 
 		// Symbols
-		if (file.symbols && file.symbols.length > 0) {
-			output += `\n## Symbols (${file.symbols.length})\n\n`;
-			output += formatSymbolList(file.symbols);
+		if (symbols && symbols.length > 0) {
+			output += `\n## Symbols (${symbols.length})\n\n`;
+			output += formatSymbolList(symbols);
 		}
 
 		// Dependencies
-		if (file.dependencies && file.dependencies.length > 0) {
-			output += `\n\n## Dependencies (${file.dependencies.length})\n`;
-			output += formatDependencies(file.dependencies);
+		if (dependencies) {
+			const directCount = dependencies.direct?.length || 0;
+			const packageCount = dependencies.packages?.length || 0;
+
+			if (directCount > 0) {
+				output += `\n## File Dependencies (${directCount})\n\n`;
+				for (const dep of dependencies.direct) {
+					output += `→ ${dep?.filePath || 'unknown'}`;
+					if (dep?.line) {
+						output += ` (line ${dep.line})`;
+					}
+					output += '\n';
+				}
+			}
+
+			if (packageCount > 0) {
+				output += `\n## Package Dependencies (${packageCount})\n\n`;
+				for (const pkg of dependencies.packages) {
+					output += `→ ${pkg?.name || 'unknown'}`;
+					if (pkg?.version) {
+						output += ` @${pkg.version}`;
+					}
+					if (pkg?.type) {
+						output += ` (${pkg.type})`;
+					}
+					output += '\n';
+				}
+			}
 		}
 
 		// Dependents
-		if (file.dependents && file.dependents.length > 0) {
-			output += `\n\n## Dependents (${file.dependents.length})\n`;
-			output += formatDependencies(file.dependents);
+		if (dependents && dependents.length > 0) {
+			output += `\n## Files Depending on This (${dependents.length})\n\n`;
+			for (const dep of dependents) {
+				output += `← ${dep}\n`;
+			}
 		}
 
 		if (metadata.cached) {

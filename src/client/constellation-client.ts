@@ -236,7 +236,7 @@ export class ConstellationClient {
 
 				// Log retry attempts (only in debug mode)
 				if (process.env.DEBUG) {
-					console.log(
+					console.error(
 						`HTTP request attempt ${i}/${retries} failed: ${errorDetails}`
 					);
 				}

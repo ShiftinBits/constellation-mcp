@@ -12,6 +12,7 @@ import { MCPTool } from 'mcp-framework';
 import { getConfigContext } from '../../config/config-manager.js';
 import { ConstellationClient, McpToolResult } from '../../client/constellation-client.js';
 import { mapErrorToMessage } from '../../client/error-mapper.js';
+import { generateSymbolId } from '../../utils/symbol-id.utils.js';
 
 /**
  * Abstract base class for all Constellation MCP tools
@@ -59,14 +60,21 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 	 * 3. Format the result for AI consumption
 	 * 4. Handle errors with helpful messages
 	 *
+	 * NOTE: This method NEVER throws errors. All errors are converted to
+	 * user-friendly text messages and returned as regular content. This ensures
+	 * compatibility with Claude Code which doesn't support error content types.
+	 *
 	 * @param input Tool-specific input parameters
-	 * @returns Formatted result string for AI consumption
+	 * @returns Formatted result string for AI consumption (never throws)
 	 */
 	async execute(input: TInput): Promise<string> {
+		console.error(`[BaseMcpTool] execute() called for tool: ${this.name}`);
+		console.error(`[BaseMcpTool] input:`, JSON.stringify(input));
 		try {
 			// Get client and context
 			const client = this.getClient();
 			const context = this.getProjectContext();
+			console.error(`[BaseMcpTool] context:`, context);
 
 			// Execute the tool via API
 			const result: McpToolResult<TOutput> = await client.executeMcpTool(
@@ -74,18 +82,26 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 				input,
 				context
 			);
+			console.error(`[BaseMcpTool] API result success:`, result.success);
 
-			// Handle tool execution failure
+			// Handle tool execution failure - return error as text, don't throw
 			if (!result.success) {
 				const errorMessage = result.error || 'Tool execution failed';
-				throw new Error(errorMessage);
+				console.error(`[BaseMcpTool] Returning error as text:`, errorMessage);
+				// Map to helpful message and return as text
+				return mapErrorToMessage(new Error(errorMessage), this.name);
 			}
 
 			// Format the result for AI consumption
-			return this.formatResult(result.data!, result.metadata);
+			console.error(`[BaseMcpTool] Formatting successful result`);
+			const formatted = this.formatResult(result.data!, result.metadata);
+			console.error(`[BaseMcpTool] Formatted result length:`, formatted.length);
+			return formatted;
 		} catch (error) {
-			// Map error to helpful message
+			// Map error to helpful message and return as text (never throw)
+			console.error(`[BaseMcpTool] Caught exception:`, error);
 			const helpfulMessage = mapErrorToMessage(error, this.name);
+			console.error(`[BaseMcpTool] Returning error message as text`);
 			return helpfulMessage;
 		}
 	}
@@ -116,5 +132,54 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 	 */
 	protected getConfig() {
 		return getConfigContext();
+	}
+
+	/**
+	 * Generate a symbol ID from file path and symbol name
+	 *
+	 * Uses the current project context (namespace and branch) to generate
+	 * a properly formatted symbol ID for API calls.
+	 *
+	 * @param filePath - Relative file path from project root
+	 * @param symbolName - Name of the symbol
+	 * @returns Base64-encoded SHA-224 hash symbol ID
+	 *
+	 * @example
+	 * ```typescript
+	 * const symbolId = this.generateSymbolId(
+	 *   'src/controllers/health.controller.ts',
+	 *   'HealthController'
+	 * );
+	 * ```
+	 */
+	protected generateSymbolId(filePath: string, symbolName: string): string {
+		const context = this.getProjectContext();
+		return generateSymbolId(
+			context.projectId,
+			context.branchName,
+			filePath,
+			symbolName
+		);
+	}
+
+	/**
+	 * Override mcp-framework's createErrorResponse to return MCP-spec-compliant format
+	 *
+	 * The mcp-framework has a bug where it returns {type: "error"} which violates
+	 * the MCP specification. The spec requires {type: "text", isError: true}.
+	 *
+	 * This override ensures all error responses follow the specification.
+	 */
+	protected createErrorResponse(error: Error): { content: Array<{ type: 'text'; text: string }>; isError: boolean } {
+		const errorMessage = mapErrorToMessage(error, this.name);
+		return {
+			content: [
+				{
+					type: 'text',
+					text: errorMessage,
+				},
+			],
+			isError: true,
+		};
 	}
 }

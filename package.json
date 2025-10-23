@@ -4,7 +4,7 @@
 	"description": "Constellation MCP Server",
 	"type": "module",
 	"bin": {
-		"mcp-server": "./dist/index.js"
+		"mcp-constellation": "./dist/index.js"
 	},
 	"files": [
 		"dist"
@@ -23,24 +23,23 @@
 		"test:ci": "jest --ci --coverage --maxWorkers=2"
 	},
 	"dependencies": {
-		"mcp-framework": "^0.2.2",
-		"simple-git": "^3.27.0",
+		"mcp-framework": "^0.2.15",
 		"zod": "^3.23.8"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1",
-		"@types/node": "^20.11.24",
 		"@jest/globals": "^30.2.0",
 		"@types/jest": "^30.0.0",
-		"rimraf": "^6.0.1",
-		"ts-jest": "^29.4.4",
-		"tsup": "^8.5.0",
-		"typescript": "^5.3.3",
+		"@types/node": "^20.11.24",
 		"eslint": "^9",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
 		"jest": "^30.2.0",
-		"prettier": "^3.6.2"
+		"prettier": "^3.6.2",
+		"rimraf": "^6.0.1",
+		"ts-jest": "^29.4.4",
+		"tsup": "^8.5.0",
+		"typescript": "^5.3.3"
 	},
 	"engines": {
 		"node": ">=18.19.0"

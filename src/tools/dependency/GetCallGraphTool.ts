@@ -9,6 +9,7 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 import { formatLocation } from '../../utils/format-helpers.js';
 
 interface GetCallGraphParams {
+	symbolId?: string;
 	functionName?: string;
 	filePath?: string;
 	depth?: number;
@@ -57,7 +58,7 @@ class GetCallGraphTool extends BaseMcpTool<
 			description: 'File path to narrow down search',
 		},
 		depth: {
-			type: z.number().int().min(1).max(5).optional().default(3),
+			type: z.coerce.number().int().min(1).max(5).optional().default(3),
 			description:
 				'How many levels deep to traverse (default: 3, max: 5)',
 		},
@@ -69,42 +70,66 @@ class GetCallGraphTool extends BaseMcpTool<
 	};
 
 	/**
+	 * Override execute to generate symbolId from filePath + functionName if needed
+	 */
+	async execute(input: GetCallGraphParams): Promise<string> {
+		// If symbolId not provided but filePath and functionName are, generate it
+		if (!input.symbolId && input.filePath && input.functionName) {
+			const symbolId = this.generateSymbolId(input.filePath, input.functionName);
+			input = { ...input, symbolId };
+		}
+
+		return super.execute(input);
+	}
+
+	/**
 	 * Format the call graph for AI-friendly output
 	 */
 	protected formatResult(
 		data: GetCallGraphResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
+		// Defensive checks
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
 		const { rootFunction, nodes, edges, totalCalls } = data;
+		const nodesArray = nodes || [];
+		const edgesArray = edges || [];
+		const total = totalCalls || 0;
 
 		let output = `Call Graph Analysis\n\n`;
 
 		if (rootFunction) {
-			output += `Root Function: ${rootFunction.name}\n`;
-			output += `Location: ${formatLocation(rootFunction.filePath, rootFunction.line)}\n`;
-			output += `Type: ${rootFunction.kind}\n\n`;
+			output += `Root Function: ${rootFunction.name || 'unknown'}\n`;
+			output += `Location: ${formatLocation(rootFunction.filePath || 'unknown', rootFunction.line || 0)}\n`;
+			output += `Type: ${rootFunction.kind || 'function'}\n\n`;
 		}
 
-		output += `Total nodes: ${nodes.length}\n`;
-		output += `Total call relationships: ${totalCalls}\n\n`;
+		output += `Total nodes: ${nodesArray.length}\n`;
+		output += `Total call relationships: ${total}\n\n`;
 
-		if (edges.length === 0) {
+		if (edgesArray.length === 0) {
 			output += 'No call relationships found.';
 		} else {
 			// Build adjacency lists
 			const callees = new Map<string, CallGraphEdge[]>();
 			const callers = new Map<string, CallGraphEdge[]>();
 
-			for (const edge of edges) {
-				if (!callees.has(edge.from)) {
-					callees.set(edge.from, []);
-				}
-				callees.get(edge.from)!.push(edge);
+			for (const edge of edgesArray) {
+				const from = edge?.from || 'unknown';
+				const to = edge?.to || 'unknown';
 
-				if (!callers.has(edge.to)) {
-					callers.set(edge.to, []);
+				if (!callees.has(from)) {
+					callees.set(from, []);
 				}
-				callers.get(edge.to)!.push(edge);
+				callees.get(from)!.push(edge);
+
+				if (!callers.has(to)) {
+					callers.set(to, []);
+				}
+				callers.get(to)!.push(edge);
 			}
 
 			// Show what this function calls
@@ -112,8 +137,12 @@ class GetCallGraphTool extends BaseMcpTool<
 				const calls = callees.get(rootFunction.name)!;
 				output += `## ${rootFunction.name} calls (${calls.length}):\n`;
 				for (const edge of calls) {
-					output += `  → ${edge.to}\n`;
-					output += `    at ${formatLocation(edge.callSite.filePath, edge.callSite.line)}\n`;
+					const to = edge?.to || 'unknown';
+					const callSite = edge?.callSite;
+					output += `  → ${to}\n`;
+					if (callSite) {
+						output += `    at ${formatLocation(callSite.filePath || 'unknown', callSite.line || 0)}\n`;
+					}
 				}
 				output += '\n';
 			}
@@ -123,8 +152,12 @@ class GetCallGraphTool extends BaseMcpTool<
 				const calls = callers.get(rootFunction.name)!;
 				output += `## Called by (${calls.length}):\n`;
 				for (const edge of calls) {
-					output += `  ← ${edge.from}\n`;
-					output += `    at ${formatLocation(edge.callSite.filePath, edge.callSite.line)}\n`;
+					const from = edge?.from || 'unknown';
+					const callSite = edge?.callSite;
+					output += `  ← ${from}\n`;
+					if (callSite) {
+						output += `    at ${formatLocation(callSite.filePath || 'unknown', callSite.line || 0)}\n`;
+					}
 				}
 				output += '\n';
 			}
@@ -134,14 +167,16 @@ class GetCallGraphTool extends BaseMcpTool<
 				output += `## Most Connected Functions:\n`;
 				const connectionCounts = new Map<string, number>();
 
-				for (const edge of edges) {
+				for (const edge of edgesArray) {
+					const from = edge?.from || 'unknown';
+					const to = edge?.to || 'unknown';
 					connectionCounts.set(
-						edge.from,
-						(connectionCounts.get(edge.from) || 0) + 1
+						from,
+						(connectionCounts.get(from) || 0) + 1
 					);
 					connectionCounts.set(
-						edge.to,
-						(connectionCounts.get(edge.to) || 0) + 1
+						to,
+						(connectionCounts.get(to) || 0) + 1
 					);
 				}
 
@@ -150,10 +185,10 @@ class GetCallGraphTool extends BaseMcpTool<
 					.slice(0, 10);
 
 				for (const [func, count] of sorted) {
-					const node = nodes.find((n) => n.name === func);
+					const node = nodesArray.find((n) => n?.name === func);
 					output += `  ${func} (${count} connections)`;
 					if (node) {
-						output += ` - ${formatLocation(node.filePath, node.line)}`;
+						output += ` - ${formatLocation(node.filePath || 'unknown', node.line || 0)}`;
 					}
 					output += '\n';
 				}
