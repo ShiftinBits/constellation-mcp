@@ -8,11 +8,15 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface FindSimilarPatternsParams {
-	filePath?: string;
+	referenceFile?: string;
+	referenceSymbol?: string;
+	filterByKind?: string;
+	filterByParadigm?: string;
+	filterByModuleType?: string;
 	minSimilarity?: number;
-	minSize?: number;
-	includeTests?: boolean;
-	patternType?: 'function' | 'class' | 'block' | 'all';
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
 }
 
 interface SimilarPattern {
@@ -57,55 +61,53 @@ class FindSimilarPatternsTool extends BaseMcpTool<
 		'Find duplicate or similar code patterns across the codebase. Identifies refactoring opportunities to reduce duplication and improve maintainability.';
 
 	schema = {
-		filePath: {
+		referenceFile: {
 			type: z.string().optional(),
 			description:
-				'Optional: Limit search to specific file or directory (e.g., "src/services")',
+				'Reference file to find similar patterns to (required if referenceSymbol not provided)',
+		},
+		referenceSymbol: {
+			type: z.string().optional(),
+			description:
+				'Reference symbol to find similar patterns to (required if referenceFile not provided)',
+		},
+		filterByKind: {
+			type: z.string().optional(),
+			description:
+				'Filter by symbol kind (e.g., "function", "class")',
+		},
+		filterByParadigm: {
+			type: z.string().optional(),
+			description:
+				'Filter by programming paradigm (e.g., "object-oriented", "functional")',
+		},
+		filterByModuleType: {
+			type: z.string().optional(),
+			description:
+				'Filter by module type (e.g., "esm", "commonjs")',
 		},
 		minSimilarity: {
-			type: z.coerce.number().min(0).max(100).optional().default(80),
+			type: z.coerce.number().min(0).max(1).optional().default(0.7),
 			description:
-				'Minimum similarity percentage to report (default: 80)',
+				'Minimum similarity score (0-1, default: 0.7)',
 		},
-		minSize: {
-			type: z.coerce.number().min(3).optional().default(5),
-			description:
-				'Minimum number of lines for a pattern (default: 5)',
-		},
-		includeTests: {
+		includeConfidence: {
 			type: z.coerce.boolean().optional().default(false),
-			description: 'Include test files in analysis (default: false)',
-		},
-		patternType: {
-			type: z
-				.enum(['function', 'class', 'block', 'all'])
-				.optional()
-				.default('all'),
 			description:
-				'Type of patterns to search for (default: all)',
+				'Include confidence scores (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
+			description:
+				'Maximum number of results to return (default: 50, max: 100)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 
-	/**
-	 * Override execute to transform parameters before API call
-	 * Convert percentage to decimal and add referenceFile if filePath provided
-	 */
-	async execute(input: FindSimilarPatternsParams): Promise<string> {
-		// Transform parameters for API
-		const apiParams: any = { ...input };
-
-		// Convert minSimilarity from percentage (0-100) to decimal (0-1)
-		if (input.minSimilarity !== undefined) {
-			apiParams.minSimilarity = input.minSimilarity / 100;
-		}
-
-		// If filePath is provided, use it as referenceFile (required by API)
-		if (input.filePath) {
-			apiParams.referenceFile = input.filePath;
-		}
-
-		return super.execute(apiParams);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the similar patterns findings for AI-friendly output

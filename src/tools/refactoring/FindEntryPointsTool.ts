@@ -8,8 +8,9 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface FindEntryPointsParams {
-	entryType?: 'all' | 'main' | 'api' | 'cli' | 'event' | 'test';
-	includeMetadata?: boolean;
+	includeCallDepth?: number;
+	groupByModule?: boolean;
+	includeConfidence?: boolean;
 }
 
 interface EntryPoint {
@@ -59,18 +60,20 @@ class FindEntryPointsTool extends BaseMcpTool<
 		'Identify entry points to the application including main functions, API endpoints, CLI commands, event handlers, and test suites. Useful for understanding how code is invoked.';
 
 	schema = {
-		entryType: {
-			type: z
-				.enum(['all', 'main', 'api', 'cli', 'event', 'test'])
-				.optional()
-				.default('all'),
+		includeCallDepth: {
+			type: z.coerce.number().int().min(0).max(5).optional().default(2),
 			description:
-				'Type of entry points to find (default: all)',
+				'Include call tree depth from entry points (default: 2, max: 5)',
 		},
-		includeMetadata: {
-			type: z.coerce.boolean().optional().default(true),
+		groupByModule: {
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include detailed metadata (routes, commands, etc.) - default: true',
+				'Group entry points by module/package (default: false)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include confidence scores (default: false)',
 		},
 	};
 

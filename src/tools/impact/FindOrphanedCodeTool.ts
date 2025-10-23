@@ -9,9 +9,13 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 import { formatLocation } from '../../utils/format-helpers.js';
 
 interface FindOrphanedCodeParams {
-	directory?: string;
-	includeTests?: boolean;
-	minConfidence?: number;
+	filePattern?: string;
+	filterByKind?: string[];
+	exportedOnly?: boolean;
+	includeReasons?: boolean;
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
 }
 
 interface OrphanedItem {
@@ -42,19 +46,39 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 		'Find code that is never used or imported (dead code). Helps identify files and symbols that can be safely removed to reduce codebase size and complexity.';
 
 	schema = {
-		directory: {
+		filePattern: {
 			type: z.string().optional(),
 			description:
-				'Optional: Limit search to a specific directory (e.g., "src/components")',
+				'File path pattern to limit search (e.g., "src/components/**")',
 		},
-		includeTests: {
-			type: z.coerce.boolean().optional().default(false),
-			description: 'Include test files in analysis (default: false)',
-		},
-		minConfidence: {
-			type: z.coerce.number().min(0).max(100).optional().default(80),
+		filterByKind: {
+			type: z.array(z.string()).optional(),
 			description:
-				'Minimum confidence level for orphaned code detection (default: 80%)',
+				'Filter by symbol kind (e.g., ["function", "class", "variable"])',
+		},
+		exportedOnly: {
+			type: z.coerce.boolean().optional().default(true),
+			description:
+				'Only analyze exported symbols (default: true)',
+		},
+		includeReasons: {
+			type: z.coerce.boolean().optional().default(true),
+			description:
+				'Include reasons why code is orphaned (default: true)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include confidence scores (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
+			description:
+				'Maximum number of results to return (default: 50, max: 100)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 

@@ -15,6 +15,7 @@ interface GetArchitectureOverviewParams {
 	includeMetrics?: boolean;
 	includeModuleGraph?: boolean;
 	includePackages?: boolean;
+	includeConfidence?: boolean;
 }
 
 /**
@@ -147,6 +148,10 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 			type: z.coerce.boolean().optional().default(true),
 			description:
 				'Include external package dependency details - default: true',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include confidence scores (default: false)',
 		},
 	};
 

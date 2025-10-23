@@ -9,10 +9,13 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 import { formatBytes } from '../../utils/format-helpers.js';
 
 interface GetModuleOverviewParams {
-	modulePath: string;
+	moduleName?: string;
+	modulePath?: string;
+	includeFiles?: boolean;
+	includeExports?: boolean;
 	includeSubmodules?: boolean;
 	includeDependencies?: boolean;
-	includeExports?: boolean;
+	includeConfidence?: boolean;
 }
 
 interface ModuleExport {
@@ -70,22 +73,35 @@ class GetModuleOverviewTool extends BaseMcpTool<
 		'Analyze a specific module (package, directory, or namespace) to understand its structure, dependencies, exports, and health metrics. Useful for refactoring decisions.';
 
 	schema = {
+		moduleName: {
+			type: z.string().optional(),
+			description:
+				'Module name to analyze (e.g., "services", "core")',
+		},
 		modulePath: {
-			type: z.string().min(1),
+			type: z.string().optional(),
 			description:
 				'Path to module to analyze (e.g., "src/services", "packages/core")',
 		},
-		includeSubmodules: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include analysis of submodules (default: true)',
-		},
-		includeDependencies: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include dependency analysis (default: true)',
+		includeFiles: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include file-level details (default: false)',
 		},
 		includeExports: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include exported API analysis (default: true)',
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include exported symbol details (default: false)',
+		},
+		includeSubmodules: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include analysis of submodules (default: false)',
+		},
+		includeDependencies: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include dependency analysis (default: false)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include confidence scores (default: false)',
 		},
 	};
 

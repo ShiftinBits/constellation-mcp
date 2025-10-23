@@ -10,12 +10,15 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface ImpactAnalysisParams {
 	symbolId?: string;
-	filePath?: string;
+	qualifiedName?: string;
 	symbolName?: string;
-	changeType?: 'modify' | 'delete' | 'rename' | 'refactor';
-	includeTests?: boolean;
-	includeDocs?: boolean;
-	maxDepth?: number;
+	filePath?: string;
+	includeDirectDependents?: boolean;
+	includeTransitiveDependents?: boolean;
+	depth?: number;
+	excludeTests?: boolean;
+	excludeGenerated?: boolean;
+	analyzeBreakingChanges?: boolean;
 }
 
 interface ImpactArea {
@@ -60,48 +63,50 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		'Comprehensive impact analysis combining change impact, breaking changes, and dependencies. Provides holistic view of what changes will affect across the codebase.';
 
 	schema = {
-		filePath: {
+		symbolId: {
 			type: z.string().optional(),
-			description:
-				'Path to file to analyze (e.g., "src/services/auth.ts"). Required if symbolName not provided.',
+			description: 'Unique symbol identifier',
+		},
+		qualifiedName: {
+			type: z.string().optional(),
+			description: 'Qualified symbol name',
 		},
 		symbolName: {
 			type: z.string().optional(),
-			description:
-				'Specific symbol name to analyze. If provided without filePath, searches entire codebase.',
+			description: 'Symbol name',
 		},
-		changeType: {
-			type: z.enum(['modify', 'delete', 'rename', 'refactor']).optional(),
+		filePath: {
+			type: z.string().optional(),
 			description:
-				'Type of change being analyzed (default: modify)',
+				'File path (required for symbol-level or for file-level analysis)',
 		},
-		includeTests: {
+		includeDirectDependents: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Include test files in analysis (default: true)',
+			description: 'Include direct dependents (default: true)',
 		},
-		includeDocs: {
+		includeTransitiveDependents: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Include documentation files in analysis (default: true)',
+			description: 'Include transitive dependents (default: true)',
 		},
-		maxDepth: {
-			type: z.coerce.number().min(1).max(10).optional().default(5),
-			description:
-				'Maximum dependency depth to analyze (default: 5)',
+		depth: {
+			type: z.coerce.number().int().min(1).max(5).optional().default(3),
+			description: 'Maximum dependency depth to analyze (default: 3, max: 5)',
+		},
+		excludeTests: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Exclude test files from analysis (default: true)',
+		},
+		excludeGenerated: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Exclude generated files from analysis (default: true)',
+		},
+		analyzeBreakingChanges: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Analyze potential breaking changes (default: true)',
 		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + symbolName if needed
-	 */
-	async execute(input: ImpactAnalysisParams): Promise<string> {
-		// If symbolId not provided but filePath and symbolName are, generate it
-		if (!input.symbolId && input.filePath && input.symbolName) {
-			const symbolId = this.generateSymbolId(input.filePath, input.symbolName);
-			input = { ...input, symbolId };
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the comprehensive impact analysis for AI-friendly output

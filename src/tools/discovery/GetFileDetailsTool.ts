@@ -32,19 +32,24 @@ class GetFileDetailsTool extends BaseMcpTool<
 				'Path to the file (relative to project root, e.g., "src/components/Button.tsx")',
 		},
 		includeSymbols: {
-			type: z.coerce.boolean().optional(),
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include all symbols defined in the file (default: true)',
+				'Include all symbols defined in the file (default: false)',
 		},
 		includeDependencies: {
-			type: z.coerce.boolean().optional(),
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include files/modules this file depends on (default: true)',
+				'Include files/modules this file depends on (default: false)',
 		},
 		includeDependents: {
-			type: z.coerce.boolean().optional(),
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include files that depend on this file (default: true)',
+				'Include files that depend on this file (default: false)',
+		},
+		includeMetrics: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include code metrics (complexity, maintainability) (default: false)',
 		},
 	};
 

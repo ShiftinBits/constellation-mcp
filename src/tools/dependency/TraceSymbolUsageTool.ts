@@ -10,11 +10,17 @@ import { formatLocation } from '../../utils/format-helpers.js';
 
 interface TraceSymbolUsageParams {
 	symbolId?: string;
-	symbolName: string;
+	symbolName?: string;
 	filePath?: string;
-	includeImports?: boolean;
-	includeReferences?: boolean;
+	filterByUsageType?: string[];
+	filterByRelationshipType?: string[];
+	includeTransitive?: boolean;
+	includeContext?: boolean;
+	excludeTests?: boolean;
+	excludeGenerated?: boolean;
+	includeImportanceWeight?: boolean;
 	limit?: number;
+	offset?: number;
 }
 
 interface SymbolUsage {
@@ -45,43 +51,62 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 		'Trace where and how a symbol (function, class, variable) is used across the entire codebase. Shows imports, function calls, references, and usage context.';
 
 	schema = {
+		symbolId: {
+			type: z.string().optional(),
+			description: 'Unique symbol ID (alternative to symbolName)',
+		},
 		symbolName: {
-			type: z.string().min(1),
+			type: z.string().optional(),
 			description:
 				'Name of the symbol to trace (e.g., "UserService", "calculateTotal")',
 		},
 		filePath: {
 			type: z.string().optional(),
 			description:
-				'Optional: File where symbol is defined (to disambiguate)',
+				'File where symbol is defined (optional, improves precision when multiple symbols have same name)',
 		},
-		includeImports: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include import statements (default: true)',
+		filterByUsageType: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by symbol kind (e.g., ["function", "class"])',
 		},
-		includeReferences: {
+		filterByRelationshipType: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by relationship type (e.g., ["REFERENCES", "CALLS", "INHERITS"])',
+		},
+		includeTransitive: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include transitive (indirect) usages (default: false)',
+		},
+		includeContext: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Include all references and calls (default: true)',
+			description: 'Include enclosing symbol context (default: true)',
+		},
+		excludeTests: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Exclude test files from results (default: false)',
+		},
+		excludeGenerated: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Exclude generated files from results (default: false)',
+		},
+		includeImportanceWeight: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include importance weighting in results (default: false)',
 		},
 		limit: {
-			type: z.coerce.number().int().min(1).max(500).optional().default(100),
+			type: z.coerce.number().int().min(1).max(500).optional().default(50),
 			description:
-				'Maximum number of usages to return (default: 100, max: 500)',
+				'Maximum number of usages to return (default: 50, max: 500)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + symbolName if needed
-	 */
-	async execute(input: TraceSymbolUsageParams): Promise<string> {
-		// If symbolId not provided but filePath and symbolName are, generate it
-		if (!input.symbolId && input.filePath && input.symbolName) {
-			const symbolId = this.generateSymbolId(input.filePath, input.symbolName);
-			input = { ...input, symbolId };
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the symbol usage trace for AI-friendly output

@@ -8,11 +8,19 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 import { formatLocation } from '../../utils/format-helpers.js';
 
+interface SymbolChange {
+	type: 'add' | 'remove' | 'modify' | 'rename';
+	symbolName: string;
+	newName?: string;
+}
+
 interface AnalyzeBreakingChangesParams {
 	filePath: string;
+	changes?: SymbolChange[];
 	symbolName?: string;
-	changeType?: 'signature' | 'visibility' | 'deletion' | 'rename' | 'type';
-	includeExternalConsumers?: boolean;
+	autoDetect?: boolean;
+	includeSuggestions?: boolean;
+	includeConfidence?: boolean;
 }
 
 interface BreakingChange {
@@ -54,60 +62,40 @@ class AnalyzeBreakingChangesTool extends BaseMcpTool<
 			description:
 				'Path to file containing the symbol to analyze (e.g., "src/api/users.ts")',
 		},
+		changes: {
+			type: z
+				.array(
+					z.object({
+						type: z.enum(['add', 'remove', 'modify', 'rename']),
+						symbolName: z.string().min(1),
+						newName: z.string().optional(),
+					}),
+				)
+				.optional(),
+			description:
+				'Specific changes to analyze (optional - if not provided, analyzes all exported symbols)',
+		},
 		symbolName: {
 			type: z.string().optional(),
 			description:
-				'Optional: Specific symbol name to analyze. If omitted, analyzes all exported symbols in file.',
+				'Specific symbol to analyze (optional - used with autoDetect mode)',
 		},
-		changeType: {
-			type: z
-				.enum(['signature', 'visibility', 'deletion', 'rename', 'type'])
-				.optional(),
+		autoDetect: {
+			type: z.coerce.boolean().optional().default(true),
 			description:
-				'Optional: Type of change to simulate (signature, visibility, deletion, rename, type)',
+				'Automatically analyze all exported symbols (default: true)',
 		},
-		includeExternalConsumers: {
+		includeSuggestions: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Include migration suggestions (default: true)',
+		},
+		includeConfidence: {
 			type: z.coerce.boolean().optional().default(false),
-			description:
-				'Include consumers from external packages (default: false)',
+			description: 'Include confidence scores (default: false)',
 		},
 	};
 
-	/**
-	 * Override execute to transform parameters before API call
-	 * Generate changes array based on changeType
-	 */
-	async execute(input: AnalyzeBreakingChangesParams): Promise<string> {
-		// Build changes array from parameters
-		const changes = [];
-
-		// If changeType is specified, create a change entry
-		if (input.changeType) {
-			const change: any = {
-				type: input.changeType,
-			};
-
-			// If symbolName provided, target specific symbol
-			if (input.symbolName) {
-				change.symbolName = input.symbolName;
-			}
-
-			changes.push(change);
-		} else {
-			// Default: analyze all exported symbols for potential breaking changes
-			changes.push({
-				type: 'signature', // Default change type
-			});
-		}
-
-		// Pass transformed parameters to API
-		const apiParams = {
-			...input,
-			changes,
-		};
-
-		return super.execute(apiParams);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the breaking changes analysis for AI-friendly output

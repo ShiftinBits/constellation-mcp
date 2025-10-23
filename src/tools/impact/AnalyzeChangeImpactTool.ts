@@ -10,8 +10,11 @@ import { formatLocation } from '../../utils/format-helpers.js';
 
 interface AnalyzeChangeImpactParams {
 	filePath?: string;
-	symbolName?: string;
-	changeType?: 'modify' | 'delete' | 'rename';
+	symbolId?: string;
+	includeTransitive?: boolean;
+	includeTests?: boolean;
+	includeRiskLevel?: boolean;
+	includeConfidence?: boolean;
 }
 
 interface ImpactedFile {
@@ -50,14 +53,29 @@ class AnalyzeChangeImpactTool extends BaseMcpTool<
 			type: z.string().optional(),
 			description: 'File path to analyze for change impact',
 		},
-		symbolName: {
+		symbolId: {
 			type: z.string().optional(),
-			description: 'Symbol name to analyze (alternative to filePath)',
+			description: 'Symbol ID to analyze (alternative to filePath)',
 		},
-		changeType: {
-			type: z.enum(['modify', 'delete', 'rename']).optional().default('modify'),
+		includeTransitive: {
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Type of change: "modify" (default), "delete", or "rename"',
+				'Include transitive (indirect) impact (default: false)',
+		},
+		includeTests: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include test files in impact analysis (default: false)',
+		},
+		includeRiskLevel: {
+			type: z.coerce.boolean().optional().default(true),
+			description:
+				'Include risk level assessment (default: true)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include confidence scores (default: false)',
 		},
 	};
 

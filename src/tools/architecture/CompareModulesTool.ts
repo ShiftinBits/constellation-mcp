@@ -8,11 +8,15 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface CompareModulesParams {
-	module1: string;
-	module2: string;
-	compareStructure?: boolean;
-	compareDependencies?: boolean;
-	compareApi?: boolean;
+	module1?: string;
+	module2?: string;
+	moduleA?: string;
+	moduleB?: string;
+	includeStructure?: boolean;
+	includePatterns?: boolean;
+	includeDependencies?: boolean;
+	includeSimilarity?: boolean;
+	includeConfidence?: boolean;
 }
 
 interface ModuleComparison {
@@ -84,25 +88,41 @@ class CompareModulesTool extends BaseMcpTool<
 
 	schema = {
 		module1: {
-			type: z.string().min(1),
+			type: z.string().optional(),
 			description: 'Path to first module (e.g., "src/services/auth")',
 		},
 		module2: {
-			type: z.string().min(1),
+			type: z.string().optional(),
 			description: 'Path to second module (e.g., "src/services/users")',
 		},
-		compareStructure: {
+		moduleA: {
+			type: z.string().optional(),
+			description: 'Path to first module (alternative naming)',
+		},
+		moduleB: {
+			type: z.string().optional(),
+			description: 'Path to second module (alternative naming)',
+		},
+		includeStructure: {
 			type: z.coerce.boolean().optional().default(true),
 			description:
-				'Compare module structure and organization (default: true)',
+				'Include structure comparison (default: true)',
 		},
-		compareDependencies: {
+		includePatterns: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Compare dependencies (default: true)',
+			description: 'Include pattern analysis (default: true)',
 		},
-		compareApi: {
+		includeDependencies: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Compare exported APIs (default: true)',
+			description: 'Include dependency comparison (default: true)',
+		},
+		includeSimilarity: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Include similarity scoring (default: true)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include confidence scores (default: false)',
 		},
 	};
 

@@ -22,48 +22,27 @@ class GetDependenciesTool extends BaseMcpTool<
 
 	schema = {
 		filePath: {
-			type: z.string().optional(),
+			type: z.string().min(1),
 			description:
-				'File path to analyze dependencies for (e.g., "src/components/Button.tsx"). Required if symbolId not provided.',
-		},
-		symbolId: {
-			type: z.string().optional(),
-			description:
-				'Symbol ID to analyze (alternative to filePath + symbolName)',
-		},
-		symbolName: {
-			type: z.string().optional(),
-			description:
-				'Symbol name when analyzing a specific symbol (optional, use with filePath)',
+				'File path to analyze dependencies for (e.g., "src/components/Button.tsx")',
 		},
 		depth: {
-			type: z.coerce.number().int().min(1).max(5).optional().default(1),
+			type: z.coerce.number().int().min(0).max(10).optional().default(1),
 			description:
-				'How many levels deep to traverse dependencies (default: 1, max: 5)',
+				'How many levels deep to traverse dependencies (default: 1, max: 10)',
 		},
-		includeExternal: {
+		includePackages: {
 			type: z.coerce.boolean().optional().default(false),
 			description:
 				'Include external package dependencies (default: false)',
 		},
+		includeSymbols: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include symbol-level dependency details (default: false)',
+		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + symbolName if needed
-	 */
-	async execute(input: GetDependenciesParams & { symbolName?: string }): Promise<string> {
-		// If symbolName provided with filePath but no symbolId, generate it
-		if (!input.symbolId && input.filePath && input.symbolName) {
-			input.symbolId = this.generateSymbolId(input.filePath, input.symbolName);
-		}
-
-		// Validate that we have either filePath or symbolId
-		if (!input.filePath && !input.symbolId) {
-			return 'Error: Either filePath or symbolId (or filePath + symbolName) must be provided';
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the dependencies for AI-friendly output

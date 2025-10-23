@@ -12,8 +12,10 @@ interface GetCallGraphParams {
 	symbolId?: string;
 	functionName?: string;
 	filePath?: string;
-	depth?: number;
 	direction?: 'callers' | 'callees' | 'both';
+	depth?: number;
+	excludeExternal?: boolean;
+	includeGraph?: boolean;
 }
 
 interface CallGraphNode {
@@ -48,6 +50,10 @@ class GetCallGraphTool extends BaseMcpTool<
 		'Generate a call graph showing function invocation relationships. Shows which functions call which, helping understand execution flow and dependencies.';
 
 	schema = {
+		symbolId: {
+			type: z.string().optional(),
+			description: 'Unique symbol ID (alternative to functionName)',
+		},
 		functionName: {
 			type: z.string().optional(),
 			description:
@@ -57,30 +63,27 @@ class GetCallGraphTool extends BaseMcpTool<
 			type: z.string().optional(),
 			description: 'File path to narrow down search',
 		},
-		depth: {
-			type: z.coerce.number().int().min(1).max(5).optional().default(3),
-			description:
-				'How many levels deep to traverse (default: 3, max: 5)',
-		},
 		direction: {
 			type: z.enum(['callers', 'callees', 'both']).optional().default('both'),
 			description:
 				'Direction: "callers" (who calls this), "callees" (what this calls), or "both" (default: both)',
 		},
+		depth: {
+			type: z.coerce.number().int().min(1).max(10).optional().default(3),
+			description:
+				'How many levels deep to traverse (default: 3, max: 10)',
+		},
+		excludeExternal: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Exclude external/library calls (default: false)',
+		},
+		includeGraph: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include graph visualization data (default: false)',
+		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + functionName if needed
-	 */
-	async execute(input: GetCallGraphParams): Promise<string> {
-		// If symbolId not provided but filePath and functionName are, generate it
-		if (!input.symbolId && input.filePath && input.functionName) {
-			const symbolId = this.generateSymbolId(input.filePath, input.functionName);
-			input = { ...input, symbolId };
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the call graph for AI-friendly output

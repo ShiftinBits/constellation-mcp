@@ -39,39 +39,24 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 			description:
 				'File path containing the symbol (required if symbolId not provided)',
 		},
-		includeDependencies: {
-			type: z.coerce.boolean().optional(),
+		includeReferences: {
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include what this symbol depends on (default: true)',
+				'Include all references to this symbol (default: false)',
 		},
-		includeDependents: {
-			type: z.coerce.boolean().optional(),
+		includeRelationships: {
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include what depends on this symbol (default: true)',
+				'Include relationships (calls, extends, implements) (default: false)',
 		},
-		includeUsages: {
-			type: z.coerce.boolean().optional(),
+		includeImpactScore: {
+			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include all locations where this symbol is used (default: true)',
+				'Include impact/importance score (default: false)',
 		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + symbolName if needed
-	 */
-	async execute(input: GetSymbolDetailsParams): Promise<string> {
-		// If symbolId not provided but filePath and symbolName are, generate it
-		if (!input.symbolId && input.filePath && input.symbolName) {
-			input.symbolId = this.generateSymbolId(input.filePath, input.symbolName);
-		}
-
-		// Validate that we have either symbolId or both filePath + symbolName
-		if (!input.symbolId && !(input.filePath && input.symbolName)) {
-			return 'Error: Either symbolId OR both filePath and symbolName must be provided';
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the symbol details for AI-friendly output

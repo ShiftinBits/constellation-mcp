@@ -9,12 +9,12 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface ContextualSymbolResolutionParams {
 	symbolId?: string;
-	symbolName: string;
+	qualifiedName?: string;
+	symbolName?: string;
 	filePath?: string;
-	line?: number;
-	includeScope?: boolean;
-	includeTypes?: boolean;
-	includeUsages?: boolean;
+	includeDependencies?: boolean;
+	includeDependents?: boolean;
+	depth?: number;
 }
 
 interface ScopeInfo {
@@ -101,47 +101,39 @@ class ContextualSymbolResolutionTool extends BaseMcpTool<
 		'Resolve a symbol with full context including definition, type information, scope, imports, and usage. Essential for understanding how symbols are defined and used.';
 
 	schema = {
+		symbolId: {
+			type: z.string().optional(),
+			description: 'Unique symbol identifier (alternative)',
+		},
+		qualifiedName: {
+			type: z.string().optional(),
+			description: 'Fully qualified symbol name (alternative)',
+		},
 		symbolName: {
-			type: z.string().min(1),
+			type: z.string().optional(),
 			description:
-				'Name of symbol to resolve (e.g., "getUserById", "User", "API_KEY")',
+				'Symbol name to resolve (e.g., "getUserById", "User", "API_KEY")',
 		},
 		filePath: {
 			type: z.string().optional(),
 			description:
-				'Optional: File path where symbol is referenced (helps with disambiguation)',
+				'File path (optional, improves precision when multiple symbols have same name)',
 		},
-		line: {
-			type: z.coerce.number().optional(),
-			description:
-				'Optional: Line number where symbol is referenced (provides precise context)',
-		},
-		includeScope: {
+		includeDependencies: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Include scope chain information (default: true)',
+			description: 'Include dependencies (default: true)',
 		},
-		includeTypes: {
+		includeDependents: {
 			type: z.coerce.boolean().optional().default(true),
-			description: 'Include type information (default: true)',
+			description: 'Include dependents (default: true)',
 		},
-		includeUsages: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include usage examples (default: true)',
+		depth: {
+			type: z.coerce.number().int().min(1).max(3).optional().default(1),
+			description: 'Dependency depth to analyze (default: 1, max: 3)',
 		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + symbolName if needed
-	 */
-	async execute(input: ContextualSymbolResolutionParams): Promise<string> {
-		// If symbolId not provided but filePath and symbolName are, generate it
-		if (!input.symbolId && input.filePath && input.symbolName) {
-			const symbolId = this.generateSymbolId(input.filePath, input.symbolName);
-			input = { ...input, symbolId };
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the contextual symbol resolution for AI-friendly output

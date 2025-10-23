@@ -21,15 +21,45 @@ class SearchFilesTool extends BaseMcpTool<
 		'Search for files by name or path pattern across the codebase. Returns file paths, language info, symbol counts, and file metadata.';
 
 	schema = {
-		query: {
-			type: z.string().min(1).max(200),
-			description:
-				'File name or path pattern to search for (e.g., "UserService", "*.test.ts", "components/**")',
-		},
-		language: {
+		pathPattern: {
 			type: z.string().optional(),
 			description:
-				'Filter by programming language (e.g., "typescript", "javascript", "python")',
+				'File path pattern to search for (e.g., "src/**/*.ts", "components/**")',
+		},
+		filterByLanguage: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by programming language(s) (e.g., ["typescript", "javascript"])',
+		},
+		filterByParadigm: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by programming paradigm (e.g., ["object-oriented", "functional"])',
+		},
+		filterByModuleType: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by module type (e.g., ["esm", "commonjs"])',
+		},
+		filterByDomain: {
+			type: z.string().optional(),
+			description:
+				'Filter by domain/purpose (e.g., "api", "ui", "data")',
+		},
+		isTest: {
+			type: z.coerce.boolean().optional(),
+			description:
+				'Filter to only test files (true) or only non-test files (false)',
+		},
+		isEntryPoint: {
+			type: z.coerce.boolean().optional(),
+			description:
+				'Filter to only entry point files (true) or non-entry points (false)',
+		},
+		includeMetrics: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include file metrics (complexity, size, symbol counts) (default: false)',
 		},
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
@@ -39,11 +69,6 @@ class SearchFilesTool extends BaseMcpTool<
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
 			description: 'Offset for pagination (default: 0)',
-		},
-		includeStats: {
-			type: z.coerce.boolean().optional(),
-			description:
-				'Include file statistics (size, symbol count, last modified)',
 		},
 	};
 

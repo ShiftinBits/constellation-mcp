@@ -25,10 +25,27 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 			description:
 				'Optional: Start search from a specific file to find cycles involving it',
 		},
-		maxDepth: {
-			type: z.coerce.number().int().min(2).max(10).optional().default(5),
+		minCycleLength: {
+			type: z.coerce.number().int().min(2).max(10).optional().default(2),
 			description:
-				'Maximum cycle depth to search for (default: 5, max: 10)',
+				'Minimum cycle length to detect (default: 2, max: 10)',
+		},
+		includeDetails: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Include detailed cycle information (default: true)',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional().default(false),
+			description: 'Include confidence scores (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
+			description:
+				'Maximum number of cycles to return (default: 50, max: 100)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 

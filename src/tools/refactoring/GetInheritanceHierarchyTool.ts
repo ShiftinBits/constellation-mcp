@@ -11,9 +11,10 @@ interface GetInheritanceHierarchyParams {
 	symbolId?: string;
 	className?: string;
 	filePath?: string;
-	includeInterfaces?: boolean;
-	includeImplementations?: boolean;
-	maxDepth?: number;
+	direction?: 'ancestors' | 'descendants' | 'both';
+	depth?: number;
+	filterByRelationshipType?: string[];
+	includeGraph?: boolean;
 }
 
 interface ClassNode {
@@ -67,44 +68,44 @@ class GetInheritanceHierarchyTool extends BaseMcpTool<
 		'Analyze class inheritance hierarchies, interfaces, and type relationships. Visualize the object-oriented structure and identify design issues.';
 
 	schema = {
+		symbolId: {
+			type: z.string().optional(),
+			description:
+				'Unique symbol identifier (from search results). Required if className not provided.',
+		},
 		className: {
 			type: z.string().optional(),
 			description:
-				'Name of class to analyze (e.g., "UserService"). Required if filePath not provided.',
+				'Name of class to analyze (e.g., "UserService"). Required if symbolId not provided.',
 		},
 		filePath: {
 			type: z.string().optional(),
 			description:
-				'Path to file containing class (e.g., "src/models/User.ts"). Required if className not provided.',
+				'Path to file containing class (e.g., "src/models/User.ts"). Optional - helps resolve ambiguity.',
 		},
-		includeInterfaces: {
-			type: z.coerce.boolean().optional().default(true),
-			description: 'Include interface implementations (default: true)',
-		},
-		includeImplementations: {
-			type: z.coerce.boolean().optional().default(true),
+		direction: {
+			type: z.enum(['ancestors', 'descendants', 'both']).optional().default('both'),
 			description:
-				'Include all implementations of interfaces (default: true)',
+				'Direction to traverse: ancestors (parent classes), descendants (child classes), or both (default: both)',
 		},
-		maxDepth: {
-			type: z.coerce.number().min(1).max(10).optional().default(10),
+		depth: {
+			type: z.coerce.number().int().min(1).max(20).optional(),
 			description:
-				'Maximum depth to traverse in hierarchy (default: 10)',
+				'Maximum depth to traverse in hierarchy (default: unlimited, max: 20)',
+		},
+		filterByRelationshipType: {
+			type: z.array(z.string()).optional(),
+			description:
+				'Filter by relationship type (e.g., ["extends", "implements"])',
+		},
+		includeGraph: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include graph visualization data (default: false)',
 		},
 	};
 
-	/**
-	 * Override execute to generate symbolId from filePath + className if needed
-	 */
-	async execute(input: GetInheritanceHierarchyParams): Promise<string> {
-		// If symbolId not provided but filePath and className are, generate it
-		if (!input.symbolId && input.filePath && input.className) {
-			const symbolId = this.generateSymbolId(input.filePath, input.className);
-			input = { ...input, symbolId };
-		}
-
-		return super.execute(input);
-	}
+	// No parameter transformation needed - direct passthrough to API
 
 	/**
 	 * Format the inheritance hierarchy for AI-friendly output

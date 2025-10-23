@@ -9,8 +9,13 @@ import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface AnalyzePackageUsageParams {
 	packageName?: string;
-	includeVersions?: boolean;
-	includeUsageLocations?: boolean;
+	filterByCategory?: string[];
+	includeFileDetails?: boolean;
+	includeModuleBreakdown?: boolean;
+	includeDuplicates?: boolean;
+	minUsageCount?: number;
+	limit?: number;
+	offset?: number;
 }
 
 interface PackageUsageLocation {
@@ -77,15 +82,39 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 			description:
 				'Optional: Analyze specific package (e.g., "lodash"). If omitted, analyzes all packages.',
 		},
-		includeVersions: {
-			type: z.coerce.boolean().optional().default(true),
+		filterByCategory: {
+			type: z.array(z.string()).optional(),
 			description:
-				'Include version information and compatibility analysis (default: true)',
+				'Filter by package category (e.g., ["production", "development"])',
 		},
-		includeUsageLocations: {
+		includeFileDetails: {
 			type: z.coerce.boolean().optional().default(false),
 			description:
-				'Include detailed usage locations (default: false, can be verbose)',
+				'Include detailed file-level usage information (default: false)',
+		},
+		includeModuleBreakdown: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include breakdown by module within packages (default: false)',
+		},
+		includeDuplicates: {
+			type: z.coerce.boolean().optional().default(false),
+			description:
+				'Include duplicate package detection (default: false)',
+		},
+		minUsageCount: {
+			type: z.coerce.number().int().min(1).optional().default(1),
+			description:
+				'Minimum usage count to include package (default: 1)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(50),
+			description:
+				'Maximum number of packages to return (default: 50, max: 100)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 

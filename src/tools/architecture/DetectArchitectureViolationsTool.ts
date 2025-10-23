@@ -8,9 +8,14 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../base/BaseMcpTool.js';
 
 interface DetectArchitectureViolationsParams {
-	scope?: string;
-	rules?: string[];
-	severity?: 'all' | 'critical' | 'high' | 'medium';
+	filterByType?: string[];
+	minSeverity?: string;
+	includeContext?: boolean;
+	includeSuggestions?: boolean;
+	includeCodeHealth?: boolean;
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
 }
 
 interface ArchitectureViolation {
@@ -58,20 +63,40 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 		'Detect violations of architectural patterns, layer boundaries, dependency rules, and design principles. Helps maintain clean architecture.';
 
 	schema = {
-		scope: {
-			type: z.string().optional(),
-			description:
-				'Optional: Limit analysis to specific directory (e.g., "src/api")',
-		},
-		rules: {
+		filterByType: {
 			type: z.array(z.string()).optional(),
 			description:
-				'Optional: Specific rules to check (e.g., ["layer-boundaries", "circular-deps"])',
+				'Filter by violation type (e.g., ["layer-boundary", "circular-dependency"])',
 		},
-		severity: {
-			type: z.enum(['all', 'critical', 'high', 'medium']).optional().default('all'),
+		minSeverity: {
+			type: z.string().optional().default('low'),
 			description:
-				'Minimum severity level to report (default: all)',
+				'Minimum severity level to report (default: low)',
+		},
+		includeContext: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Include code context for violations (default: true)',
+		},
+		includeSuggestions: {
+			type: z.coerce.boolean().optional().default(true),
+			description: 'Include fix suggestions (default: true)',
+		},
+		includeCodeHealth: {
+			type: z.coerce.boolean().optional(),
+			description: 'Include overall code health metrics',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional(),
+			description: 'Include confidence scores for violations',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(100),
+			description:
+				'Maximum number of violations to return (default: 100, max: 100)',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Offset for pagination (default: 0)',
 		},
 	};
 

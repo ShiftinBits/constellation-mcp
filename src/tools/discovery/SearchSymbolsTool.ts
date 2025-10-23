@@ -37,10 +37,10 @@ class SearchSymbolsTool extends BaseMcpTool<
 			description:
 				'Filter by access level: public, private, protected',
 		},
-		isExported: {
+		filterByExported: {
 			type: z.coerce.boolean().optional(),
 			description:
-				'Only return exported symbols (true) or only non-exported (false)',
+				'Filter by export status: true (only exported), false (only non-exported)',
 		},
 		filePattern: {
 			type: z.string().optional(),
@@ -65,6 +65,11 @@ class SearchSymbolsTool extends BaseMcpTool<
 			type: z.coerce.boolean().optional(),
 			description:
 				'Include full documentation/docstrings for symbols',
+		},
+		includeConfidence: {
+			type: z.coerce.boolean().optional(),
+			description:
+				'Include confidence scores for search results',
 		},
 	};
 
