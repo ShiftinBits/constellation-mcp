@@ -1,7 +1,8 @@
 {
 	"name": "@constellationdev/mcp",
-	"version": "0.0.1",
-	"description": "Constellation MCP Server",
+	"version": "0.1.0",
+	"author": "ShiftinBits Inc",
+	"description": "Your AI assistant's telescope to constellations of code knowledge - MCP server for intelligent, secure codebase exploration",
 	"type": "module",
 	"bin": {
 		"mcp-constellation": "./dist/index.js"
