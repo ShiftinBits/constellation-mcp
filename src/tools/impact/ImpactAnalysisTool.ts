@@ -115,102 +115,112 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		data: ImpactAnalysisResult,
 		metadata: { executionTime: number; cached: boolean }
 	): string {
-		const { target, summary, impactAreas, criticalPaths, recommendations, relatedChanges } = data;
+		// Defensive check
+		if (!data) {
+			return 'Error: No data returned from API';
+		}
+
+		const { symbol, directDependents, transitiveDependents, impactedFiles, breakingChangeRisk, summary } = data;
 
 		let output = `Comprehensive Impact Analysis\n\n`;
 
 		// Target info
 		output += `## Target\n`;
-		output += `Type: ${target.type}\n`;
-		output += `Name: ${target.name}\n`;
-		if (target.filePath) {
-			output += `File: ${target.filePath}\n`;
+		output += `Type: ${symbol.kind}\n`;
+		output += `Name: ${symbol.name}\n`;
+		if (symbol.filePath) {
+			output += `File: ${symbol.filePath}\n`;
 		}
 
 		// Summary
 		output += `\n## Impact Summary\n`;
-		output += `Risk Level: ${this.getRiskEmoji(summary.riskLevel)} ${summary.riskLevel}\n`;
-		output += `Affected Files: ${summary.totalAffectedFiles}\n`;
-		output += `Affected Symbols: ${summary.totalAffectedSymbols}\n`;
-		output += `Estimated Effort: ${summary.estimatedEffort}\n`;
-		output += `Confidence: ${summary.confidence}%\n`;
+		const directCount = directDependents?.length || 0;
+		const transitiveCount = transitiveDependents?.length || 0;
+		const impactedFileCount = impactedFiles?.length || 0;
 
-		// Impact areas
-		if (impactAreas.length > 0) {
-			output += `\n## Impact Areas (${impactAreas.length})\n\n`;
+		output += `Direct Dependents: ${directCount}\n`;
+		output += `Transitive Dependents: ${transitiveCount}\n`;
+		output += `Impacted Files: ${impactedFileCount}\n`;
+		output += `Test Files: ${summary.testFileCount || 0}\n`;
+		output += `Production Files: ${summary.productionFileCount || 0}\n`;
+		output += `Max Depth: ${summary.maxDepth}\n`;
 
-			for (const area of impactAreas) {
-				output += `### ${this.getCategoryEmoji(area.category)} ${this.capitalize(area.category)} Impact\n`;
-				output += `${area.description}\n`;
-				output += `Effort: ${area.effort}\n`;
-				output += `Affected Files: ${area.affectedFiles.length}\n`;
-
-				if (area.affectedFiles.length > 0 && area.affectedFiles.length <= 5) {
-					for (const file of area.affectedFiles) {
-						output += `  • ${file}\n`;
-					}
-				} else if (area.affectedFiles.length > 5) {
-					for (const file of area.affectedFiles.slice(0, 3)) {
-						output += `  • ${file}\n`;
-					}
-					output += `  ... and ${area.affectedFiles.length - 3} more files\n`;
+		// Direct dependents
+		if (directCount > 0) {
+			output += `\n## 🎯 Direct Dependents (${directCount})\n\n`;
+			for (const dep of directDependents!.slice(0, 10)) {
+				output += `  ${dep.name} (${dep.kind})\n`;
+				output += `    ${dep.filePath}:${dep.line}\n`;
+				output += `    Relationship: ${dep.relationshipType}\n`;
+				if (dep.isExported) {
+					output += `    ⚠️  Exported - breaking change risk\n`;
 				}
 				output += '\n';
 			}
-		}
-
-		// Critical paths
-		if (criticalPaths.length > 0) {
-			output += `## 🔴 Critical Dependency Paths (${criticalPaths.length})\n\n`;
-			for (const critical of criticalPaths.slice(0, 5)) {
-				output += `**${critical.reason}**\n`;
-				output += `Path: ${critical.path.join(' → ')}\n\n`;
-			}
-			if (criticalPaths.length > 5) {
-				output += `... and ${criticalPaths.length - 5} more critical paths\n\n`;
+			if (directCount > 10) {
+				output += `  ... and ${directCount - 10} more\n\n`;
 			}
 		}
 
-		// Related changes
-		if (relatedChanges.length > 0) {
-			output += `## Related Changes Required\n\n`;
+		// Transitive dependents
+		if (transitiveCount > 0) {
+			output += `## 🔄 Transitive Dependents (${transitiveCount})\n\n`;
+			for (const dep of transitiveDependents!.slice(0, 10)) {
+				output += `  ${dep.name} (${dep.kind}) - depth ${dep.depth}\n`;
+				output += `    ${dep.filePath}:${dep.line}\n`;
+				output += `    Relationship: ${dep.relationshipType}\n`;
+				output += '\n';
+			}
+			if (transitiveCount > 10) {
+				output += `  ... and ${transitiveCount - 10} more\n\n`;
+			}
+		}
 
-			const required = relatedChanges.filter(c => c.required);
-			const optional = relatedChanges.filter(c => !c.required);
+		// Impacted files
+		if (impactedFileCount > 0) {
+			output += `## 📁 Impacted Files (${impactedFileCount})\n\n`;
+			for (const file of impactedFiles!.slice(0, 15)) {
+				output += `  ${file.filePath}\n`;
+				output += `    ${file.symbolCount} symbol(s) affected\n`;
+				if (file.isTest) {
+					output += `    🧪 Test file\n`;
+				}
+				if (file.symbols && file.symbols.length > 0) {
+					output += `    Symbols: ${file.symbols.map(s => s.name).join(', ')}\n`;
+				}
+				output += '\n';
+			}
+			if (impactedFileCount > 15) {
+				output += `  ... and ${impactedFileCount - 15} more files\n\n`;
+			}
+		}
 
-			if (required.length > 0) {
-				output += `### ⚠️  Required Changes (${required.length})\n`;
-				for (const change of required) {
-					output += `  • ${change.filePath}\n`;
-					output += `    ${change.reason}\n`;
+		// Breaking change risk
+		if (breakingChangeRisk) {
+			output += `## ⚠️  Breaking Change Risk\n`;
+			output += `Level: ${this.getRiskEmoji(breakingChangeRisk.riskLevel)} ${breakingChangeRisk.riskLevel.toUpperCase()}\n\n`;
+
+			if (breakingChangeRisk.factors && breakingChangeRisk.factors.length > 0) {
+				output += `### Risk Factors:\n`;
+				for (const factor of breakingChangeRisk.factors) {
+					output += `  • **${factor.factor}** (${factor.severity})\n`;
+					output += `    ${factor.description}\n`;
 				}
 				output += '\n';
 			}
 
-			if (optional.length > 0) {
-				output += `### 💡 Recommended Changes (${optional.length})\n`;
-				for (const change of optional.slice(0, 5)) {
-					output += `  • ${change.filePath}\n`;
-					output += `    ${change.reason}\n`;
+			if (breakingChangeRisk.recommendations && breakingChangeRisk.recommendations.length > 0) {
+				output += `### 📋 Recommendations:\n`;
+				for (let i = 0; i < breakingChangeRisk.recommendations.length; i++) {
+					output += `${i + 1}. ${breakingChangeRisk.recommendations[i]}\n`;
 				}
-				if (optional.length > 5) {
-					output += `  ... and ${optional.length - 5} more recommendations\n`;
-				}
-				output += '\n';
-			}
-		}
-
-		// Recommendations
-		if (recommendations.length > 0) {
-			output += `## 📋 Recommendations\n\n`;
-			for (let i = 0; i < recommendations.length; i++) {
-				output += `${i + 1}. ${recommendations[i]}\n`;
 			}
 		}
 
 		// Action plan
 		output += `\n## 🎯 Suggested Action Plan\n\n`;
-		if (summary.riskLevel === 'CRITICAL' || summary.riskLevel === 'HIGH') {
+		const riskLevel = breakingChangeRisk?.riskLevel || 'low';
+		if (riskLevel === 'critical' || riskLevel === 'high') {
 			output += `1. **Review Dependencies**: Understand all critical paths\n`;
 			output += `2. **Create Feature Branch**: Isolate changes\n`;
 			output += `3. **Update Tests First**: Ensure test coverage\n`;
@@ -218,7 +228,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 			output += `5. **Update Documentation**: Keep docs in sync\n`;
 			output += `6. **Coordinate with Team**: High-impact change requires review\n`;
 			output += `7. **Monitor After Deploy**: Watch for issues\n`;
-		} else if (summary.riskLevel === 'MEDIUM') {
+		} else if (riskLevel === 'medium') {
 			output += `1. **Review Impact Areas**: Understand what's affected\n`;
 			output += `2. **Update Tests**: Ensure coverage for changes\n`;
 			output += `3. **Make Changes**: Implement modifications\n`;
@@ -252,22 +262,6 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 	}
 
-	private getCategoryEmoji(category: string): string {
-		switch (category) {
-			case 'direct':
-				return '🎯';
-			case 'indirect':
-				return '🔄';
-			case 'test':
-				return '🧪';
-			case 'documentation':
-				return '📚';
-			case 'configuration':
-				return '⚙️';
-			default:
-				return '📦';
-		}
-	}
 
 	private capitalize(str: string): string {
 		return str.charAt(0).toUpperCase() + str.slice(1);

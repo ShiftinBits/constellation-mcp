@@ -68,19 +68,30 @@ export interface SearchSymbolsResult {
  */
 
 export interface SearchFilesParams {
-	query: string;
-	language?: string;
+	pathPattern?: string;
+	filterByLanguage?: string[];
+	filterByParadigm?: string[];
+	filterByModuleType?: string[];
+	isTest?: boolean;
+	isEntryPoint?: boolean;
+	filterByDomain?: string;
 	limit?: number;
 	offset?: number;
-	includeStats?: boolean;
+	includeMetrics?: boolean;
 }
 
 export interface FileInfo {
-	filePath: string;
-	language?: string;
-	symbolCount?: number;
-	size?: number;
-	lastModified?: string;
+	path: string;
+	language: string;
+	paradigm?: string;
+	moduleType?: string;
+	isTest: boolean;
+	domain?: string;
+	symbolCounts?: Record<string, number>;
+	dependencyCount?: number;
+	dependentCount?: number;
+	updatedAt?: string;
+	languageMetadata?: LanguageMetadata;
 }
 
 export interface SearchFilesResult {
@@ -96,19 +107,46 @@ export interface GetSymbolDetailsParams {
 	symbolId?: string;
 	symbolName?: string;
 	filePath?: string;
-	includeDependencies?: boolean;
-	includeDependents?: boolean;
-	includeUsages?: boolean;
+	includeReferences?: boolean;
+	includeRelationships?: boolean;
+	includeImpactScore?: boolean;
 }
 
 export interface SymbolDetails extends SymbolInfo {
-	dependencies?: Array<{ target: string; type: string }>;
-	dependents?: Array<{ source: string; type: string }>;
-	usages?: FileLocation[];
+	signature?: string;
+	documentation?: string;
+	modifiers?: string[];
+	typeInfo?: any;
+	decorators?: string[];
+	isDeprecated: boolean;
+}
+
+export interface SymbolUsageReference extends FileLocation {
+	usageType: string;
+	context?: string;
+	aliasName?: string;
+}
+
+export interface SymbolRelationships {
+	calls: string[];
+	calledBy: string[];
+	inheritsFrom: string[];
+	inheritedBy: string[];
+	children: string[];
+}
+
+export interface ImpactScore {
+	directUsage: number;
+	transitiveImpact: number;
+	riskScore: number;
+	riskLevel: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface GetSymbolDetailsResult {
 	symbol: SymbolDetails;
+	references?: SymbolUsageReference[];
+	relationships?: SymbolRelationships;
+	impactScore?: ImpactScore;
 }
 
 /**

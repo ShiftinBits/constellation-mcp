@@ -7,6 +7,16 @@
 				"CONSTELLATION_API_KEY": "your-api-key-here"
 			}
 		},
+		"neo4j": {
+			"type": "stdio",
+			"command": "neo4j-mcp",
+			"env": {
+				"NEO4J_URI": "bolt://localhost:7687",
+				"NEO4J_USERNAME": "neo4j",
+				"NEO4J_PASSWORD": "CorrectHorseBatteryStaple",
+				"NEO4J_DATABASE": "constellation"
+			}
+		},
 		"memory": {
 			"type": "stdio",
 			"command": "npx",

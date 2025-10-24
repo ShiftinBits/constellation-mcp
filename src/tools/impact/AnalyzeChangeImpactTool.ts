@@ -112,12 +112,16 @@ class AnalyzeChangeImpactTool extends BaseMcpTool<
 		// Risk assessment
 		if (risk) {
 			output += `## Risk Assessment\n`;
-			output += `Level: ${risk.level?.toUpperCase() || 'UNKNOWN'}\n`;
-			output += `Score: ${risk.score || 0}/100\n\n`;
+			// Fix: If no files affected, risk should be LOW/0, not CRITICAL/100
+			const actualRiskLevel = totalAffected === 0 ? 'low' : (risk.level || 'unknown');
+			const actualRiskScore = totalAffected === 0 ? 0 : (risk.score || 0);
+
+			output += `Level: ${actualRiskLevel.toUpperCase()}\n`;
+			output += `Score: ${actualRiskScore}/100\n\n`;
 
 			if (risk.factors) {
 				output += `### Risk Factors\n`;
-				output += `Files Affected: ${risk.factors.filesAffected || 0}\n`;
+				output += `Files Affected: ${totalAffected}\n`;
 				output += `Transitive Depth: ${risk.factors.transitiveDepth || 0}\n`;
 				output += `Public API Exposure: ${risk.factors.publicApiExposure ? 'yes' : 'no'}\n`;
 				output += `Test Coverage: ${risk.factors.testCoverage || 0}%\n`;
@@ -194,16 +198,37 @@ class AnalyzeChangeImpactTool extends BaseMcpTool<
 			output += '\n';
 		}
 
-		// Summary
+		// Summary with risk-based messaging
+		output += `## Summary\n`;
+
 		if (totalAffected === 0) {
 			output += '✅ No files will be affected by this change. Safe to proceed!\n';
 		} else {
-			output += `## Summary\n`;
 			output += `Total Affected: ${totalAffected} file${totalAffected === 1 ? '' : 's'}\n`;
 			output += `  - Direct: ${directCount}\n`;
 			output += `  - Transitive: ${transitiveCount}\n`;
 			if (testCount > 0) {
 				output += `  - Tests: ${testCount}\n`;
+			}
+			output += '\n';
+
+			// Add risk-based recommendation (fixed to match actual impact)
+			const riskLevel = risk?.level?.toLowerCase() || 'unknown';
+			// Fix: Only calculate risk score based on actual affected files
+			const riskScore = totalAffected === 0 ? 0 : (risk?.score || 0);
+
+			if (totalAffected > 20 || riskScore >= 80 || riskLevel === 'critical') {
+				output += `🔴 CRITICAL RISK: This change affects ${totalAffected} file(s). ` +
+				         `Coordinate with team before proceeding.\n`;
+			} else if (totalAffected > 10 || riskScore >= 50 || riskLevel === 'high') {
+				output += `🟠 HIGH RISK: This change affects ${totalAffected} file(s). ` +
+				         `Thorough review and testing required.\n`;
+			} else if (totalAffected > 3 || riskScore >= 25 || riskLevel === 'medium') {
+				output += `🟡 MEDIUM RISK: This change affects ${totalAffected} file(s). ` +
+				         `Review impact carefully before proceeding.\n`;
+			} else {
+				output += `🟢 LOW RISK: This change affects ${totalAffected} file(s). ` +
+				         `Impact appears manageable with standard testing.\n`;
 			}
 		}
 

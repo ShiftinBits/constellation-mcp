@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ToolNotFoundError,
 } from './constellation-client.js';
+import { standardErrors } from '../utils/error-messages.js';
 
 /**
  * Map an error to a helpful message with actionable guidance
@@ -122,6 +123,18 @@ For more information, visit: https://docs.constellationdev.io/tools
 function formatGenericError(toolName: string, error: Error): string {
 	const context = getConfigContext();
 
+	// Check if it's an API/network error
+	if (error.message.includes('fetch failed') ||
+	    error.message.includes('ECONNREFUSED') ||
+	    error.message.includes('ENOTFOUND') ||
+	    error.message.includes('timeout')) {
+		return `❌ ${toolName} Failed\n\n${standardErrors.apiError(
+			toolName,
+			undefined,
+			error.message
+		)}\n\n**Context:**\n  API: ${context.config.apiUrl}\n  Project ID: ${context.projectId}\n  Branch: ${context.branchName}`;
+	}
+
 	let output = `❌ ${toolName} Failed
 
 ${error.message}
@@ -133,22 +146,7 @@ ${error.message}
 `;
 
 	// Add suggestion based on error message
-	if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
-		output += `
-**This looks like a network error:**
-  • Is the Constellation API server running?
-  • Can you reach ${context.config.apiUrl}?
-  • Check your network connection
-  • Verify firewall settings
-`;
-	} else if (error.message.includes('timeout')) {
-		output += `
-**This looks like a timeout:**
-  • The API server may be overloaded
-  • Try again in a moment
-  • Consider indexing a smaller subset of files
-`;
-	} else if (error.message.includes('Invalid') || error.message.includes('validation')) {
+	if (error.message.includes('Invalid') || error.message.includes('validation')) {
 		output += `
 **This looks like a validation error:**
   • Check the tool parameters

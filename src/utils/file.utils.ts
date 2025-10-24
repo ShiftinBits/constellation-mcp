@@ -56,11 +56,18 @@ export class FileUtils {
 
 	/**
 	 * Checks if a directory is a git repository root.
+	 * Handles both regular repositories (.git directory) and submodules (.git file).
 	 * @param dirPath Path to the directory to check
-	 * @returns True if directory contains a .git folder
+	 * @returns True if directory contains a .git folder or file
 	 */
 	static async isGitRepository(dirPath: string): Promise<boolean> {
 		const gitPath = path.join(dirPath, '.git');
-		return this.directoryExists(gitPath);
+		try {
+			await fs.stat(gitPath);
+			// .git exists (either as directory or file for submodules)
+			return true;
+		} catch {
+			return false;
+		}
 	}
 }

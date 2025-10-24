@@ -162,15 +162,25 @@ class CompareModulesTool extends BaseMcpTool<
 		// Similarity score
 		if (similarity) {
 			output += `## Similarity Analysis\n`;
-			output += `Overall Score: ${((similarity?.overallScore || 0) * 100).toFixed(1)}%\n`;
-			if (similarity?.structuralSimilarity !== undefined) {
-				output += `Structural Similarity: ${(similarity.structuralSimilarity * 100).toFixed(1)}%\n`;
+			// API returns values in 0-1 range, multiply by 100 for percentage
+			const overall = similarity?.overall ?? similarity?.overallScore ?? 0;
+			const structural = similarity?.structural ?? similarity?.structuralSimilarity ?? 0;
+			const patterns = similarity?.patterns ?? similarity?.patternSimilarity ?? 0;
+			const deps = similarity?.dependencies ?? similarity?.dependencySimilarity ?? 0;
+
+			output += `Overall Score: ${(overall * 100).toFixed(1)}%\n`;
+			if (structural > 0 || similarity?.structural !== undefined || similarity?.structuralSimilarity !== undefined) {
+				output += `Structural Similarity: ${(structural * 100).toFixed(1)}%\n`;
 			}
-			if (similarity?.apiSimilarity !== undefined) {
-				output += `API Similarity: ${(similarity.apiSimilarity * 100).toFixed(1)}%\n`;
+			if (patterns > 0 || similarity?.patterns !== undefined || similarity?.patternSimilarity !== undefined) {
+				output += `Pattern Similarity: ${(patterns * 100).toFixed(1)}%\n`;
 			}
-			if (similarity?.dependencySimilarity !== undefined) {
-				output += `Dependency Similarity: ${(similarity.dependencySimilarity * 100).toFixed(1)}%\n`;
+			if (deps > 0 || similarity?.dependencies !== undefined || similarity?.dependencySimilarity !== undefined) {
+				output += `Dependency Similarity: ${(deps * 100).toFixed(1)}%\n`;
+			}
+
+			if (similarity?.explanation) {
+				output += `\n${similarity.explanation}\n`;
 			}
 			output += '\n';
 		}

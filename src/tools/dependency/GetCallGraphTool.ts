@@ -18,27 +18,38 @@ interface GetCallGraphParams {
 	includeGraph?: boolean;
 }
 
-interface CallGraphNode {
+// Mirrors constellation-core/apps/client-api/src/mcp/dto/get-call-graph.dto.ts
+interface CallGraphRoot {
+	symbolId: string;
 	name: string;
 	filePath: string;
-	line: number;
-	kind: string;
 }
 
-interface CallGraphEdge {
-	from: string;
-	to: string;
-	callSite: {
-		filePath: string;
-		line: number;
-	};
+interface CallerNode {
+	symbolId: string;
+	name: string;
+	filePath: string;
+	depth: number;
+}
+
+interface CalleeNode {
+	symbolId: string;
+	name: string;
+	filePath: string;
+	isAsync: boolean;
+	depth: number;
+}
+
+interface GraphRepresentation {
+	nodes: Array<{ id: string; name: string; filePath: string }>;
+	edges: Array<{ from: string; to: string }>;
 }
 
 interface GetCallGraphResult {
-	rootFunction: CallGraphNode;
-	nodes: CallGraphNode[];
-	edges: CallGraphEdge[];
-	totalCalls: number;
+	root: CallGraphRoot;
+	callers?: CallerNode[];
+	callees?: CalleeNode[];
+	graph?: GraphRepresentation;
 }
 
 class GetCallGraphTool extends BaseMcpTool<
@@ -97,103 +108,98 @@ class GetCallGraphTool extends BaseMcpTool<
 			return 'Error: No data returned from API';
 		}
 
-		const { rootFunction, nodes, edges, totalCalls } = data;
-		const nodesArray = nodes || [];
-		const edgesArray = edges || [];
-		const total = totalCalls || 0;
+		const { root, callers, callees, graph } = data;
 
 		let output = `Call Graph Analysis\n\n`;
 
-		if (rootFunction) {
-			output += `Root Function: ${rootFunction.name || 'unknown'}\n`;
-			output += `Location: ${formatLocation(rootFunction.filePath || 'unknown', rootFunction.line || 0)}\n`;
-			output += `Type: ${rootFunction.kind || 'function'}\n\n`;
+		// Root function info
+		if (root) {
+			output += `Root Function: ${root.name}\n`;
+			output += `Location: ${formatLocation(root.filePath, 0)}\n`;
+			output += `Symbol ID: ${root.symbolId}\n\n`;
 		}
 
-		output += `Total nodes: ${nodesArray.length}\n`;
-		output += `Total call relationships: ${total}\n\n`;
+		// Count total nodes and edges
+		const callersArray = callers || [];
+		const calleesArray = callees || [];
+		const totalNodes = 1 + callersArray.length + calleesArray.length; // root + callers + callees
+		const totalEdges = callersArray.length + calleesArray.length;
 
-		if (edgesArray.length === 0) {
+		output += `Total nodes: ${totalNodes}\n`;
+		output += `Total call relationships: ${totalEdges}\n\n`;
+
+		if (callersArray.length === 0 && calleesArray.length === 0) {
 			output += 'No call relationships found.';
 		} else {
-			// Build adjacency lists
-			const callees = new Map<string, CallGraphEdge[]>();
-			const callers = new Map<string, CallGraphEdge[]>();
+			// Show callees (what this function calls)
+			if (calleesArray.length > 0) {
+				output += `## ${root.name} calls (${calleesArray.length}):\n`;
 
-			for (const edge of edgesArray) {
-				const from = edge?.from || 'unknown';
-				const to = edge?.to || 'unknown';
-
-				if (!callees.has(from)) {
-					callees.set(from, []);
+				// Group by depth
+				const calleesByDepth = new Map<number, CalleeNode[]>();
+				for (const callee of calleesArray) {
+					const depth = callee.depth || 1;
+					if (!calleesByDepth.has(depth)) {
+						calleesByDepth.set(depth, []);
+					}
+					calleesByDepth.get(depth)!.push(callee);
 				}
-				callees.get(from)!.push(edge);
 
-				if (!callers.has(to)) {
-					callers.set(to, []);
-				}
-				callers.get(to)!.push(edge);
-			}
-
-			// Show what this function calls
-			if (rootFunction && callees.has(rootFunction.name)) {
-				const calls = callees.get(rootFunction.name)!;
-				output += `## ${rootFunction.name} calls (${calls.length}):\n`;
-				for (const edge of calls) {
-					const to = edge?.to || 'unknown';
-					const callSite = edge?.callSite;
-					output += `  → ${to}\n`;
-					if (callSite) {
-						output += `    at ${formatLocation(callSite.filePath || 'unknown', callSite.line || 0)}\n`;
+				// Sort depths and display
+				const depths = Array.from(calleesByDepth.keys()).sort((a, b) => a - b);
+				for (const depth of depths) {
+					const nodes = calleesByDepth.get(depth)!;
+					output += `\n### Depth ${depth} (${nodes.length} calls):\n`;
+					for (const callee of nodes) {
+						const asyncMarker = callee.isAsync ? ' (async)' : '';
+						output += `  → ${callee.name}${asyncMarker}\n`;
+						output += `    ${formatLocation(callee.filePath, 0)}\n`;
 					}
 				}
 				output += '\n';
 			}
 
-			// Show what calls this function
-			if (rootFunction && callers.has(rootFunction.name)) {
-				const calls = callers.get(rootFunction.name)!;
-				output += `## Called by (${calls.length}):\n`;
-				for (const edge of calls) {
-					const from = edge?.from || 'unknown';
-					const callSite = edge?.callSite;
-					output += `  ← ${from}\n`;
-					if (callSite) {
-						output += `    at ${formatLocation(callSite.filePath || 'unknown', callSite.line || 0)}\n`;
+			// Show callers (what calls this function)
+			if (callersArray.length > 0) {
+				output += `## Called by (${callersArray.length}):\n`;
+
+				// Group by depth
+				const callersByDepth = new Map<number, CallerNode[]>();
+				for (const caller of callersArray) {
+					const depth = caller.depth || 1;
+					if (!callersByDepth.has(depth)) {
+						callersByDepth.set(depth, []);
+					}
+					callersByDepth.get(depth)!.push(caller);
+				}
+
+				// Sort depths and display
+				const depths = Array.from(callersByDepth.keys()).sort((a, b) => a - b);
+				for (const depth of depths) {
+					const nodes = callersByDepth.get(depth)!;
+					output += `\n### Depth ${depth} (${nodes.length} callers):\n`;
+					for (const caller of nodes) {
+						output += `  ← ${caller.name}\n`;
+						output += `    ${formatLocation(caller.filePath, 0)}\n`;
 					}
 				}
 				output += '\n';
 			}
 
-			// If no root function, show most connected functions
-			if (!rootFunction) {
-				output += `## Most Connected Functions:\n`;
-				const connectionCounts = new Map<string, number>();
+			// Show graph if included
+			if (graph && graph.nodes && graph.edges) {
+				output += `## Graph Representation:\n`;
+				output += `Nodes: ${graph.nodes.length}\n`;
+				output += `Edges: ${graph.edges.length}\n\n`;
 
-				for (const edge of edgesArray) {
-					const from = edge?.from || 'unknown';
-					const to = edge?.to || 'unknown';
-					connectionCounts.set(
-						from,
-						(connectionCounts.get(from) || 0) + 1
-					);
-					connectionCounts.set(
-						to,
-						(connectionCounts.get(to) || 0) + 1
-					);
-				}
-
-				const sorted = Array.from(connectionCounts.entries())
-					.sort(([, a], [, b]) => b - a)
-					.slice(0, 10);
-
-				for (const [func, count] of sorted) {
-					const node = nodesArray.find((n) => n?.name === func);
-					output += `  ${func} (${count} connections)`;
-					if (node) {
-						output += ` - ${formatLocation(node.filePath || 'unknown', node.line || 0)}`;
+				if (graph.edges.length > 0) {
+					output += `### Call Relationships:\n`;
+					for (const edge of graph.edges.slice(0, 20)) { // Limit to first 20
+						output += `  ${edge.from} → ${edge.to}\n`;
 					}
-					output += '\n';
+					if (graph.edges.length > 20) {
+						output += `  ... and ${graph.edges.length - 20} more\n`;
+					}
 				}
 			}
 		}

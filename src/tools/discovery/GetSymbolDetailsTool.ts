@@ -15,6 +15,7 @@ import {
 	formatLocation,
 	formatDependencies,
 } from '../../utils/format-helpers.js';
+import { standardErrors } from '../../utils/error-messages.js';
 
 class GetSymbolDetailsTool extends BaseMcpTool<
 	GetSymbolDetailsParams,
@@ -67,7 +68,7 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 	): string {
 		// Defensive checks
 		if (!data || !data.symbol) {
-			return 'Error: No symbol data returned from API';
+			return standardErrors.noData(this.name);
 		}
 
 		const { symbol, references, relationships, impactScore } = data;
