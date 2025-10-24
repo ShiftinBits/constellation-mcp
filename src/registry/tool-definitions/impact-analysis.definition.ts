@@ -9,21 +9,20 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	category: 'Impact',
 
 	description:
-		'Comprehensive impact analysis combining change impact, breaking changes, and dependencies. Provides ' +
-		'holistic view of what a change will affect across the codebase - all in one analysis. Use this for ' +
-		'the most complete pre-change assessment.',
+		'Comprehensive impact analysis: change impact, breaking changes, dependencies. Consolidated tool (replaces analyze_change_impact and analyze_breaking_changes). ' +
+		'Quick (depth=1) to comprehensive (depth=3-5). Use analyzeBreakingChanges=true for API changes.',
 
 	shortDescription: 'Comprehensive impact analysis combining multiple perspectives',
 
 	whenToUse: [
-		'Planning major refactoring and need complete impact picture',
-		'Making critical changes that require thorough analysis',
-		'Generating comprehensive change reports for review',
-		'Understanding full ripple effect of modifications',
-		'Preparing detailed migration plans',
+		'Quick impact check before making a change (depth=1)',
+		'Standard pre-refactoring analysis (depth=2-3)',
+		'Comprehensive API change analysis (analyzeBreakingChanges=true)',
+		'Understanding full ripple effect with transitive dependencies (depth=4-5)',
+		'Generating detailed change reports and migration plans',
 	],
 
-	relatedTools: ['analyze_change_impact', 'analyze_breaking_changes', 'get_dependencies', 'get_dependents'],
+	relatedTools: ['get_dependencies', 'get_dependents', 'trace_symbol_usage', 'find_orphaned_code'],
 
 	inputSchema: {
 		type: 'object',
@@ -47,19 +46,30 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 			includeDirectDependents: {
 				type: 'boolean',
 				default: true,
-				description: 'Include direct dependents analysis.',
+				description:
+					'Include direct dependents (files that directly import/use this). ' +
+					'Default: true. This is the core analysis - only disable if you truly only care about transitive impact.',
 			},
 			includeTransitiveDependents: {
 				type: 'boolean',
 				default: true,
-				description: 'Include transitive dependents analysis.',
+				description:
+					'Include transitive dependents (indirect impact through dependency chains). ' +
+					'Default: true. Disable for quick checks, enable for comprehensive analysis.',
 			},
 			depth: {
 				type: 'number',
 				minimum: 1,
 				maximum: 5,
 				default: 3,
-				description: 'Maximum dependency depth to analyze.',
+				description:
+					'Maximum dependency depth to analyze (default: 3, max: 5). ' +
+					'⚠️ EXPONENTIAL GROWTH: depth=1 might show 10 affected files, depth=2 shows 100, depth=3 shows 1000+. ' +
+					'**PARAMETER GUIDANCE FOR COMMON SCENARIOS**: ' +
+					'• Quick check → depth=1 ' +
+					'• Standard refactoring → depth=2-3 (default) ' +
+					'• Major architectural change → depth=4-5 ' +
+					'Start with default (3) for balanced detail vs performance.',
 			},
 			excludeTests: {
 				type: 'boolean',
@@ -74,7 +84,10 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 			analyzeBreakingChanges: {
 				type: 'boolean',
 				default: true,
-				description: 'Analyze potential breaking changes.',
+				description:
+					'Analyze potential breaking changes (signature changes, removed exports, etc.). ' +
+					'Default: true. Critical for API changes. ' +
+					'Provides migration guidance when breaking changes detected.',
 			},
 		},
 		required: [],
@@ -118,14 +131,10 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using maximum depth on widely-used code - takes very long',
-		'Not excluding tests when you only care about production impact',
-	],
-
-	performanceNotes: [
-		'Most comprehensive tool - takes 3-10 seconds',
-		'Depth significantly impacts performance',
-		'Results cached for 15 minutes',
+		'Using depth=5 on widely-used code - can take 10+ seconds and return thousands of results',
+		'Not starting with quick check (depth=1) before running comprehensive analysis',
+		'Forgetting to exclude tests when analyzing production-only impact',
+		'Not using this tool when other simpler tools (get_dependents) would suffice',
 	],
 
 	sinceVersion: '0.0.1',

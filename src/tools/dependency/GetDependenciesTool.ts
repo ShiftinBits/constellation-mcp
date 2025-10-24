@@ -18,7 +18,9 @@ class GetDependenciesTool extends BaseMcpTool<
 > {
 	name = 'get_dependencies';
 	description =
-		'Find what a file or symbol depends on. Shows imports, function calls, and references to understand what the target relies on.';
+		'Find what a file or symbol depends on. Shows imports, function calls, and references to understand what the target relies on. ' +
+		'**PAGINATION**: Supports limit/offset with default of 20. Use for files with many dependencies. Pagination is per-depth level when using transitive analysis. ' +
+		'Increase limit (50-100) for heavily-coupled files.';
 
 	schema = {
 		filePath: {
@@ -39,6 +41,15 @@ class GetDependenciesTool extends BaseMcpTool<
 		includeSymbols: {
 			type: z.coerce.boolean().optional().default(false),
 			description: 'Include symbol-level dependency details (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(20),
+			description:
+				'Maximum number of dependencies to return per page (default: 20, max: 100). Use 20-30 for typical files, 50-100 for heavily-coupled files with many imports.',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Starting position for pagination (default: 0). Increment by limit for subsequent pages. Example: limit=20, offset=20 gets dependencies 21-40.',
 		},
 	};
 

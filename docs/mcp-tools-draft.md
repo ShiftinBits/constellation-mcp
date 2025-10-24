@@ -507,69 +507,6 @@ Get the class/interface inheritance tree.
 
 ## 3. Impact Analysis Tools
 
-### `analyze_change_impact`
-
-Predict the impact of changing a file or symbol.
-
-**Purpose**: Risk assessment before making changes - the "look before you leap" tool.
-
-**Input Parameters**:
-
-```typescript
-{
-  filePath?: string;
-  symbolId?: string;
-  includeTransitive?: boolean;
-  includeTests?: boolean;           // Show related test files
-}
-```
-
-**Output**:
-
-```typescript
-{
-  target: {
-    type: 'file' | 'symbol';
-    path: string;
-    name?: string;
-  };
-  impact: {
-    directlyAffected: Array<{
-      filePath: string;
-      reason: string;               // "imports symbol", "depends on file", etc.
-      critical: boolean;
-    }>;
-    transitivelyAffected: Array<{
-      filePath: string;
-      distance: number;
-      chain: string[];
-      critical: boolean;
-    }>;
-    relatedTests: string[];         // Test files to run
-  };
-  risk: {
-    level: 'low' | 'medium' | 'high' | 'critical';
-    score: number;                  // 0-100
-    factors: {
-      filesAffected: number;
-      transitiveDepth: number;
-      publicApiExposure: boolean;
-      testCoverage: number;         // Percentage
-    };
-    recommendations: string[];
-  };
-  summary: {
-    totalFilesAffected: number;
-    criticalFiles: number;
-    estimatedTestsToRun: number;
-  };
-}
-```
-
-**Use Case**: "What's the blast radius if I refactor this service?"
-
----
-
 ### `find_orphaned_code`
 
 Identify unused exports and dead code.
@@ -615,54 +552,6 @@ Identify unused exports and dead code.
 ```
 
 **Use Case**: "What code can I safely delete?"
-
----
-
-### `analyze_breaking_changes`
-
-Detect potential breaking changes from modifications.
-
-**Purpose**: API stability analysis for library/service authors.
-
-**Input Parameters**:
-
-```typescript
-{
-	filePath: string;
-	changes: Array<{
-		type: 'add' | 'remove' | 'modify' | 'rename';
-		symbolName: string;
-		newName?: string; // For renames
-	}>;
-}
-```
-
-**Output**:
-
-```typescript
-{
-  breakingChanges: Array<{
-    change: object;                 // The original change
-    severity: 'minor' | 'major' | 'critical';
-    affectedUsages: number;
-    affectedFiles: string[];
-    reason: string;
-    migrationPath?: string;         // Suggested fix
-  }>;
-  safeChanges: Array<{
-    change: object;
-    reason: string;
-  }>;
-  recommendations: string[];
-  summary: {
-    totalBreaking: number;
-    filesAffected: number;
-    estimatedMigrationEffort: 'low' | 'medium' | 'high';
-  };
-}
-```
-
-**Use Case**: "If I change this API, who will be affected?"
 
 ---
 
@@ -1147,9 +1036,9 @@ Given the goal of maximum immediate value for AI coding assistants:
 1. `search_symbols` - Core discovery
 2. `get_dependencies` - Understanding context
 3. `get_dependents` - Impact awareness
-4. `analyze_change_impact` - Risk assessment
+4. `impact_analysis` - Comprehensive risk assessment
 5. `get_file_details` - Deep understanding
 
 **Phase 2 (Enhanced Capabilities)**: 6. `trace_symbol_usage` - Refactoring support 7. `get_architecture_overview` - Big picture 8. `find_similar_patterns` - Learning from examples 9. `get_module_overview` - Module understanding 10. `get_call_graph` - Execution flow
 
-**Phase 3 (Advanced Features)**: 11. `find_circular_dependencies` - Code health 12. `find_orphaned_code` - Cleanup assistance 13. `analyze_breaking_changes` - API safety 14. `get_test_coverage_map` - Testing support 15. Remaining architecture tools
+**Phase 3 (Advanced Features)**: 11. `find_circular_dependencies` - Code health 12. `find_orphaned_code` - Cleanup assistance 13. `get_test_coverage_map` - Testing support 14. Remaining architecture tools

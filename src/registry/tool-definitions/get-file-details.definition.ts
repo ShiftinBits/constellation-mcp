@@ -12,9 +12,9 @@ export const getFileDetailsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Get detailed information about a specific file including all symbols defined in it, ' +
-		'its dependencies, dependents, and file statistics. Use this when you need comprehensive ' +
-		'information about a single file - what it exports, what it imports, and how complex it is.',
+		'Get comprehensive details about a specific file: symbols defined, dependencies, dependents, and metrics. ' +
+		'Use include* parameters to control detail level (all default to false for fast queries). ' +
+		'TYPICAL WORKFLOW: Start with basic file info → Add includeSymbols to see exports → Add includeDependencies/Dependents for impact analysis.',
 
 	shortDescription: 'Get comprehensive details about a specific file',
 
@@ -33,27 +33,41 @@ export const getFileDetailsDefinition: McpToolDefinition = {
 		properties: {
 			filePath: {
 				type: 'string',
-				description: 'Path to the file (e.g., "src/components/Button.tsx"). Required.',
+				description:
+					'Path to the file relative to project root (e.g., "src/components/Button.tsx", "lib/utils/helpers.ts"). REQUIRED. ' +
+					'Use forward slashes, not backslashes. Must be exact path.',
 			},
 			includeSymbols: {
 				type: 'boolean',
 				default: false,
-				description: 'Include all symbols defined in the file with details.',
+				description:
+					'Include all symbols (functions, classes, variables, types) defined in the file (default: false). ' +
+					'Shows what the file exports and defines. Essential for understanding file purpose. ' +
+					'Set to true when you need to know "what does this file provide?"',
 			},
 			includeDependencies: {
 				type: 'boolean',
 				default: false,
-				description: 'Include files/modules this file depends on.',
+				description:
+					'Include files/modules this file depends on - what it imports (default: false). ' +
+					'Shows forward dependencies (what this file needs). ' +
+					'Useful for understanding file coupling and refactoring impact.',
 			},
 			includeDependents: {
 				type: 'boolean',
 				default: false,
-				description: 'Include files that depend on this file.',
+				description:
+					'Include files that depend on this file - what imports it (default: false). ' +
+					'Shows backward dependencies (who needs this file). ' +
+					'Critical for impact analysis before modifying the file.',
 			},
 			includeMetrics: {
 				type: 'boolean',
 				default: false,
-				description: 'Include code metrics: complexity, maintainability scores.',
+				description:
+					'Include code quality metrics: complexity, maintainability, test coverage (default: false). ' +
+					'Helps identify files that need refactoring. ' +
+					'Pre-computed metrics, minimal overhead.',
 			},
 		},
 		required: ['filePath'],
@@ -94,13 +108,6 @@ export const getFileDetailsDefinition: McpToolDefinition = {
 	commonMistakes: [
 		'Enabling all options when you only need basic info - increases response time',
 		'Using relative paths incorrectly - provide path from project root',
-	],
-
-	performanceNotes: [
-		'Basic file info is very fast (<50ms)',
-		'Symbol extraction adds ~100ms',
-		'Dependency analysis adds ~200ms',
-		'Results cached for 10 minutes',
 	],
 
 	sinceVersion: '0.0.1',

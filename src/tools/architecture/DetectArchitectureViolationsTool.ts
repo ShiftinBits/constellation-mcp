@@ -60,7 +60,9 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 > {
 	name = 'detect_architecture_violations';
 	description =
-		'Detect violations of architectural patterns, layer boundaries, dependency rules, and design principles. Helps maintain clean architecture.';
+		'Detect violations of architectural patterns, layer boundaries, dependency rules, and design principles. Helps maintain clean architecture. ' +
+		'**PAGINATION**: Supports limit/offset with high default of 100 (max: 100). Use for comprehensive architecture quality reviews. ' +
+		'Default limit is intentionally high to capture full scope of violations in single request for most projects.';
 
 	schema = {
 		filterByType: {
@@ -92,11 +94,11 @@ class DetectArchitectureViolationsTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(100),
 			description:
-				'Maximum number of violations to return (default: 100, max: 100)',
+				'Maximum number of violations to return per page (default: 100, max: 100). High default provides comprehensive view. Use pagination only for projects with extensive violations (100+).',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Rarely needed due to high limit. Example: offset=100 gets violations 101-200 if many violations exist.',
 		},
 	};
 

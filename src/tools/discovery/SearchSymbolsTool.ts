@@ -19,7 +19,9 @@ class SearchSymbolsTool extends BaseMcpTool<
 > {
 	name = 'search_symbols';
 	description =
-		'Search for symbols (functions, classes, variables, types, etc.) across the codebase with powerful filtering options. Returns symbol names, locations, signatures, and metadata.';
+		'Search for symbols (functions, classes, variables, types, etc.) across the codebase with powerful filtering options. Returns symbol names, locations, signatures, and metadata. ' +
+		'**PAGINATION**: Supports limit/offset for large result sets. Default limit is 50. Use offset to retrieve subsequent pages (e.g., offset=50 for page 2). ' +
+		'For broad searches, start with default limit and paginate if needed.';
 
 	schema = {
 		query: {
@@ -50,11 +52,11 @@ class SearchSymbolsTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of results to return (default: 50, max: 100)',
+				'Maximum number of results to return per page (default: 50, max: 100). Use smaller values (10-20) for quick scans, larger values (50-100) for comprehensive searches.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). For page 2, use offset=limit; for page 3, use offset=limit*2, etc. Example: limit=50, offset=50 gets results 51-100.',
 		},
 		includeUsageCount: {
 			type: z.coerce.boolean().optional(),

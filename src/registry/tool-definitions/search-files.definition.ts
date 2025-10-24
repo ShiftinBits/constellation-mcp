@@ -12,9 +12,9 @@ export const searchFilesDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Search for files by name or path pattern across the codebase. Returns file paths, language information, ' +
-		'symbol counts, and file metadata. Use this when you need to locate files by name, explore project structure, ' +
-		'or find files matching specific patterns. For finding symbols within files, use search_symbols instead.',
+		'Search for files by name or path pattern. Returns file paths, language info, symbol counts, and metadata. ' +
+		'Filter by language, module type, domain, test/entry point status. ' +
+		'Use get_file_details for complete file analysis.',
 
 	shortDescription: 'Find files by name or path pattern',
 
@@ -70,7 +70,7 @@ export const searchFilesDefinition: McpToolDefinition = {
 			includeMetrics: {
 				type: 'boolean',
 				default: false,
-				description: 'Include file metrics: complexity, size, symbol counts. Increases response time slightly.',
+				description: 'Include file metrics (complexity, size, symbol counts). Pre-computed, minimal overhead.',
 			},
 			limit: {
 				type: 'number',
@@ -124,12 +124,6 @@ export const searchFilesDefinition: McpToolDefinition = {
 		'Using overly broad patterns without filters - returns too many results',
 		'Forgetting glob syntax (use **/ for recursive search)',
 		'Not using isTest filter when you only want production code',
-	],
-
-	performanceNotes: [
-		'File searches are indexed and very fast (<100ms typical)',
-		'Metrics calculation adds minimal overhead',
-		'Results cached for 10 minutes',
 	],
 
 	sinceVersion: '0.0.1',

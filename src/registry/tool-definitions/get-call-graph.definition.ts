@@ -9,9 +9,8 @@ export const getCallGraphDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Generate a call graph showing function invocation relationships - which functions call which others. ' +
-		'Shows execution flow and helps understand how code paths work. Can show callers (who calls this function), ' +
-		'callees (what this function calls), or both directions.',
+		'Generate call graph showing function invocation relationships and execution flow. Bidirectional: callers (who calls this), callees (what this calls), or both. ' +
+		'Use depth to control traversal, excludeExternal to filter library calls. Supports graph visualization data.',
 
 	shortDescription: 'Generate call graph showing function invocation relationships',
 
@@ -44,24 +43,38 @@ export const getCallGraphDefinition: McpToolDefinition = {
 				type: 'string',
 				enum: ['callers', 'callees', 'both'],
 				default: 'both',
-				description: 'Direction: "callers" (who calls this), "callees" (what this calls), or "both".',
+				description:
+					'Direction to traverse the call graph (default: both): ' +
+					'"callers": Who calls this function (backward traversal, find usage). ' +
+					'"callees": What this function calls (forward traversal, understand execution). ' +
+					'"both": Complete picture (bidirectional, most comprehensive).',
 			},
 			depth: {
 				type: 'number',
 				minimum: 1,
 				maximum: 10,
 				default: 3,
-				description: 'How many levels deep to traverse. Higher values show more of the call chain.',
+				description:
+					'How many levels deep to traverse the call chain (default: 3, max: 10). ' +
+					'⚠️ EXPONENTIAL GROWTH: depth=1 shows direct calls, depth=2 shows calls of calls, etc. ' +
+					'depth=3 (default) provides good balance between detail and performance. ' +
+					'Higher values reveal complete call chains but may take longer and return many results.',
 			},
 			excludeExternal: {
 				type: 'boolean',
 				default: false,
-				description: 'Exclude external/library calls.',
+				description:
+					'Exclude external/library calls (default: false). ' +
+					'When true, shows only internal project function calls, hiding calls to npm packages, standard library, etc. ' +
+					'Useful for focusing on your code\'s execution flow without noise from framework/library internals.',
 			},
 			includeGraph: {
 				type: 'boolean',
 				default: false,
-				description: 'Include graph visualization data.',
+				description:
+					'Include graph visualization data (nodes, edges, graph structure). ' +
+					'Useful if you want to render a visual call graph. Increases response size. ' +
+					'Set to false for simple list of call relationships.',
 			},
 		},
 		required: [],
@@ -104,12 +117,6 @@ export const getCallGraphDefinition: McpToolDefinition = {
 	commonMistakes: [
 		'Using high depth (>4) on initial queries - returns overwhelming results',
 		'Not excluding external calls when focused on internal logic',
-	],
-
-	performanceNotes: [
-		'Full project call graphs are expensive - prefer specific functions',
-		'Depth significantly impacts performance (exponential growth)',
-		'Results cached for 15 minutes',
 	],
 
 	sinceVersion: '0.0.1',

@@ -72,7 +72,7 @@ async function startServer() {
 		// The MCP framework will scan for default exports in tools/ subdirectories
 
 		console.error("[Constellation MCP] Server started successfully");
-		console.error("[Constellation MCP] Available tools (22/22 implemented - 100%):");
+		console.error("[Constellation MCP] Available tools (20/20 implemented - 100%):");
 		console.error("");
 		console.error("  ✅ Discovery Tools (4/4) - Enhanced definitions loaded");
 		console.error("    - search_symbols (3 examples)");
@@ -87,10 +87,8 @@ async function startServer() {
 		console.error("    - trace_symbol_usage (3 examples)");
 		console.error("    - get_call_graph (3 examples)");
 		console.error("");
-		console.error("  ✅ Impact Analysis Tools (4/4) - Enhanced definitions loaded");
-		console.error("    - analyze_change_impact (3 examples)");
+		console.error("  ✅ Impact Analysis Tools (2/2) - Enhanced definitions loaded");
 		console.error("    - find_orphaned_code (3 examples)");
-		console.error("    - analyze_breaking_changes (3 examples)");
 		console.error("    - impact_analysis (3 examples)");
 		console.error("");
 		console.error("  ✅ Architecture Tools (5/5) - Enhanced definitions loaded");
@@ -106,7 +104,7 @@ async function startServer() {
 		console.error("    - get_inheritance_hierarchy (2 examples)");
 		console.error("    - contextual_symbol_resolution (2 examples)");
 		console.error("");
-		console.error("  🎉 ALL 22 TOOLS IMPLEMENTED WITH ENHANCED DEFINITIONS!");
+		console.error("  🎉 ALL 20 TOOLS IMPLEMENTED WITH ENHANCED DEFINITIONS!");
 		console.error("  📚 Rich descriptions, examples, and usage guidance available for AI agents");
 
 		// Start the server

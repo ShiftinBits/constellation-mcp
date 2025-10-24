@@ -43,7 +43,9 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 > {
 	name = 'find_orphaned_code';
 	description =
-		'Find code that is never used or imported (dead code). Helps identify files and symbols that can be safely removed to reduce codebase size and complexity.';
+		'Find code that is never used or imported (dead code). Helps identify files and symbols that can be safely removed to reduce codebase size and complexity. ' +
+		'**PAGINATION**: Supports limit/offset with default of 50. Use for comprehensive dead code analysis. ' +
+		'Increase limit (75-100) for large cleanup initiatives to see full scope of orphaned code.';
 
 	schema = {
 		filePattern: {
@@ -74,11 +76,11 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of results to return (default: 50, max: 100)',
+				'Maximum number of orphaned items to return per page (default: 50, max: 100). Use 75-100 for comprehensive cleanup analysis to minimize pagination rounds.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Useful for exploring large amounts of dead code. Example: limit=50, offset=50 gets items 51-100.',
 		},
 	};
 

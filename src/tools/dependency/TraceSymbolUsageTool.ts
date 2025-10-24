@@ -48,7 +48,9 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 > {
 	name = 'trace_symbol_usage';
 	description =
-		'Trace where and how a symbol (function, class, variable) is used across the entire codebase. Shows imports, function calls, references, and usage context.';
+		'Trace where and how a symbol (function, class, variable) is used across the entire codebase. Shows imports, function calls, references, and usage context. ' +
+		'**PAGINATION**: Supports limit/offset with generous default of 50 (max: 500 for comprehensive tracing). Use pagination for heavily-used symbols to avoid overwhelming responses. ' +
+		'Start with default, increase limit for exhaustive analysis.';
 
 	schema = {
 		symbolId: {
@@ -98,11 +100,11 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(500).optional().default(50),
 			description:
-				'Maximum number of usages to return (default: 50, max: 500)',
+				'Maximum number of usages to return per page (default: 50, max: 500). Higher limit (100-500) for comprehensive usage analysis of critical symbols. Note: This tool has higher max (500) than most tools.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=100, offset=100 gets usages 101-200.',
 		},
 	};
 

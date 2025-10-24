@@ -9,9 +9,9 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Detect circular dependency cycles in the codebase where File A depends on File B, which depends ' +
-		'on File C, which depends back on File A. Circular dependencies cause issues with module loading, ' +
-		'testing, and maintainability. Use this to identify and break problematic dependency cycles.',
+		'Detect circular dependency cycles where File A → File B → File C → File A. Circular dependencies cause module loading errors and prevent tree-shaking. ' +
+		'Detects cycles of any length (minCycleLength=2 for simple A→B→A, =3 for A→B→C→A). Shows complete dependency paths. ' +
+		'TYPICAL WORKFLOW: Find cycles here → Analyze with compare_modules → Refactor to break cycles → Verify with get_dependencies.',
 
 	shortDescription: 'Detect circular dependency cycles',
 
@@ -30,35 +30,50 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 		properties: {
 			filePath: {
 				type: 'string',
-				description: 'Optional: Find cycles involving this specific file.',
+				description:
+					'Optional: Find cycles involving this specific file (e.g., "src/services/user.service.ts"). ' +
+					'Narrows results to only cycles that include this file. ' +
+					'Omit to find ALL cycles in the codebase. ' +
+					'Example: filePath="src/api/users.ts" finds cycles like users.ts → auth.ts → users.ts.',
 			},
 			minCycleLength: {
 				type: 'number',
 				minimum: 2,
 				maximum: 10,
 				default: 2,
-				description: 'Minimum cycle length to detect. 2=simple cycles, higher=complex chains.',
+				description:
+					'Minimum cycle length to detect (default: 2, range: 2-10). ' +
+					'minCycleLength=2: A→B→A (simple 2-file cycles) ' +
+					'minCycleLength=3: A→B→C→A (3+ file cycles) ' +
+					'minCycleLength=4+: Only complex multi-file chains. ' +
+					'RECOMMENDATION: Start with default (2) to catch all cycles, then filter to longer cycles if needed.',
 			},
 			includeDetails: {
 				type: 'boolean',
 				default: true,
-				description: 'Include detailed cycle paths showing the full dependency chain.',
+				description:
+					'Include detailed cycle paths showing complete dependency chain (default: true, RECOMMENDED). ' +
+					'Shows the full path: A → B → C → A with file paths for each step. ' +
+					'Set to false for faster queries if you only need cycle count.',
 			},
 			includeConfidence: {
 				type: 'boolean',
 				default: false,
-				description: 'Include confidence scores for cycle detection.',
+				description:
+					'Include confidence scores (0-1) for cycle detection (default: false). ' +
+					'High confidence (0.9+) = definite import cycle, low confidence (0.5-0.7) = possible dynamic import cycle. ' +
+					'Use this to prioritize which cycles to break first.',
 			},
 			limit: {
 				type: 'number',
 				default: 50,
 				maximum: 100,
-				description: 'Maximum number of cycles to return.',
+				description: 'Maximum number of cycles to return per page (default: 50, max: 100). Use with offset for pagination.',
 			},
 			offset: {
 				type: 'number',
 				default: 0,
-				description: 'Offset for pagination.',
+				description: 'Offset for pagination (default: 0). Example: offset=50 gets cycles 51-100.',
 			},
 		},
 		required: [],
@@ -98,12 +113,6 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	commonMistakes: [
 		'Setting minCycleLength too high - misses simple 2-file cycles',
 		'Not breaking cycles after finding them - they cause real problems',
-	],
-
-	performanceNotes: [
-		'Full codebase scan may take 2-5 seconds',
-		'File-specific queries are much faster',
-		'Results cached for 30 minutes',
 	],
 
 	sinceVersion: '0.0.1',

@@ -18,7 +18,9 @@ class SearchFilesTool extends BaseMcpTool<
 > {
 	name = 'search_files';
 	description =
-		'Search for files by name or path pattern across the codebase. Returns file paths, language info, symbol counts, and file metadata.';
+		'Search for files by name or path pattern across the codebase. Returns file paths, language info, symbol counts, and file metadata. ' +
+		'**PAGINATION**: Supports limit/offset for large result sets. Default limit is 50. Use offset to retrieve subsequent pages (e.g., offset=50 for page 2). ' +
+		'Ideal for exploring project structure or finding specific file types.';
 
 	schema = {
 		pathPattern: {
@@ -64,11 +66,11 @@ class SearchFilesTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of results to return (default: 50, max: 100)',
+				'Maximum number of files to return per page (default: 50, max: 100). Use smaller values (10-20) for focused exploration, larger values (50-100) for comprehensive file listings.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). For page 2, use offset=limit; for page 3, use offset=limit*2, etc. Example: limit=50, offset=50 gets files 51-100.',
 		},
 	};
 

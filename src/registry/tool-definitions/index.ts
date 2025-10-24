@@ -19,9 +19,7 @@ export { traceSymbolUsageDefinition } from './trace-symbol-usage.definition.js';
 export { getCallGraphDefinition } from './get-call-graph.definition.js';
 
 // Impact Analysis Tools
-export { analyzeChangeImpactDefinition } from './analyze-change-impact.definition.js';
 export { findOrphanedCodeDefinition } from './find-orphaned-code.definition.js';
-export { analyzeBreakingChangesDefinition } from './analyze-breaking-changes.definition.js';
 export { impactAnalysisDefinition } from './impact-analysis.definition.js';
 
 // Architecture Tools
@@ -49,9 +47,7 @@ import { getDependentsDefinition } from './get-dependents.definition.js';
 import { findCircularDependenciesDefinition } from './find-circular-dependencies.definition.js';
 import { traceSymbolUsageDefinition } from './trace-symbol-usage.definition.js';
 import { getCallGraphDefinition } from './get-call-graph.definition.js';
-import { analyzeChangeImpactDefinition } from './analyze-change-impact.definition.js';
 import { findOrphanedCodeDefinition } from './find-orphaned-code.definition.js';
-import { analyzeBreakingChangesDefinition } from './analyze-breaking-changes.definition.js';
 import { impactAnalysisDefinition } from './impact-analysis.definition.js';
 import { getArchitectureOverviewDefinition } from './get-architecture-overview.definition.js';
 import { getModuleOverviewDefinition } from './get-module-overview.definition.js';
@@ -81,10 +77,8 @@ export const allToolDefinitions: McpToolDefinition[] = [
 	traceSymbolUsageDefinition,
 	getCallGraphDefinition,
 
-	// Impact (4 tools)
-	analyzeChangeImpactDefinition,
+	// Impact (2 tools)
 	findOrphanedCodeDefinition,
-	analyzeBreakingChangesDefinition,
 	impactAnalysisDefinition,
 
 	// Architecture (5 tools)
@@ -119,9 +113,7 @@ export const toolDefinitionsByCategory = {
 		getCallGraphDefinition,
 	],
 	Impact: [
-		analyzeChangeImpactDefinition,
 		findOrphanedCodeDefinition,
-		analyzeBreakingChangesDefinition,
 		impactAnalysisDefinition,
 	],
 	Architecture: [

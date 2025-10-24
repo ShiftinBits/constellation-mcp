@@ -58,7 +58,9 @@ class FindSimilarPatternsTool extends BaseMcpTool<
 > {
 	name = 'find_similar_patterns';
 	description =
-		'Find duplicate or similar code patterns across the codebase. Identifies refactoring opportunities to reduce duplication and improve maintainability.';
+		'Find duplicate or similar code patterns across the codebase. Identifies refactoring opportunities to reduce duplication and improve maintainability. ' +
+		'**PAGINATION**: Supports limit/offset with default of 50. Use for large-scale similarity analysis. ' +
+		'Increase limit (75-100) for comprehensive duplication detection across entire codebase.';
 
 	schema = {
 		referenceFile: {
@@ -99,11 +101,11 @@ class FindSimilarPatternsTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of results to return (default: 50, max: 100)',
+				'Maximum number of similar patterns to return per page (default: 50, max: 100). Use 75-100 for comprehensive code similarity analysis to identify all refactoring opportunities.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Useful for exploring extensive duplication. Example: limit=50, offset=50 gets patterns 51-100.',
 		},
 	};
 

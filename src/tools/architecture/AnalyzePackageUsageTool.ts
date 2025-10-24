@@ -74,7 +74,9 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 > {
 	name = 'analyze_package_usage';
 	description =
-		'Analyze external package/library usage across the codebase. Identify heavily used packages, unused dependencies, and potential optimization opportunities.';
+		'Analyze external package/library usage across the codebase. Identify heavily used packages, unused dependencies, and potential optimization opportunities. ' +
+		'**PAGINATION**: Supports limit/offset with default of 50. Use for projects with many dependencies. ' +
+		'Increase limit (75-100) for monorepos or projects with extensive package ecosystems to analyze all dependencies in fewer requests.';
 
 	schema = {
 		packageName: {
@@ -110,11 +112,11 @@ class AnalyzePackageUsageTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of packages to return (default: 50, max: 100)',
+				'Maximum number of packages to return per page (default: 50, max: 100). Use 75-100 for comprehensive dependency audits in monorepos or projects with many packages.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Useful for large dependency graphs. Example: limit=50, offset=50 gets packages 51-100.',
 		},
 	};
 

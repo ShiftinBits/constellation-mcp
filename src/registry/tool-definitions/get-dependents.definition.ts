@@ -12,10 +12,9 @@ export const getDependentsDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Find what depends on a file - which files import or use it (reverse dependencies). ' +
-		'Shows the backward dependency graph: what code needs this file? Use this to understand ' +
-		'the impact scope of changes or to find consumers of an API. For forward dependencies ' +
-		'(what does this file need), use get_dependencies instead.',
+		'Find what depends on a file (reverse/backward dependencies): which files import or use this target. Impact analysis for changes. ' +
+		'Use depth parameter to control traversal (1=direct, 2-3=transitive dependents). ' +
+		'For forward direction (what this depends on), use get_dependencies.',
 
 	shortDescription: 'Find what files depend on this file (reverse dependencies)',
 
@@ -27,7 +26,7 @@ export const getDependentsDefinition: McpToolDefinition = {
 		'Understanding module usage patterns',
 	],
 
-	relatedTools: ['get_dependencies', 'analyze_change_impact', 'trace_symbol_usage', 'find_orphaned_code'],
+	relatedTools: ['get_dependencies', 'impact_analysis', 'trace_symbol_usage', 'find_orphaned_code'],
 
 	inputSchema: {
 		type: 'object',
@@ -41,17 +40,27 @@ export const getDependentsDefinition: McpToolDefinition = {
 				minimum: 1,
 				maximum: 10,
 				default: 1,
-				description: 'Depth of transitive dependents to analyze. depth=1 shows direct dependents only.',
+				description:
+					'How many levels deep to traverse the dependents tree (default: 1, max: 10). ' +
+					'⚠️ EXPONENTIAL GROWTH: depth=1 might return 10 dependents, depth=2 returns 100, depth=3 returns 1000+. ' +
+					'depth=1: Only direct dependents (files that directly import this file). ' +
+					'depth=2: Dependents of dependents (2 levels deep). ' +
+					'depth=3+: Deeper transitive dependents (use cautiously). ' +
+					'Start with default (1), only increase for complete impact analysis.',
 			},
 			includeSymbols: {
 				type: 'boolean',
 				default: false,
-				description: 'Include details about which specific symbols from the file are being used.',
+				description:
+					'Include details about which specific symbols from the file are being used by each dependent. ' +
+					'Shows what functions/classes/variables are actually imported. Increases response size.',
 			},
 			includeImpactMetrics: {
 				type: 'boolean',
 				default: false,
-				description: 'Include impact metrics: usage counts, criticality scores.',
+				description:
+					'Include detailed impact metrics: usage counts, criticality scores, risk assessment. ' +
+					'Useful for understanding importance and blast radius of changes.',
 			},
 		},
 		required: ['filePath'],
@@ -92,12 +101,6 @@ export const getDependentsDefinition: McpToolDefinition = {
 		'Confusing get_dependents (who uses this) with get_dependencies (what does this use)',
 		'Using high depth on widely-used files - returns overwhelming results',
 		'Not checking dependents before deleting code',
-	],
-
-	performanceNotes: [
-		'Direct dependents (depth=1) are very fast',
-		'Each depth level adds graph traversal time',
-		'Results cached for 10 minutes',
 	],
 
 	sinceVersion: '0.0.1',

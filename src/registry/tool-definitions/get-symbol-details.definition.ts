@@ -12,29 +12,27 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Get comprehensive information about a specific symbol including its definition, signature, ' +
-		'documentation, dependencies, dependents, and all usage locations. Use this tool when you ' +
-		'need to understand a symbol deeply - what it does, how it\'s used, what it depends on, and ' +
-		'what depends on it. First use search_symbols to find the symbol, then use this tool to get ' +
-		'complete details.',
+		'Get detailed information about a specific symbol: signature, documentation, dependencies, dependents, usage locations. ' +
+		'Call with symbolId (from search_symbols, recommended) OR symbolName+filePath. ' +
+		'Use includeReferences/includeRelationships/includeImpactScore flags to control detail level.',
 
 	shortDescription:
 		'Get detailed information about a specific symbol including signature, usage, and relationships',
 
 	whenToUse: [
-		'Understanding what a specific function, class, or variable does and how it works',
-		'Finding all places where a symbol is referenced or called',
-		'Discovering a symbol\'s dependencies and what code depends on it',
-		'Analyzing inheritance relationships for a class or interface',
-		'Reviewing a symbol\'s documentation and signature before using it',
+		'You know the exact symbol name and file path, or have a symbolId from search_symbols',
+		'Need comprehensive details about a specific symbol (definition, signature, documentation)',
+		'Want to see all references/usage locations for a symbol (with includeReferences=true)',
+		'Analyzing relationships (calls, inheritance, implementations) for a symbol',
+		'Assessing impact of changing a symbol (with includeImpactScore=true)',
 	],
 
 	relatedTools: [
 		'search_symbols',
+		'contextual_symbol_resolution',
 		'trace_symbol_usage',
-		'analyze_change_impact',
+		'impact_analysis',
 		'get_dependencies',
-		'get_dependents',
 	],
 
 	inputSchema: {
@@ -67,8 +65,8 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 				description:
 					'Include all locations where this symbol is referenced or imported. This shows every ' +
 					'place in the codebase that uses this symbol, with file paths and line numbers. ' +
-					'Very useful for understanding usage patterns but increases response size. ' +
-					'For detailed usage analysis, consider using trace_symbol_usage instead.',
+					'Can return hundreds of results for widely-used symbols. ' +
+					'For detailed usage analysis with code context, use trace_symbol_usage instead.',
 			},
 			includeRelationships: {
 				type: 'boolean',
@@ -77,7 +75,7 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 					'Include relationships like function calls, inheritance, implementations. Shows: ' +
 					'what functions this symbol calls, what functions call it, what classes it extends, ' +
 					'what classes extend it, and more. Essential for understanding code architecture and ' +
-					'dependencies.',
+					'dependencies. Cached results make this reasonably fast.',
 			},
 			includeImpactScore: {
 				type: 'boolean',
@@ -85,7 +83,7 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 				description:
 					'Include impact analysis metrics: how many places use this symbol (direct usage), ' +
 					'how many depend on it transitively, and a risk score for making changes. ' +
-					'Useful when planning refactoring or evaluating the importance of a symbol.',
+					'Involves graph traversal. Useful when planning refactoring or evaluating symbol importance.',
 			},
 		},
 		required: [],
@@ -136,17 +134,12 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Providing only symbolName without filePath - this is ambiguous if multiple symbols share the name',
-		'Requesting includeReferences for highly-used symbols - can return hundreds of results; use trace_symbol_usage for better filtering',
-		'Not using symbolId when available - symbolId is more precise and faster than name+file lookup',
-		'Enabling all options (references, relationships, impact) when you only need basic info - increases response time significantly',
-	],
-
-	performanceNotes: [
-		'Lookup by symbolId is faster than by name+filePath',
-		'Including references for widely-used symbols (e.g., utility functions) can return large result sets',
-		'Relationships are computed on-demand but cached for 5 minutes',
-		'Impact scores involve graph traversal and are the slowest option to compute',
+		'Using for symbol search → use search_symbols instead',
+		'Using for type/import context → use contextual_symbol_resolution instead',
+		'Providing only symbolName without filePath - ambiguous if multiple symbols share the name',
+		'Requesting includeReferences for highly-used symbols - can return hundreds of results; use trace_symbol_usage instead',
+		'Not using symbolId when available from search_symbols - symbolId is more precise and faster',
+		'Enabling all options (references, relationships, impact) when you only need basic info',
 	],
 
 	sinceVersion: '0.0.1',

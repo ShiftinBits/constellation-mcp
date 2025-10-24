@@ -186,6 +186,8 @@ export interface GetDependenciesParams {
 	symbolId?: string;
 	depth?: number;
 	includeExternal?: boolean;
+	limit?: number;
+	offset?: number;
 }
 
 export interface Dependency {
@@ -208,6 +210,8 @@ export interface GetDependentsParams {
 	filePath?: string;
 	symbolId?: string;
 	depth?: number;
+	limit?: number;
+	offset?: number;
 }
 
 export interface Dependent {
@@ -239,6 +243,135 @@ export interface CircularDependency {
 export interface FindCircularDependenciesResult {
 	cycles: CircularDependency[];
 	totalCycles: number;
+}
+
+/**
+ * Analyze Change Impact
+ */
+
+export interface AnalyzeChangeImpactParams {
+	filePath?: string;
+	symbolId?: string;
+	includeTransitive?: boolean;
+	includeTests?: boolean;
+	includeRiskLevel?: boolean;
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
+}
+
+export interface AnalyzeChangeImpactResult {
+	target: {
+		type: 'file' | 'symbol';
+		name: string;
+		location: string;
+	};
+	affectedFiles: Array<{
+		filePath: string;
+		impactLevel: 'high' | 'medium' | 'low';
+		reason: string;
+	}>;
+	risk?: {
+		level: string;
+		score: number;
+		recommendations: string[];
+	};
+}
+
+/**
+ * Get Call Graph
+ */
+
+export interface GetCallGraphParams {
+	symbolId?: string;
+	functionName?: string;
+	filePath?: string;
+	direction?: 'callers' | 'callees' | 'both';
+	depth?: number;
+	excludeExternal?: boolean;
+	includeGraph?: boolean;
+	limit?: number;
+	offset?: number;
+}
+
+export interface GetCallGraphResult {
+	root: {
+		symbolId: string;
+		name: string;
+		filePath: string;
+	};
+	callers?: Array<{
+		symbolId: string;
+		name: string;
+		filePath: string;
+		depth: number;
+	}>;
+	callees?: Array<{
+		symbolId: string;
+		name: string;
+		filePath: string;
+		isAsync: boolean;
+		depth: number;
+	}>;
+}
+
+/**
+ * Find Entry Points
+ */
+
+export interface FindEntryPointsParams {
+	includeCallDepth?: number;
+	groupByModule?: boolean;
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
+}
+
+export interface FindEntryPointsResult {
+	summary: {
+		totalEntryPoints: number;
+		byType: Record<string, number>;
+	};
+	entryPoints: Array<{
+		type: string;
+		name: string;
+		filePath: string;
+		line: number;
+	}>;
+}
+
+/**
+ * Get Inheritance Hierarchy
+ */
+
+export interface GetInheritanceHierarchyParams {
+	symbolId?: string;
+	className?: string;
+	filePath?: string;
+	direction?: 'ancestors' | 'descendants' | 'both';
+	depth?: number;
+	filterByRelationshipType?: string[];
+	includeGraph?: boolean;
+	limit?: number;
+	offset?: number;
+}
+
+export interface GetInheritanceHierarchyResult {
+	root: {
+		name: string;
+		filePath: string;
+		kind: string;
+	};
+	ancestors?: Array<{
+		name: string;
+		filePath: string;
+		depth: number;
+	}>;
+	descendants?: Array<{
+		name: string;
+		filePath: string;
+		depth: number;
+	}>;
 }
 
 /**

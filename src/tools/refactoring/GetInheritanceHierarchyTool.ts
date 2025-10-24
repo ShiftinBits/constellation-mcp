@@ -65,7 +65,9 @@ class GetInheritanceHierarchyTool extends BaseMcpTool<
 > {
 	name = 'get_inheritance_hierarchy';
 	description =
-		'Analyze class inheritance hierarchies, interfaces, and type relationships. Visualize the object-oriented structure and identify design issues.';
+		'Analyze class inheritance hierarchies, interfaces, and type relationships. Visualize the object-oriented structure and identify design issues. ' +
+		'**PAGINATION**: Supports limit/offset with default of 20. Use for base classes with many subclasses or deep inheritance trees. ' +
+		'Increase limit (50-100) for widely-extended base classes or comprehensive hierarchy analysis.';
 
 	schema = {
 		symbolId: {
@@ -102,6 +104,15 @@ class GetInheritanceHierarchyTool extends BaseMcpTool<
 			type: z.coerce.boolean().optional().default(false),
 			description:
 				'Include graph visualization data (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(20),
+			description:
+				'Maximum number of hierarchy nodes to return per page (default: 20, max: 100). Applies to ancestors and descendants combined. Use 50-100 for base classes with many subclasses.',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Starting position for pagination (default: 0). Useful for exploring large class hierarchies. Example: limit=20, offset=20 gets hierarchy nodes 21-40.',
 		},
 	};
 

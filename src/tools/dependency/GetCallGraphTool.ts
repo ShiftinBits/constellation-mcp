@@ -58,7 +58,9 @@ class GetCallGraphTool extends BaseMcpTool<
 > {
 	name = 'get_call_graph';
 	description =
-		'Generate a call graph showing function invocation relationships. Shows which functions call which, helping understand execution flow and dependencies.';
+		'Generate a call graph showing function invocation relationships. Shows which functions call which, helping understand execution flow and dependencies. ' +
+		'**PAGINATION**: Supports limit/offset with default of 25. Use for functions with many callers/callees. Pagination applies separately to callers and callees lists. ' +
+		'Increase limit (50-100) for central orchestrator functions with extensive call relationships.';
 
 	schema = {
 		symbolId: {
@@ -91,6 +93,15 @@ class GetCallGraphTool extends BaseMcpTool<
 		includeGraph: {
 			type: z.coerce.boolean().optional().default(false),
 			description: 'Include graph visualization data (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(25),
+			description:
+				'Maximum number of call relationships to return per page (default: 25, max: 100). Applies to both callers and callees. Use 50-100 for complex call graphs of central functions.',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Starting position for pagination (default: 0). Increments apply to both callers and callees lists. Example: limit=25, offset=25 gets relationships 26-50.',
 		},
 	};
 

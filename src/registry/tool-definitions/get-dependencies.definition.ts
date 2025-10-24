@@ -12,10 +12,9 @@ export const getDependenciesDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Find what a file depends on - its imports, the modules it uses, and the external packages ' +
-		'it requires. Shows the forward dependency graph: what does this code need to function? ' +
-		'Use this to understand a file\'s requirements, identify coupling, or prepare for refactoring. ' +
-		'For the reverse (what depends on this file), use get_dependents instead.',
+		'Find what a file depends on (forward dependencies): imports, function calls, references. Shows what this code needs to function. ' +
+		'Use depth parameter to control traversal (1=direct, 2-3=transitive). ' +
+		'For reverse direction (what depends on this), use get_dependents.',
 
 	shortDescription:
 		'Find what a file imports and depends on (forward dependencies)',
@@ -33,7 +32,7 @@ export const getDependenciesDefinition: McpToolDefinition = {
 		'find_circular_dependencies',
 		'analyze_package_usage',
 		'get_file_details',
-		'analyze_change_impact',
+		'impact_analysis',
 	],
 
 	inputSchema: {
@@ -53,12 +52,12 @@ export const getDependenciesDefinition: McpToolDefinition = {
 				maximum: 10,
 				default: 1,
 				description:
-					'How many levels deep to traverse the dependency tree. ' +
-					'depth=1 shows only direct dependencies (files this file imports). ' +
-					'depth=2 shows dependencies of dependencies (2 levels). ' +
-					'depth=3+ shows deeper transitive dependencies. ' +
-					'Start with 1 for initial exploration, increase if you need to see deeper relationships. ' +
-					'Higher values (>3) may take longer and return many results.',
+					'How many levels deep to traverse the dependency tree (default: 1, max: 10). ' +
+					'⚠️ EXPONENTIAL GROWTH: depth=1 might return 10 deps, depth=2 returns 100, depth=3 returns 1000+. ' +
+					'depth=1: Only direct dependencies (files this file imports directly). ' +
+					'depth=2: Dependencies of dependencies (2 levels deep). ' +
+					'depth=3+: Deeper transitive dependencies (use cautiously). ' +
+					'Start with default (1), only increase if you need complete transitive closure.',
 			},
 			includePackages: {
 				type: 'boolean',
@@ -66,8 +65,8 @@ export const getDependenciesDefinition: McpToolDefinition = {
 				description:
 					'Include external package dependencies (from node_modules, pip packages, etc). ' +
 					'When true, shows npm packages, Python libraries, and other external dependencies. ' +
-					'When false, shows only internal project files. Enable when auditing package usage ' +
-					'or preparing for dependency updates.',
+					'When false, shows only internal project files. ' +
+					'Package info is cached (minimal overhead). Enable when auditing package usage or preparing for dependency updates.',
 			},
 			includeSymbols: {
 				type: 'boolean',
@@ -75,7 +74,8 @@ export const getDependenciesDefinition: McpToolDefinition = {
 				description:
 					'Include symbol-level dependency details: which specific functions, classes, or variables ' +
 					'are imported from each file. When false, shows just file-level dependencies (faster). ' +
-					'When true, shows what\'s actually being used (more detail, useful for understanding coupling).',
+					'When true, shows what\'s actually being used (more detail, useful for understanding coupling). ' +
+					'Increases response size significantly.',
 			},
 		},
 		required: ['filePath'],
@@ -131,13 +131,6 @@ export const getDependenciesDefinition: McpToolDefinition = {
 		'Not enabling includePackages when investigating external dependencies - misses npm/pip packages',
 		'Confusing get_dependencies (forward: what does X need) with get_dependents (backward: what needs X)',
 		'Enabling includeSymbols without needing it - increases response size and time',
-	],
-
-	performanceNotes: [
-		'depth=1 is fastest, each additional depth level increases computation time',
-		'Including packages adds minimal overhead (package info is cached)',
-		'Symbol-level details (includeSymbols: true) increases response size significantly',
-		'Results are cached for 10 minutes per file',
 	],
 
 	sinceVersion: '0.0.1',

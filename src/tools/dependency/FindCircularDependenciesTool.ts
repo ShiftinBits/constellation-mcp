@@ -17,7 +17,9 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 > {
 	name = 'find_circular_dependencies';
 	description =
-		'Detect circular dependency cycles in the codebase. Circular dependencies can cause issues with module loading, testing, and maintainability.';
+		'Detect circular dependency cycles in the codebase. Circular dependencies can cause issues with module loading, testing, and maintainability. ' +
+		'**PAGINATION**: Supports limit/offset with default of 50. Use for codebases with many circular dependencies. ' +
+		'Increase limit (75-100) for comprehensive circular dependency analysis across large projects.';
 
 	schema = {
 		filePath: {
@@ -41,11 +43,11 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 		limit: {
 			type: z.coerce.number().int().min(1).max(100).optional().default(50),
 			description:
-				'Maximum number of cycles to return (default: 50, max: 100)',
+				'Maximum number of cycles to return per page (default: 50, max: 100). Use 75-100 for large projects to see comprehensive cycle detection in fewer requests.',
 		},
 		offset: {
 			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Offset for pagination (default: 0)',
+			description: 'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=50, offset=50 gets cycles 51-100.',
 		},
 	};
 

@@ -5,8 +5,8 @@
  * based on intent, use case, and parameters.
  */
 
-import { getToolRegistry } from './ToolRegistry.js';
 import { McpToolDefinition, ToolExample } from './McpToolDefinition.interface.js';
+import { getToolRegistry } from './ToolRegistry.js';
 
 /**
  * Suggest tools based on user intent keywords
@@ -166,7 +166,6 @@ export function getToolUsageTips(
 
 	return {
 		commonMistakes: tool.commonMistakes,
-		performanceNotes: tool.performanceNotes,
 		relatedTools: tool.relatedTools,
 	};
 }

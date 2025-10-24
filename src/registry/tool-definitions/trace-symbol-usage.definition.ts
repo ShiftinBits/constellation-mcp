@@ -12,11 +12,9 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Trace where and how a specific symbol (function, class, variable, type) is used throughout ' +
-		'the entire codebase. Shows all imports, function calls, references, instantiations, and inheritance ' +
-		'relationships with full context. Use this when you need to understand usage patterns, find all callers, ' +
-		'or prepare for API changes. More detailed than get_symbol_details references, with advanced filtering ' +
-		'and context options.',
+		'Trace where and how a symbol is used across the codebase: imports, calls, references with code context. ' +
+		'Provides usage TYPE (CALLS/IMPORTS/INHERITS) and surrounding code for each usage. ' +
+		'Filter by relationship type, exclude tests/generated files. Max 500 results per page.',
 
 	shortDescription:
 		'Trace all usages of a symbol across the codebase with detailed context',
@@ -31,7 +29,7 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 
 	relatedTools: [
 		'get_symbol_details',
-		'analyze_change_impact',
+		'impact_analysis',
 		'find_orphaned_code',
 		'search_symbols',
 		'get_call_graph',
@@ -89,14 +87,15 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 				description:
 					'Include transitive (indirect) usages. When true, finds not just direct usage but also ' +
 					'files that depend on files that use this symbol (the ripple effect). Useful for understanding ' +
-					'full impact but returns more results. Most use cases want false (direct usage only).',
+					'full impact but returns many more results. Most use cases want false (direct usage only).',
 			},
 			includeContext: {
 				type: 'boolean',
 				default: true,
 				description:
 					'Include context about where each usage occurs: the enclosing function/class, surrounding code. ' +
-					'Highly recommended - helps understand HOW the symbol is being used, not just WHERE. ' +
+					'Highly recommended (default: true) - helps understand HOW the symbol is being used, not just WHERE. ' +
+					'This is the unique value of this tool over get_symbol_details. ' +
 					'Disable only if you need just file locations and line numbers.',
 			},
 			excludeTests: {
@@ -117,6 +116,8 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 				type: 'boolean',
 				default: false,
 				description:
+					'Include importance weighting scores for each usage. ' +
+					'Helps prioritize which usages matter most. ' +
 					'Include importance weighting for each usage location based on how critical that code is. ' +
 					'Useful for prioritizing which usages to focus on during refactoring.',
 			},
@@ -196,13 +197,6 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 		'Not using excludeTests or excludeGenerated - results get cluttered with test and build artifacts',
 		'Disabling includeContext - context is extremely valuable for understanding usage patterns',
 		'Using includeTransitive when you only need direct usage - returns far more results than needed',
-	],
-
-	performanceNotes: [
-		'Results are cached per symbol for 10 minutes',
-		'Transitive analysis (includeTransitive: true) requires graph traversal and is slower',
-		'Widely-used symbols (>100 usages) may take 2-3 seconds even with caching',
-		'Relationship type filtering is applied efficiently at the database level',
 	],
 
 	sinceVersion: '0.0.1',

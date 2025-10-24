@@ -57,7 +57,9 @@ class FindEntryPointsTool extends BaseMcpTool<
 > {
 	name = 'find_entry_points';
 	description =
-		'Identify entry points to the application including main functions, API endpoints, CLI commands, event handlers, and test suites. Useful for understanding how code is invoked.';
+		'Identify entry points to the application including main functions, API endpoints, CLI commands, event handlers, and test suites. Useful for understanding how code is invoked. ' +
+		'**PAGINATION**: Supports limit/offset with conservative default of 15 (entry points are typically few). Use pagination for microservice architectures with many endpoints. ' +
+		'Increase limit (30-50) for large APIs with numerous entry points.';
 
 	schema = {
 		includeCallDepth: {
@@ -74,6 +76,15 @@ class FindEntryPointsTool extends BaseMcpTool<
 			type: z.coerce.boolean().optional().default(false),
 			description:
 				'Include confidence scores (default: false)',
+		},
+		limit: {
+			type: z.coerce.number().int().min(1).max(100).optional().default(15),
+			description:
+				'Maximum number of entry points to return per page (default: 15, max: 100). Lower default since entry points are typically few. Use 30-50 for large APIs with many endpoints.',
+		},
+		offset: {
+			type: z.coerce.number().int().min(0).optional().default(0),
+			description: 'Starting position for pagination (default: 0). Useful for exploring large API surfaces. Example: limit=15, offset=15 gets entry points 16-30.',
 		},
 	};
 

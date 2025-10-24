@@ -7,7 +7,9 @@ import { McpToolDefinition } from '../McpToolDefinition.interface.js';
 export const compareModulesDefinition: McpToolDefinition = {
 	name: 'compare_modules',
 	category: 'Architecture',
-	description: 'Compare two modules to understand their similarities, differences, dependencies, and relationships. Useful for refactoring consolidation decisions and identifying duplication.',
+	description:
+		'Compare two modules: similarities, differences, dependencies, relationships. For refactoring/consolidation decisions. ' +
+		'Accepts module1/module2 OR moduleA/moduleB. Control detail with include flags (Structure, Patterns, Dependencies, Similarity).',
 	shortDescription: 'Compare two modules for similarities and differences',
 	whenToUse: ['Deciding whether to consolidate similar modules', 'Understanding differences before merging code', 'Identifying duplicate functionality', 'Analyzing module relationships', 'Planning module refactoring'],
 	relatedTools: ['get_module_overview', 'find_similar_patterns', 'get_architecture_overview', 'detect_architecture_violations'],
@@ -24,13 +26,12 @@ export const compareModulesDefinition: McpToolDefinition = {
 			includeSimilarity: { type: 'string', description: 'Include similarity scoring' },
 			includeConfidence: { type: 'string', description: 'Include confidence scores' },
 		},
-		required: ['includeStructure', 'includePatterns', 'includeDependencies', 'includeSimilarity', 'includeConfidence'],
+		required: [],
 	},
 	examples: [
 		{ title: 'Compare two service modules', description: 'Check if auth and user services can be consolidated', parameters: { module1: 'src/services/auth', module2: 'src/services/user', includeStructure: 'true', includeSimilarity: 'true', includePatterns: 'true', includeDependencies: 'true', includeConfidence: 'false' }, expectedOutcome: 'Returns similarity score and structural comparison' },
 		{ title: 'Quick similarity check', description: 'Fast comparison without details', parameters: { module1: 'src/utils/string', module2: 'src/helpers/text', includeStructure: 'false', includePatterns: 'false', includeDependencies: 'false', includeSimilarity: 'true', includeConfidence: 'false' }, expectedOutcome: 'Returns similarity score only' },
 	],
 	commonMistakes: ['Comparing unrelated modules - no useful insights', 'Not acting on high similarity findings'],
-	performanceNotes: ['Comparison takes 1-2 seconds', 'Pattern analysis adds time'],
 	sinceVersion: '0.0.1',
 };

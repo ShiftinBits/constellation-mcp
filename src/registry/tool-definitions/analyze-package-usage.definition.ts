@@ -7,29 +7,103 @@ import { McpToolDefinition } from '../McpToolDefinition.interface.js';
 export const analyzePackageUsageDefinition: McpToolDefinition = {
 	name: 'analyze_package_usage',
 	category: 'Architecture',
-	description: 'Analyze external package/library usage across the codebase. Identifies heavily used packages, unused dependencies, duplicate packages, and optimization opportunities.',
+	description:
+		'Analyze external package usage: heavily used, unused dependencies, optimization opportunities. Two modes: all packages (no packageName) or specific package deep dive. ' +
+		'Filter by category (production/development), find duplicates, track module-level usage.',
 	shortDescription: 'Analyze external package usage and dependencies',
-	whenToUse: ['Auditing dependencies before updates', 'Finding unused npm packages to remove', 'Detecting duplicate or conflicting package versions', 'Understanding package usage patterns', 'Optimizing bundle size by reducing dependencies'],
+	whenToUse: [
+		'Dependency audit (finding unused packages)',
+		'Bundle size optimization',
+		'Security review (identifying problematic dependencies)',
+		'Understanding which packages are most critical',
+		'Finding duplicate or conflicting package versions',
+	],
 	relatedTools: ['get_dependencies', 'get_architecture_overview', 'find_orphaned_code', 'get_module_overview'],
 	inputSchema: {
 		type: 'object',
 		properties: {
-			packageName: { type: 'string', description: 'Optional: Analyze specific package (e.g., "lodash")' },
-			filterByCategory: { type: 'array', items: { type: 'string' }, description: 'Filter by category: production, development' },
-			minUsageCount: { type: 'string', description: 'Minimum usage count to include (default: 1)' },
-			includeFileDetails: { type: 'string', description: 'Include file-level usage details' },
-			includeModuleBreakdown: { type: 'string', description: 'Include module breakdown within packages' },
-			includeDuplicates: { type: 'string', description: 'Include duplicate package detection' },
-			limit: { type: 'string', description: 'Max packages to return (default: 50, max: 100)' },
-			offset: { type: 'string', description: 'Offset for pagination' },
+			packageName: {
+				type: 'string',
+				description: 'Analyze specific package (e.g., "lodash"). Omit to analyze ALL packages.',
+			},
+			filterByCategory: {
+				type: 'array',
+				items: { type: 'string' },
+				description: 'Filter by package category: ["production"], ["development"], or both. Omit for all categories.',
+			},
+			minUsageCount: {
+				type: 'string',
+				description: 'Minimum usage count to include package (default: 1). Use 0 to find completely unused packages.',
+			},
+			includeFileDetails: {
+				type: 'string',
+				description: 'Include file-level usage details (which files import this package). Set to "true" or "false".',
+			},
+			includeModuleBreakdown: {
+				type: 'string',
+				description: 'Include breakdown by module within packages (e.g., lodash/map, lodash/filter). Set to "true" or "false".',
+			},
+			includeDuplicates: {
+				type: 'string',
+				description: 'Include duplicate package detection (multiple versions of same package). Set to "true" or "false". Critical for monorepos.',
+			},
+			limit: {
+				type: 'string',
+				description: 'Maximum packages to return (default: 50, max: 100). Use pagination for large dependency lists.',
+			},
+			offset: {
+				type: 'string',
+				description: 'Offset for pagination (default: 0).',
+			},
 		},
-		required: ['includeFileDetails', 'includeModuleBreakdown', 'includeDuplicates', 'minUsageCount', 'limit', 'offset'],
+		required: [],
 	},
 	examples: [
-		{ title: 'Find heavily used packages', description: 'Identify most-used dependencies', parameters: { minUsageCount: '10', limit: '20', includeFileDetails: 'false', includeModuleBreakdown: 'false', includeDuplicates: 'false', offset: '0' }, expectedOutcome: 'Returns top 20 most-used packages' },
-		{ title: 'Audit specific package', description: 'See how lodash is used', parameters: { packageName: 'lodash', includeFileDetails: 'true', includeModuleBreakdown: 'true', includeDuplicates: 'false', minUsageCount: '0', limit: '50', offset: '0' }, expectedOutcome: 'Returns detailed lodash usage across codebase' },
+		{
+			title: 'Find unused dependencies',
+			description: 'Identify packages with zero or low usage',
+			parameters: {
+				minUsageCount: '0',
+				limit: '50',
+				includeFileDetails: 'false',
+				includeModuleBreakdown: 'false',
+				includeDuplicates: 'false',
+				offset: '0',
+			},
+			expectedOutcome: 'Returns packages sorted by usage count, showing candidates for removal',
+		},
+		{
+			title: 'Audit specific package usage',
+			description: 'Deep dive into lodash usage patterns',
+			parameters: {
+				packageName: 'lodash',
+				includeFileDetails: 'true',
+				includeModuleBreakdown: 'true',
+				includeDuplicates: 'false',
+				minUsageCount: '0',
+				limit: '50',
+				offset: '0',
+			},
+			expectedOutcome: 'Returns detailed lodash usage: which files use it, which lodash modules are imported',
+		},
+		{
+			title: 'Find duplicate packages',
+			description: 'Detect conflicting package versions',
+			parameters: {
+				includeDuplicates: 'true',
+				includeFileDetails: 'false',
+				includeModuleBreakdown: 'false',
+				minUsageCount: '1',
+				limit: '100',
+				offset: '0',
+			},
+			expectedOutcome: 'Returns packages with multiple versions installed (common monorepo issue)',
+		},
 	],
-	commonMistakes: ['Not checking for duplicates - common issue with monorepos', 'Not analyzing before removing packages'],
-	performanceNotes: ['Package analysis takes 2-3 seconds', 'Results cached for 30 minutes'],
+	commonMistakes: [
+		'Not checking includeDuplicates in monorepos - common source of build issues',
+		'Removing packages without checking minUsageCount=0 first',
+		'Not analyzing before dependency updates',
+	],
 	sinceVersion: '0.0.1',
 };

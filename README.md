@@ -1,13 +1,12 @@
 # Constellation MCP Server
 
-<img src="https://img.shields.io/badge/mcp-@constellationdev/mcp-lightgray.svg?logo=modelcontextprotocol" alt="MCP Server">
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-blue.svg" alt="License"></a>
+<img src="https://img.shields.io/badge/mcp-@constellationdev/mcp-lightgray.svg?logo=modelcontextprotocol" alt="MCP Server"> <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-blue.svg" alt="License"></a>
 
 AI-powered code intelligence for your development workflow. Constellation provides powerful specialized tools that enable AI assistants to understand your codebase through advanced analysis.
 
 ## ✨ Enhanced Tool Definitions
 
-**NEW**: All 22 tools now include rich, AI-friendly metadata:
+**NEW**: All 20 tools now include rich, AI-friendly metadata:
 
 - **Rich Descriptions**: 2-3 sentences explaining what, when, and why to use each tool
 - **Concrete Examples**: Real-world parameter combinations (2-3 per tool)
@@ -78,7 +77,7 @@ This can also be provided in the MCP server configuration JSON in the `env` sect
 
 ## Available Tools
 
-All 22 tools include enhanced definitions with examples, use cases, and usage guidance.
+All 20 tools include enhanced definitions with examples, use cases, and usage guidance.
 
 ### Discovery (4 tools)
 
@@ -95,10 +94,8 @@ All 22 tools include enhanced definitions with examples, use cases, and usage gu
 - `trace_symbol_usage` - Track how a symbol is used across the codebase (3 examples)
 - `get_call_graph` - Generate function call hierarchy (3 examples)
 
-### Impact Analysis (4 tools)
+### Impact Analysis (2 tools)
 
-- `analyze_change_impact` - Understand the scope of a potential change (3 examples)
-- `analyze_breaking_changes` - Detect API contract violations (3 examples)
 - `impact_analysis` - Comprehensive change impact assessment (3 examples)
 - `find_orphaned_code` - Identify unused or unreachable code (3 examples)
 

@@ -7,30 +7,88 @@ import { McpToolDefinition } from '../McpToolDefinition.interface.js';
 export const findSimilarPatternsDefinition: McpToolDefinition = {
 	name: 'find_similar_patterns',
 	category: 'Refactoring',
-	description: 'Find duplicate or similar code patterns across the codebase. Identifies refactoring opportunities to reduce duplication and improve maintainability by extracting common patterns.',
+
+	description:
+		'Find duplicate or similar code patterns across the codebase using similarity scoring (0-1 scale). Use referenceFile or referenceSymbol as comparison point. ' +
+		'SIMILARITY SCALE: 0.7=somewhat similar, 0.8=very similar (recommended), 0.9+=nearly identical (copy-paste candidates). ' +
+		'TYPICAL WORKFLOW: Find patterns here → Review with get_symbol_details → Extract common logic → Verify with trace_symbol_usage.',
+
 	shortDescription: 'Find duplicate or similar code patterns',
+
 	whenToUse: ['Identifying code duplication for refactoring', 'Finding candidates for utility function extraction', 'Detecting copy-paste code', 'Improving code maintainability', 'Reducing codebase size through consolidation'],
 	relatedTools: ['compare_modules', 'find_orphaned_code', 'get_architecture_overview', 'contextual_symbol_resolution'],
+
 	inputSchema: {
 		type: 'object',
 		properties: {
-			referenceFile: { type: 'string', description: 'Reference file to find similar patterns to' },
-			referenceSymbol: { type: 'string', description: 'Reference symbol to find similar patterns to' },
-			minSimilarity: { type: 'string', description: 'Minimum similarity score (0-1, default: 0.7)' },
-			filterByKind: { type: 'string', description: 'Filter by symbol kind (e.g., "function", "class")' },
-			filterByModuleType: { type: 'string', description: 'Filter by module type' },
-			filterByParadigm: { type: 'string', description: 'Filter by paradigm' },
-			includeConfidence: { type: 'string', description: 'Include confidence scores' },
-			limit: { type: 'string', description: 'Max results (default: 50, max: 100)' },
-			offset: { type: 'string', description: 'Offset for pagination' },
+			referenceFile: {
+				type: 'string',
+				description:
+					'Reference file to find similar patterns to (e.g., "src/utils/validators.ts"). ' +
+					'Finds files with similar code structure/patterns. ' +
+					'Use EITHER referenceFile OR referenceSymbol, not both. ' +
+					'Example: referenceFile="src/api/users.ts" finds other API files with similar patterns.',
+			},
+			referenceSymbol: {
+				type: 'string',
+				description:
+					'Reference symbol to find similar patterns to (e.g., "formatUserData", "UserValidator"). ' +
+					'Finds symbols (functions/classes) with similar implementation. ' +
+					'Use EITHER referenceFile OR referenceSymbol, not both. ' +
+					'Example: referenceSymbol="validateEmail" finds other validation functions with similar logic.',
+			},
+			minSimilarity: {
+				type: 'string',
+				description:
+					'Minimum similarity score (0-1, default: 0.7). ' +
+					'0.7 = somewhat similar (shared structure), catches more candidates but includes borderline matches. ' +
+					'0.8 = very similar (shared logic), good balance for refactoring. ' +
+					'0.9+ = nearly identical (likely copy-paste), immediate extraction candidates. ' +
+					'RECOMMENDATION: Start with 0.8, then lower to 0.7 if you need more results.',
+			},
+			filterByKind: {
+				type: 'string',
+				description:
+					'Filter by symbol kind. Valid values: "function", "class", "variable", "interface", "type". ' +
+					'Example: filterByKind="function" finds only similar functions. ' +
+					'Omit to search all symbol types.',
+			},
+			filterByModuleType: {
+				type: 'string',
+				description:
+					'Filter by module type. Valid values: "esm" (ES modules), "commonjs" (require/exports). ' +
+					'Example: filterByModuleType="esm" finds similar patterns only in ES module files. ' +
+					'Omit to search all module types.',
+			},
+			filterByParadigm: {
+				type: 'string',
+				description:
+					'Filter by programming paradigm. Valid values: "object-oriented", "functional", "procedural". ' +
+					'Example: filterByParadigm="functional" finds similar patterns in functional code. ' +
+					'Omit to search all paradigms.',
+			},
+			includeConfidence: {
+				type: 'string',
+				description:
+					'Include confidence scores for similarity matches (set to "true" or "false"). ' +
+					'Confidence indicates how reliable the similarity score is. ' +
+					'High confidence (0.9+) = accurate match, low confidence (0.5-0.7) = uncertain match.',
+			},
+			limit: {
+				type: 'string',
+				description: 'Maximum results to return (default: 50, max: 100). Use with offset for pagination.',
+			},
+			offset: {
+				type: 'string',
+				description: 'Offset for pagination (default: 0). Example: offset=50 gets results 51-100.',
+			},
 		},
-		required: ['minSimilarity', 'includeConfidence', 'limit', 'offset'],
+		required: [],
 	},
 	examples: [
 		{ title: 'Find similar functions', description: 'Locate functions similar to a reference', parameters: { referenceSymbol: 'formatUserData', minSimilarity: '0.8', filterByKind: 'function', includeConfidence: 'false', limit: '20', offset: '0' }, expectedOutcome: 'Returns functions with 80%+ similarity to formatUserData' },
 		{ title: 'Find duplicate code patterns', description: 'Detect copy-paste code across codebase', parameters: { referenceFile: 'src/utils/validators.ts', minSimilarity: '0.7', includeConfidence: 'true', limit: '30', offset: '0' }, expectedOutcome: 'Returns files with similar patterns to validators.ts' },
 	],
 	commonMistakes: ['Setting similarity too high (>0.9) - misses useful matches', 'Not refactoring after finding duplicates'],
-	performanceNotes: ['Pattern matching takes 3-5 seconds', 'Lower similarity thresholds take longer'],
 	sinceVersion: '0.0.1',
 };

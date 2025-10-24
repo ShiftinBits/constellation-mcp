@@ -12,28 +12,26 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Search for symbols (functions, classes, variables, types, etc.) across your codebase ' +
-		'by name or pattern with powerful filtering capabilities. Use this tool when you need ' +
-		'to find where a symbol is defined, explore available APIs, or discover symbols with ' +
-		'similar names. For detailed information about a specific symbol after finding it, use ' +
-		'get_symbol_details. For tracing how a symbol is used across the codebase, use trace_symbol_usage.',
+		'Search for symbols (functions, classes, variables, types) by name or pattern across the codebase. Returns symbol names, locations, signatures. ' +
+		'Fast pattern matching with filtering by kind, visibility, export status. ' +
+		'TYPICAL WORKFLOW: Search here first → use get_symbol_details for specifics.',
 
 	shortDescription:
 		'Find symbols by name or pattern with advanced filtering',
 
 	whenToUse: [
-		'Finding where a function, class, or variable is defined in the codebase',
-		'Exploring available APIs, interfaces, or types in a module or package',
-		'Discovering symbols with similar names or matching a pattern',
-		'Locating all exported functions or classes for documentation',
-		'Searching for symbols in specific directories using file patterns',
+		'You know part of a symbol name (e.g., "User" or "*Service") but not exact location',
+		'Finding all symbols of a specific kind (all classes, all functions)',
+		'Locating exported vs internal symbols',
+		'Exploring available APIs in a module or package',
+		'Pattern matching across codebase ("format*", "handle*")',
 	],
 
 	relatedTools: [
 		'get_symbol_details',
+		'contextual_symbol_resolution',
 		'trace_symbol_usage',
 		'search_files',
-		'get_file_details',
 	],
 
 	inputSchema: {
@@ -181,17 +179,12 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using an empty query without filters - results in all symbols being returned, which may be overwhelming',
-		'Setting limit too high (>50) on initial searches - start small and increase if needed',
-		'Forgetting to use filePattern when you know the general location - narrows results significantly',
-		'Not using isExported when looking for public APIs - includes internal implementation details',
-	],
-
-	performanceNotes: [
-		'Results are cached for 5 minutes for frequently searched terms',
-		'Including documentation (includeDocumentation: true) increases response size significantly',
-		'File pattern filters are applied efficiently using indexed data',
-		'Fuzzy matching on very short queries (<3 characters) may be slower',
+		'Using when you already have exact file path and symbol name → use get_symbol_details directly instead',
+		'Using for dependency information → use get_dependencies/get_dependents instead',
+		'Using empty query without filters - returns all symbols (overwhelming)',
+		'Setting limit too high (>50) initially - start with 10-20, increase if needed',
+		'Not using filePattern when you know general location - significantly narrows results',
+		'Using when you need type/import context → use contextual_symbol_resolution instead',
 	],
 
 	sinceVersion: '0.0.1',

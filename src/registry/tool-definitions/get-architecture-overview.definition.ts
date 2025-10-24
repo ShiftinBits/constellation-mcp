@@ -2,25 +2,24 @@
  * Enhanced Tool Definition: get_architecture_overview
  */
 
-import { McpToolDefinition} from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface.js';
 
 export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	name: 'get_architecture_overview',
 	category: 'Architecture',
 
 	description:
-		'Get high-level overview of codebase architecture including modules, layers, dependencies, and statistics. ' +
-		'Provides bird\'s-eye view of system structure, module organization, and architectural patterns. Use this ' +
-		'to understand overall codebase organization before diving into specifics.',
+		'High-level codebase architecture overview: modules, layers, dependencies, statistics. START HERE when exploring a new codebase. ' +
+		'Shows tech stack, frameworks, file counts, complexity. Then drill down with get_module_overview for specific modules.',
 
 	shortDescription: 'Get high-level architectural overview of the codebase',
 
 	whenToUse: [
-		'Understanding overall codebase structure and organization',
-		'Onboarding to a new codebase',
-		'Identifying architectural patterns and conventions',
-		'Assessing code health and quality metrics',
-		'Planning refactoring strategy',
+		'First time exploring a new codebase - start here before other tools',
+		'Understanding tech stack, frameworks, and languages used',
+		'Getting file counts, module structure, and organizational patterns',
+		'Assessing code health and complexity at high level',
+		'Identifying major dependencies and external packages',
 	],
 
 	relatedTools: ['get_module_overview', 'detect_architecture_violations', 'compare_modules', 'analyze_package_usage'],
@@ -31,22 +30,30 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 			includeMetrics: {
 				type: 'boolean',
 				default: false,
-				description: 'Include quality metrics: complexity, maintainability, test coverage.',
+				description:
+					'Include quality metrics (complexity, maintainability, test coverage) for the entire codebase. ' +
+					'Recommended for initial exploration to understand code health.',
 			},
 			includeModuleGraph: {
 				type: 'boolean',
 				default: false,
-				description: 'Include module graph structure.',
+				description:
+					'Include module graph structure (nodes, edges, relationships). ' +
+					'Slower and larger response. Use only when you need visual/graph representation.',
 			},
 			includePackages: {
 				type: 'boolean',
 				default: true,
-				description: 'Include external package dependency details.',
+				description:
+					'Include external package dependency details (npm packages, libraries). ' +
+					'Default: true. Shows tech stack and major dependencies. Package data is cached.',
 			},
 			includeConfidence: {
 				type: 'boolean',
 				default: false,
-				description: 'Include confidence scores.',
+				description:
+					'Include confidence scores for architectural pattern detection. ' +
+					'Helps understand how certain the analysis is about detected patterns.',
 			},
 		},
 		required: [],
@@ -84,15 +91,9 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Expecting file-level details - this is high-level overview only',
-		'Not using this as starting point before deeper analysis',
-	],
-
-	performanceNotes: [
-		'Basic overview is fast (<1 second)',
-		'Module graph adds 1-2 seconds',
-		'Metrics calculation adds 2-3 seconds',
-		'Results cached for 30 minutes',
+		'Expecting file-level details - this is high-level overview only, use get_module_overview or search_files for details',
+		'Not using this as starting point before deeper analysis - always start here for new codebases',
+		'Enabling includeModuleGraph initially - start without it for faster response',
 	],
 
 	sinceVersion: '0.0.1',

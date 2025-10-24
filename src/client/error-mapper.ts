@@ -106,7 +106,7 @@ ${message}
 **Available tool categories:**
   • Discovery tools: search_symbols, search_files, get_symbol_details, get_file_details
   • Dependency tools: get_dependencies, get_dependents, find_circular_dependencies
-  • Impact tools: analyze_change_impact, analyze_breaking_changes, find_orphaned_code
+  • Impact tools: impact_analysis, find_orphaned_code
   • Architecture tools: get_architecture_overview, detect_architecture_violations
   • Refactoring tools: find_similar_patterns, find_entry_points
 

@@ -132,15 +132,6 @@ export interface McpToolDefinition {
 	commonMistakes?: string[];
 
 	/**
-	 * Optional: Performance considerations
-	 *
-	 * Example:
-	 * - "Large depth values (>3) may take several seconds"
-	 * - "Results are cached for 5 minutes"
-	 */
-	performanceNotes?: string[];
-
-	/**
 	 * Optional: Version when tool was introduced
 	 * Useful for compatibility checking
 	 */

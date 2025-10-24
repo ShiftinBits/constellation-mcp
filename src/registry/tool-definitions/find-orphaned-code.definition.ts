@@ -9,9 +9,9 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 	category: 'Impact',
 
 	description:
-		'Find code that is never used or imported - dead code that can be safely removed. Identifies ' +
-		'exported symbols with zero references and files with no dependents. Use this to reduce codebase ' +
-		'size, improve maintainability, and eliminate confusion from unused APIs.',
+		'Find code that is never used or imported (dead code). Identifies exported symbols with zero references and files with no dependents. ' +
+		'Use exportedOnly=true to focus on public APIs. Provides confidence scores and reasons why code is orphaned. ' +
+		'TYPICAL WORKFLOW: Find candidates here → Verify with trace_symbol_usage → Check impact with impact_analysis before deletion.',
 
 	shortDescription: 'Find unused code that can be safely removed',
 
@@ -23,7 +23,7 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 		'Finding candidates for deprecation',
 	],
 
-	relatedTools: ['analyze_change_impact', 'trace_symbol_usage', 'get_dependents', 'analyze_package_usage'],
+	relatedTools: ['impact_analysis', 'trace_symbol_usage', 'get_dependents', 'analyze_package_usage'],
 
 	inputSchema: {
 		type: 'object',
@@ -31,37 +31,53 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 			exportedOnly: {
 				type: 'boolean',
 				default: true,
-				description: 'Only analyze exported symbols (recommended - internal symbols expected to be unused).',
+				description:
+					'Only analyze exported symbols (default: true, RECOMMENDED). ' +
+					'Internal/private symbols are expected to be unused within their files. ' +
+					'Set to false to find ALL unused symbols, but expect many false positives. ' +
+					'Example: exportedOnly=true finds unused public APIs, exportedOnly=false finds all unused code.',
 			},
 			filePattern: {
 				type: 'string',
-				description: 'Limit search to files matching pattern (e.g., "src/utils/**").',
+				description:
+					'Limit search to files matching glob pattern. ' +
+					'Examples: "src/utils/**" (all utils), "**/components/**/*.tsx" (all components), "src/api/**" (API layer). ' +
+					'Omit to search entire codebase.',
 			},
 			filterByKind: {
 				type: 'array',
 				items: { type: 'string' },
-				description: 'Filter by symbol kind: ["function"], ["class"], etc.',
+				description:
+					'Filter by symbol kind. Valid values: ["function"], ["class"], ["variable"], ["interface"], ["type"], ["enum"]. ' +
+					'Example: filterByKind=["function"] finds only unused functions. ' +
+					'Omit to find all symbol types.',
 			},
 			includeReasons: {
 				type: 'boolean',
 				default: true,
-				description: 'Include reasons why code is considered orphaned.',
+				description:
+					'Include reasons why code is considered orphaned (default: true, RECOMMENDED). ' +
+					'Provides context like "No references found" or "File has no dependents". ' +
+					'Set to false for faster queries if you only need the list.',
 			},
 			includeConfidence: {
 				type: 'boolean',
 				default: false,
-				description: 'Include confidence scores.',
+				description:
+					'Include confidence scores (0-1) for orphan detection (default: false). ' +
+					'High confidence (0.9+) = definitely unused, low confidence (0.5-0.7) = possibly used via dynamic imports. ' +
+					'Use this when you need to prioritize what to delete first.',
 			},
 			limit: {
 				type: 'number',
 				default: 50,
 				maximum: 100,
-				description: 'Maximum results to return.',
+				description: 'Maximum results to return per page (default: 50, max: 100). Use with offset for pagination.',
 			},
 			offset: {
 				type: 'number',
 				default: 0,
-				description: 'Offset for pagination.',
+				description: 'Offset for pagination (default: 0). Example: offset=50 gets results 51-100.',
 			},
 		},
 		required: [],
@@ -104,12 +120,6 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 		'Not using exportedOnly filter - gets many false positives from internal helpers',
 		'Deleting code without verifying it\'s truly unused - double-check results',
 		'Not considering dynamic imports or runtime usage',
-	],
-
-	performanceNotes: [
-		'Full codebase scan takes 3-5 seconds',
-		'File pattern filtering significantly improves speed',
-		'Results cached for 30 minutes',
 	],
 
 	sinceVersion: '0.0.1',
