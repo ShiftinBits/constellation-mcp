@@ -5,6 +5,19 @@
 
 AI-powered code intelligence for your development workflow. Constellation provides powerful specialized tools that enable AI assistants to understand your codebase through advanced analysis.
 
+## ✨ Enhanced Tool Definitions
+
+**NEW**: All 22 tools now include rich, AI-friendly metadata:
+
+- **Rich Descriptions**: 2-3 sentences explaining what, when, and why to use each tool
+- **Concrete Examples**: Real-world parameter combinations (2-3 per tool)
+- **Use Case Mapping**: Clear scenarios linking user intent to tool selection
+- **Common Mistakes**: Guidance to avoid pitfalls
+- **Performance Notes**: Optimization tips and timing expectations
+- **Related Tools**: Suggestions for effective tool chaining
+
+This enhancement helps AI agents like Claude Code make better decisions about which tools to use and how to use them effectively.
+
 ## Installation
 
 ### Claude Code
@@ -65,42 +78,46 @@ This can also be provided in the MCP server configuration JSON in the `env` sect
 
 ## Available Tools
 
+All 22 tools include enhanced definitions with examples, use cases, and usage guidance.
+
 ### Discovery (4 tools)
 
-- `search_symbols` - Find functions, classes, variables, and other code symbols
-- `search_files` - Locate files by name pattern or path
-- `get_symbol_details` - Get detailed information about a specific symbol
-- `get_file_details` - Get file metadata, imports, exports, and dependencies
+- `search_symbols` - Find functions, classes, variables, and other code symbols (3 examples)
+- `search_files` - Locate files by name pattern or path (3 examples)
+- `get_symbol_details` - Get detailed information about a specific symbol (3 examples)
+- `get_file_details` - Get file metadata, imports, exports, and dependencies (3 examples)
 
 ### Dependencies (5 tools)
 
-- `get_dependencies` - What does this file/symbol depend on?
-- `get_dependents` - What depends on this file/symbol?
-- `find_circular_dependencies` - Detect circular dependency chains
-- `trace_symbol_usage` - Track how a symbol is used across the codebase
-- `get_call_graph` - Generate function call hierarchy
+- `get_dependencies` - What does this file/symbol depend on? (3 examples)
+- `get_dependents` - What depends on this file/symbol? (3 examples)
+- `find_circular_dependencies` - Detect circular dependency chains (3 examples)
+- `trace_symbol_usage` - Track how a symbol is used across the codebase (3 examples)
+- `get_call_graph` - Generate function call hierarchy (3 examples)
 
 ### Impact Analysis (4 tools)
 
-- `analyze_change_impact` - Understand the scope of a potential change
-- `analyze_breaking_changes` - Detect API contract violations
-- `impact_analysis` - Comprehensive change impact assessment
-- `find_orphaned_code` - Identify unused or unreachable code
+- `analyze_change_impact` - Understand the scope of a potential change (3 examples)
+- `analyze_breaking_changes` - Detect API contract violations (3 examples)
+- `impact_analysis` - Comprehensive change impact assessment (3 examples)
+- `find_orphaned_code` - Identify unused or unreachable code (3 examples)
 
 ### Architecture (5 tools)
 
-- `get_architecture_overview` - High-level system structure and patterns
-- `get_module_overview` - Detailed module organization
-- `detect_architecture_violations` - Find violations of architectural patterns
-- `analyze_package_usage` - External dependency analysis
-- `compare_modules` - Side-by-side module comparison
+- `get_architecture_overview` - High-level system structure and patterns (3 examples)
+- `get_module_overview` - Detailed module organization (2 examples)
+- `detect_architecture_violations` - Find violations of architectural patterns (2 examples)
+- `analyze_package_usage` - External dependency analysis (2 examples)
+- `compare_modules` - Side-by-side module comparison (2 examples)
 
 ### Refactoring (4 tools)
 
-- `find_similar_patterns` - Discover duplicate or similar code patterns
-- `find_entry_points` - Identify main execution entry points
-- `get_inheritance_hierarchy` - Explore class inheritance trees
-- `contextual_symbol_resolution` - Resolve symbols with full context
+- `find_similar_patterns` - Discover duplicate or similar code patterns (2 examples)
+- `find_entry_points` - Identify main execution entry points (2 examples)
+- `get_inheritance_hierarchy` - Explore class inheritance trees (2 examples)
+- `contextual_symbol_resolution` - Resolve symbols with full context (2 examples)
+
+> **For Developers**: See [docs/TOOL_DEFINITIONS_GUIDE.md](docs/TOOL_DEFINITIONS_GUIDE.md) for details on the enhanced definition system and how to create new tool definitions.
 
 ## Troubleshooting
 

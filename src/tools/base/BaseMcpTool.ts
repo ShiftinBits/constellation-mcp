@@ -13,6 +13,8 @@ import { getConfigContext } from '../../config/config-manager.js';
 import { ConstellationClient, McpToolResult } from '../../client/constellation-client.js';
 import { mapErrorToMessage } from '../../client/error-mapper.js';
 import { generateSymbolId } from '../../utils/symbol-id.utils.js';
+import { getToolRegistry } from '../../registry/ToolRegistry.js';
+import { McpToolDefinition } from '../../registry/McpToolDefinition.interface.js';
 
 /**
  * Abstract base class for all Constellation MCP tools
@@ -181,5 +183,66 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 			],
 			isError: true,
 		};
+	}
+
+	/**
+	 * Get the enhanced tool definition for this tool
+	 *
+	 * Returns rich metadata including description, examples, use cases, and more.
+	 * Useful for AI agents to understand when and how to use the tool.
+	 *
+	 * @returns Enhanced tool definition or undefined if not found in registry
+	 */
+	getEnhancedDefinition(): McpToolDefinition | undefined {
+		const registry = getToolRegistry();
+		return registry.getToolByName(this.name);
+	}
+
+	/**
+	 * Get usage examples for this tool
+	 *
+	 * Returns concrete parameter combinations for common scenarios.
+	 *
+	 * @returns Array of tool examples
+	 */
+	getExamples() {
+		const definition = this.getEnhancedDefinition();
+		return definition?.examples || [];
+	}
+
+	/**
+	 * Get use cases for this tool
+	 *
+	 * Returns list of scenarios when this tool should be used.
+	 *
+	 * @returns Array of use case descriptions
+	 */
+	getUseCases(): string[] {
+		const definition = this.getEnhancedDefinition();
+		return definition?.whenToUse || [];
+	}
+
+	/**
+	 * Get related tools
+	 *
+	 * Returns tools commonly used before or after this one.
+	 *
+	 * @returns Array of related tool names
+	 */
+	getRelatedTools(): string[] {
+		const definition = this.getEnhancedDefinition();
+		return definition?.relatedTools || [];
+	}
+
+	/**
+	 * Get common mistakes to avoid
+	 *
+	 * Returns guidance on pitfalls when using this tool.
+	 *
+	 * @returns Array of common mistake descriptions
+	 */
+	getCommonMistakes(): string[] {
+		const definition = this.getEnhancedDefinition();
+		return definition?.commonMistakes || [];
 	}
 }
