@@ -1,17 +1,21 @@
 import { MCPServer } from "mcp-framework";
-import { initializeConfig, getConfigContext } from "./config/config-manager.js";
-import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+import { getConfigContext, initializeConfig } from "./config/config-manager.js";
 import { getToolRegistry } from "./registry/ToolRegistry.js";
 import { allToolDefinitions } from "./registry/tool-definitions/index.js";
+
+const require = createRequire(import.meta.url);
+const packageJson = require('../package.json');
 
 /**
  * Initializes and starts the Constellation MCP Server.
  */
 async function startServer() {
 	try {
-		console.error("[Constellation MCP] Starting server...");
-		console.error("[Constellation MCP] Environment check:");
+		console.error("[CONSTELLATION] Starting server...");
+		console.error("[CONSTELLATION] Environment check:");
 		console.error(`  CONSTELLATION_API_KEY: ${process.env.CONSTELLATION_API_KEY ? '***SET***' : 'NOT SET'}`);
 		console.error(`  Working directory: ${process.cwd()}`);
 
@@ -21,7 +25,7 @@ async function startServer() {
 		await initializeConfig(process.cwd());
 
 		// Initialize Tool Registry with enhanced definitions
-		console.error("[Constellation MCP] Initializing Tool Registry...");
+		console.error("[CONSTELLATION] Initializing Tool Registry...");
 		const registry = getToolRegistry();
 		registry.registerMany(allToolDefinitions);
 		registry.markInitialized();
@@ -29,7 +33,7 @@ async function startServer() {
 		// Validate registry
 		const validation = registry.validateRegistry();
 		if (!validation.valid) {
-			console.error("[Constellation MCP] Tool Registry validation errors:");
+			console.error("[CONSTELLATION] Tool Registry validation errors:");
 			for (const error of validation.errors) {
 				console.error(`  ❌ ${error}`);
 			}
@@ -37,24 +41,22 @@ async function startServer() {
 		}
 
 		if (validation.warnings.length > 0) {
-			console.error("[Constellation MCP] Tool Registry warnings:");
+			console.error("[CONSTELLATION] Tool Registry warnings:");
 			for (const warning of validation.warnings) {
 				console.error(`  ⚠️  ${warning}`);
 			}
 		}
 
 		const stats = registry.getStats();
-		console.error("[Constellation MCP] Tool Registry initialized:");
+		console.error("[CONSTELLATION] Tool Registry initialized:");
 		console.error(`  Total tools: ${stats.totalTools}`);
 		console.error(`  Tools with examples: ${stats.toolsWithExamples}`);
 		console.error(`  Average examples per tool: ${stats.averageExamplesPerTool.toFixed(1)}`);
 
 		const context = getConfigContext();
-		console.error("[Constellation MCP] Configuration loaded:");
-		console.error(`  API: ${context.config.apiUrl}`);
+		console.error("[CONSTELLATION] Configuration loaded:");
 		console.error(`  Project: ${context.projectId}`);
 		console.error(`  Branch: ${context.branchName}`);
-		console.error(`  Config from file: ${context.configLoaded ? 'yes' : 'no (using defaults)'}`);
 
 		// Create and configure MCP server
 		// Set basePath to the directory containing this file (dist/) so tools are found
@@ -64,48 +66,14 @@ async function startServer() {
 
 		const server = new MCPServer({
 			name: '@constellationdev/mcp',
-			version: '0.0.1',
+			version: packageJson.version,
 			basePath: __dirname,
 		});
 
 		// Tools are automatically discovered from dist/tools directory
 		// The MCP framework will scan for default exports in tools/ subdirectories
-
-		console.error("[Constellation MCP] Server started successfully");
-		console.error("[Constellation MCP] Available tools (20/20 implemented - 100%):");
-		console.error("");
-		console.error("  ✅ Discovery Tools (4/4) - Enhanced definitions loaded");
-		console.error("    - search_symbols (3 examples)");
-		console.error("    - search_files (3 examples)");
-		console.error("    - get_symbol_details (3 examples)");
-		console.error("    - get_file_details (3 examples)");
-		console.error("");
-		console.error("  ✅ Dependency Tools (5/5) - Enhanced definitions loaded");
-		console.error("    - get_dependencies (3 examples)");
-		console.error("    - get_dependents (3 examples)");
-		console.error("    - find_circular_dependencies (3 examples)");
-		console.error("    - trace_symbol_usage (3 examples)");
-		console.error("    - get_call_graph (3 examples)");
-		console.error("");
-		console.error("  ✅ Impact Analysis Tools (2/2) - Enhanced definitions loaded");
-		console.error("    - find_orphaned_code (3 examples)");
-		console.error("    - impact_analysis (3 examples)");
-		console.error("");
-		console.error("  ✅ Architecture Tools (5/5) - Enhanced definitions loaded");
-		console.error("    - get_architecture_overview (3 examples)");
-		console.error("    - get_module_overview (2 examples)");
-		console.error("    - detect_architecture_violations (2 examples)");
-		console.error("    - analyze_package_usage (2 examples)");
-		console.error("    - compare_modules (2 examples)");
-		console.error("");
-		console.error("  ✅ Refactoring Tools (4/4) - Enhanced definitions loaded");
-		console.error("    - find_similar_patterns (2 examples)");
-		console.error("    - find_entry_points (2 examples)");
-		console.error("    - get_inheritance_hierarchy (2 examples)");
-		console.error("    - contextual_symbol_resolution (2 examples)");
-		console.error("");
-		console.error("  🎉 ALL 20 TOOLS IMPLEMENTED WITH ENHANCED DEFINITIONS!");
-		console.error("  📚 Rich descriptions, examples, and usage guidance available for AI agents");
+		console.error("[CONSTELLATION] Server started successfully");
+		console.error("[CONSTELLATION] 20 Available tools");
 
 		// Start the server
 		await server.start();

@@ -9,12 +9,12 @@
  */
 
 import { MCPTool } from 'mcp-framework';
-import { getConfigContext } from '../../config/config-manager.js';
-import { ConstellationClient, McpToolResult } from '../../client/constellation-client.js';
-import { mapErrorToMessage } from '../../client/error-mapper.js';
-import { generateSymbolId } from '../../utils/symbol-id.utils.js';
-import { getToolRegistry } from '../../registry/ToolRegistry.js';
-import { McpToolDefinition } from '../../registry/McpToolDefinition.interface.js';
+import { getConfigContext } from '../config/config-manager.js';
+import { ConstellationClient, McpToolResult } from '../client/constellation-client.js';
+import { mapErrorToMessage } from '../client/error-mapper.js';
+import { generateSymbolId } from '../utils/symbol-id.utils.js';
+import { getToolRegistry } from '../registry/ToolRegistry.js';
+import { McpToolDefinition } from '../registry/McpToolDefinition.interface.js';
 
 /**
  * Abstract base class for all Constellation MCP tools

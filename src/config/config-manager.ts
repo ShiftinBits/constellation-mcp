@@ -91,10 +91,10 @@ class ConfigurationManager {
 
 		if (!apiKey) {
 			console.warn(
-				'[Constellation MCP] Warning: CONSTELLATION_API_KEY not set in environment'
+				'[CONSTELLATION] Warning: CONSTELLATION_API_KEY not set in environment'
 			);
 			console.warn(
-				'[Constellation MCP] Set CONSTELLATION_API_KEY to authenticate with API'
+				'[CONSTELLATION] Set CONSTELLATION_API_KEY to authenticate with API'
 			);
 		}
 
@@ -123,7 +123,7 @@ class ConfigurationManager {
 
 		// Log initialization info (only in debug mode)
 		if (process.env.DEBUG) {
-			console.error('[Constellation MCP] Configuration initialized:');
+			console.error('[CONSTELLATION] Configuration initialized:');
 			console.error(`  API URL: ${config.apiUrl}`);
 			console.error(`  Project ID: ${projectId}`);
 			console.error(`  Branch: ${branchName}`);

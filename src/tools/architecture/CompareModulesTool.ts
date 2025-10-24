@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { BaseMcpTool } from '../base/BaseMcpTool.js';
+import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
 
 interface CompareModulesParams {
 	module1?: string;
