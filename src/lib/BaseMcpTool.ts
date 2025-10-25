@@ -15,6 +15,7 @@ import { mapErrorToMessage } from '../client/error-mapper.js';
 import { generateSymbolId } from '../utils/symbol-id.utils.js';
 import { getToolRegistry } from '../registry/ToolRegistry.js';
 import { McpToolDefinition } from '../registry/McpToolDefinition.interface.js';
+import { standardErrors } from '../utils/error-messages.js';
 
 /**
  * Abstract base class for all Constellation MCP tools
@@ -73,6 +74,16 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 		console.error(`[BaseMcpTool] execute() called for tool: ${this.name}`);
 		console.error(`[BaseMcpTool] input:`, JSON.stringify(input));
 		try {
+			// Check for initialization errors first
+			const configContext = getConfigContext();
+			if (configContext.initializationError) {
+				console.error(`[BaseMcpTool] Configuration error detected, returning setup instructions`);
+				return standardErrors.configurationError(
+					configContext.initializationError,
+					process.cwd()
+				);
+			}
+
 			// Get client and context
 			const client = this.getClient();
 			const context = this.getProjectContext();

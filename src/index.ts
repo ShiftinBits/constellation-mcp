@@ -1,7 +1,7 @@
 import { MCPServer } from "mcp-framework";
+import { createRequire } from 'module';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import { getConfigContext, initializeConfig } from "./config/config-manager.js";
 import { getToolRegistry } from "./registry/ToolRegistry.js";
 import { allToolDefinitions } from "./registry/tool-definitions/index.js";
@@ -54,6 +54,13 @@ async function startServer() {
 		console.error(`  Average examples per tool: ${stats.averageExamplesPerTool.toFixed(1)}`);
 
 		const context = getConfigContext();
+
+		if (context.initializationError) {
+			console.error("[CONSTELLATION] ⚠️  WARNING: Server starting in degraded mode");
+			console.error("[CONSTELLATION] Configuration error:", context.initializationError);
+			console.error("[CONSTELLATION] Tools will return setup instructions when called");
+		}
+
 		console.error("[CONSTELLATION] Configuration loaded:");
 		console.error(`  Project: ${context.projectId}`);
 		console.error(`  Branch: ${context.branchName}`);

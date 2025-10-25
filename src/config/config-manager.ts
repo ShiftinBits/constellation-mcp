@@ -22,6 +22,8 @@ export interface ConfigContext {
 	apiKey: string;
 	/** Whether configuration was loaded from file */
 	configLoaded: boolean;
+	/** Initialization error if config failed to load */
+	initializationError?: string;
 }
 
 /**
@@ -56,45 +58,68 @@ class ConfigurationManager {
 			return;
 		}
 
-		// Try to load configuration from file (DO NOT use defaults)
-		let config = await ConfigLoader.loadConfig(workingDir, false);
+		let config: ConstellationConfig;
+		let configLoaded = false;
+		let projectId: string;
+		let branchName: string;
+		let initializationError: string | undefined;
 
-		if (!config) {
-			throw new Error(
-				'constellation.json not found at git repository root.\n\n' +
-				'The Constellation MCP server requires a constellation.json configuration file ' +
-				'at the root of your git repository.\n\n' +
+		try {
+			// Try to load configuration from file (DO NOT use defaults)
+			const loadedConfig = await ConfigLoader.loadConfig(workingDir, false);
+
+			if (!loadedConfig) {
+				// Config not found - store error but continue with defaults
+				initializationError =
+					'File constellation.json not found at git repository root.\n\n' +
+					'The Constellation MCP server requires a constellation.json configuration file ' +
+					'at the root of your git repository.\n\n' +
+					'To fix this:\n' +
+					'1. Navigate to your git repository root\n' +
+					'2. Run: constellation init\n' +
+					'3. Run: constellation auth\n' +
+					'4. Run: constellation index\n\n' +
+					'For more information, visit: https://docs.constellationdev.io/';
+
+				// Use defaults to allow server to start
+				config = ConstellationConfig.createDefault();
+				projectId = config.namespace;
+				branchName = config.branch;
+			} else {
+				// Config loaded successfully
+				config = loadedConfig;
+				configLoaded = true;
+				projectId = config.namespace;
+				branchName = config.branch;
+			}
+		} catch (error) {
+			// Error during config loading - store error and use defaults
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			initializationError =
+				'Failed to load constellation.json.\n\n' +
+				`Error: ${errorMessage}\n\n` +
 				'To fix this:\n' +
-				'1. Navigate to your git repository root\n' +
-				'2. Create a constellation.json file with the following structure:\n' +
-				'   {\n' +
-				'     "namespace": "your-project-name",\n' +
-				'     "branch": "main",\n' +
-				'     "apiUrl": "https://api.constellation.dev",\n' +
-				'     "languages": {\n' +
-				'       "typescript": { "fileExtensions": [".ts", ".tsx"] }\n' +
-				'     }\n' +
-				'   }\n\n' +
-				'For more information, visit: https://docs.constellation.dev/setup'
-			);
+				'1. Check that constellation.json is valid JSON\n' +
+				'2. Run: constellation init (to recreate)\n' +
+				'3. Run: constellation auth\n' +
+				'4. Run: constellation index\n\n' +
+				'For more information, visit: https://docs.constellationdev.io/';
+
+			// Use defaults to allow server to start
+			config = ConstellationConfig.createDefault();
+			projectId = config.namespace;
+			branchName = config.branch;
 		}
-
-		const configLoaded = true;
-
-		// Project ID and branch come ONLY from constellation.json
-		// No environment variable overrides, no git detection
-		const projectId = config.namespace;
-		const branchName = config.branch;
 
 		// Determine API key (priority: env > error)
 		const apiKey = process.env.CONSTELLATION_API_KEY || '';
 
-		if (!apiKey) {
+		if (!apiKey && !initializationError) {
 			console.warn(
 				'[CONSTELLATION] Warning: CONSTELLATION_API_KEY not set in environment'
 			);
 			console.warn(
-				'[CONSTELLATION] Set CONSTELLATION_API_KEY to authenticate with API'
+				'[CONSTELLATION] Run: constellation auth'
 			);
 		}
 
@@ -114,6 +139,7 @@ class ConfigurationManager {
 			branchName,
 			apiKey,
 			configLoaded,
+			initializationError,
 		};
 
 		this.initialized = true;
@@ -121,13 +147,19 @@ class ConfigurationManager {
 		console.error('[ConfigManager] Initialization COMPLETE');
 		console.error(`[ConfigManager] State: initialized=${this.initialized}, hasContext=${!!this.configContext}`);
 
+		if (initializationError) {
+			console.error('[ConfigManager] WARNING: Initialized with errors (degraded mode)');
+		}
+
 		// Log initialization info (only in debug mode)
 		if (process.env.DEBUG) {
 			console.error('[CONSTELLATION] Configuration initialized:');
-			console.error(`  API URL: ${config.apiUrl}`);
 			console.error(`  Project ID: ${projectId}`);
 			console.error(`  Branch: ${branchName}`);
 			console.error(`  Config loaded from file: ${configLoaded}`);
+			if (initializationError) {
+				console.error(`  Initialization error: ${initializationError}`);
+			}
 		}
 	}
 
@@ -205,6 +237,7 @@ export function getConfigContext(): ConfigContext {
 				branchName: config.branch, // Always from config.branch
 				apiKey: process.env.CONSTELLATION_API_KEY || '',
 				configLoaded: fs.existsSync(configPath),
+				initializationError: undefined,
 			};
 			manager['initialized'] = true;
 		} catch (error) {
@@ -217,6 +250,7 @@ export function getConfigContext(): ConfigContext {
 				branchName: defaultConfig.branch, // Always from config
 				apiKey: process.env.CONSTELLATION_API_KEY || '',
 				configLoaded: false,
+				initializationError: undefined,
 			};
 			manager['initialized'] = true;
 		}

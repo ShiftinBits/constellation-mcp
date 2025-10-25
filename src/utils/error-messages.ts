@@ -133,6 +133,30 @@ export const standardErrors = {
 		}
 		return message;
 	},
+
+	/**
+	 * Standard message for configuration initialization errors
+	 * @param errorDetails - Original error message
+	 * @param workingDir - Working directory where config was searched (optional)
+	 */
+	configurationError: (errorDetails: string, workingDir?: string): string =>
+		`⚠️ Configuration Error - Constellation MCP Server
+
+I cannot execute this tool because constellation.json is not found in your git repository.
+
+**How to fix this:**
+
+1. Navigate to your git repository root directory
+2. Initialize Constellation: \`constellation init\`
+3. Set up authentication: \`constellation auth\`
+4. Index your project: \`constellation index\`
+
+**Need help?**
+Documentation: https://docs.constellationdev.io/setup
+
+**Technical details:**
+${workingDir ? `Working directory: ${workingDir}\n` : ''}Error: ${errorDetails}
+`,
 };
 
 /**

@@ -5,12 +5,12 @@
  */
 
 import { getConfigContext } from '../config/config-manager.js';
-import {
-    AuthenticationError,
-    NotFoundError,
-    ToolNotFoundError,
-} from './constellation-client.js';
 import { standardErrors } from '../utils/error-messages.js';
+import {
+	AuthenticationError,
+	NotFoundError,
+	ToolNotFoundError,
+} from './constellation-client.js';
 
 /**
  * Map an error to a helpful message with actionable guidance
@@ -52,15 +52,14 @@ function formatAuthenticationError(): string {
 
 The Constellation API rejected your access key.
 
-**To fix this:**
-1. Set the CONSTELLATION_API_KEY environment variable
-2. Get your API key from your Constellation administrator
-3. Verify the API URL is correct: ${context.config.apiUrl}
+**How to fix this:**
 
-**Example:**
-export CONSTELLATION_API_KEY="your-api-key-here"
+Set up authentication using the CLI:
+\`constellation auth\`
 
-For more information, visit: https://docs.constellationdev.io/authentication
+This will configure your API key properly.
+
+For more information, visit: https://docs.constellationdev.io/
 `;
 }
 
@@ -75,7 +74,6 @@ function formatNotFoundError(toolName: string): string {
 The tool "${toolName}" cannot find your project in the Constellation index.
 
 **Project Details:**
-  API: ${context.config.apiUrl}
   Project ID: ${context.projectId}
   Branch: ${context.branchName}
 
@@ -132,7 +130,7 @@ function formatGenericError(toolName: string, error: Error): string {
 			toolName,
 			undefined,
 			error.message
-		)}\n\n**Context:**\n  API: ${context.config.apiUrl}\n  Project ID: ${context.projectId}\n  Branch: ${context.branchName}`;
+		)}\n\n**Context:**\n  Project ID: ${context.projectId}\n  Branch: ${context.branchName}`;
 	}
 
 	let output = `❌ ${toolName} Failed
@@ -140,7 +138,6 @@ function formatGenericError(toolName: string, error: Error): string {
 ${error.message}
 
 **Context:**
-  API: ${context.config.apiUrl}
   Project ID: ${context.projectId}
   Branch: ${context.branchName}
 `;
