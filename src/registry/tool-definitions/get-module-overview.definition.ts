@@ -8,15 +8,15 @@ export const getModuleOverviewDefinition: McpToolDefinition = {
 	name: 'get_module_overview',
 	category: 'Architecture',
 	description:
-		'Analyze specific module: structure, dependencies, exports, health metrics. Use modulePath (recommended, e.g., "src/services/auth") or moduleName. ' +
-		'Control detail with include flags: Files, Exports, Submodules, Dependencies. For refactoring decisions.',
+		'Deep dive into specific module/directory. USER ASKS: "What\'s in module X?", "Analyze directory Y", "Show module structure". Fast basic, slower with includeFiles/includeExports. Use modulePath for precision.',
 	shortDescription: 'Analyze a specific module\'s structure and dependencies',
 	whenToUse: [
-		'Deep dive into a specific module identified from get_architecture_overview',
-		'Understanding module structure before refactoring',
-		'Reviewing module public API (exports)',
-		'Analyzing module coupling, cohesion, and complexity',
-		'Assessing submodule organization',
+		'❓ **USER ASKS:** "What\'s in module X?", "Analyze directory Y", "Show module structure", "Deep dive into Z"',
+		'🔍 Deep dive into a specific module identified from get_architecture_overview',
+		'🔍 Understanding module structure before refactoring',
+		'🔍 Reviewing module public API (exports)',
+		'🔍 Analyzing module coupling, cohesion, and complexity',
+		'🔍 Assessing submodule organization',
 	],
 	relatedTools: ['get_architecture_overview', 'compare_modules', 'get_dependencies', 'analyze_package_usage'],
 	inputSchema: {
@@ -63,9 +63,9 @@ export const getModuleOverviewDefinition: McpToolDefinition = {
 		{ title: 'Complete module analysis', description: 'Comprehensive analysis with all details', parameters: { modulePath: 'src/core', includeFiles: true, includeExports: true, includeDependencies: true }, expectedOutcome: 'Returns full module details with files, exports, dependencies' },
 	],
 	commonMistakes: [
-		'Using moduleName instead of modulePath - can be ambiguous, use exact path',
-		'Enabling all flags when you only need basic structure - start simple',
-		'Not using this after get_architecture_overview to drill down into specific modules',
+		'❌ MISTAKE: Using moduleName instead of modulePath → ✅ DO: Can be ambiguous, use exact path',
+		'❌ MISTAKE: Enabling all flags when you only need basic structure → ✅ DO: Start simple',
+		'❌ MISTAKE: Not using this after get_architecture_overview → ✅ DO: Drill down into specific modules identified from overview',
 	],
 	sinceVersion: '0.0.1',
 };

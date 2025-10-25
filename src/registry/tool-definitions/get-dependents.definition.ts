@@ -12,18 +12,17 @@ export const getDependentsDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Find what depends on a file (reverse/backward dependencies): which files import or use this target. Impact analysis for changes. ' +
-		'Use depth parameter to control traversal (1=direct, 2-3=transitive dependents). ' +
-		'For forward direction (what this depends on), use get_dependencies.',
+		'Find what depends on a file (reverse dependencies). USER ASKS: "What uses X?", "Who imports this?", "Can I delete this?". depth=1 <200ms, depth=2 ~500ms. For forward use get_dependencies.',
 
 	shortDescription: 'Find what files depend on this file (reverse dependencies)',
 
 	whenToUse: [
-		'Understanding the impact of modifying or removing a file',
-		'Finding all consumers of an API or utility function',
-		'Identifying highly-coupled code by counting dependents',
-		'Checking if a file is safe to delete (zero dependents)',
-		'Understanding module usage patterns',
+		'❓ **USER ASKS:** "What uses X?", "Who imports this?", "Can I delete this?", "How many use this?"',
+		'🔍 Understanding the impact of modifying or removing a file',
+		'🔍 Finding all consumers of an API or utility function',
+		'🔍 Identifying highly-coupled code by counting dependents',
+		'🔍 Checking if a file is safe to delete (zero dependents = safe)',
+		'🔍 Understanding module usage patterns',
 	],
 
 	relatedTools: ['get_dependencies', 'impact_analysis', 'trace_symbol_usage', 'find_orphaned_code'],
@@ -98,9 +97,10 @@ export const getDependentsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Confusing get_dependents (who uses this) with get_dependencies (what does this use)',
-		'Using high depth on widely-used files - returns overwhelming results',
-		'Not checking dependents before deleting code',
+		'❌ MISTAKE: Confusing with get_dependencies → ✅ DO: Dependents=who uses X, Dependencies=what X uses',
+		'❌ MISTAKE: Using depth=3+ on core files → ✅ DO: Start depth=1, check count, then increase',
+		'❌ MISTAKE: Not checking before deleting → ✅ DO: Always check dependents before removing code',
+		'❌ MISTAKE: Using for comprehensive impact → ✅ DO: Use impact_analysis for full refactoring analysis',
 	],
 
 	sinceVersion: '0.0.1',

@@ -1,6 +1,6 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { AuthenticationError, NotFoundError, ToolNotFoundError } from '../../../src/client/constellation-client.js';
+import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
 // Mock config manager
 jest.mock('../../../src/config/config-manager.js', () => ({
@@ -23,7 +23,7 @@ describe('mapErrorToMessage', () => {
 			const result = mapErrorToMessage(error, 'search_symbols');
 
 			expect(result).toContain('Authentication Failed');
-			expect(result).toContain('CONSTELLATION_API_KEY');
+			expect(result).toContain('constellation auth');
 		});
 	});
 
@@ -108,7 +108,7 @@ describe('mapErrorToMessage', () => {
 			const error = new AuthenticationError('Invalid key');
 			const result = mapErrorToMessage(error, 'search_symbols');
 
-			expect(result).toContain('CONSTELLATION_API_KEY');
+			expect(result).toContain('constellation auth');
 		});
 
 		it('should provide actionable steps for not found errors', () => {

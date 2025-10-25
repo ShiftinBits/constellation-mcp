@@ -9,17 +9,17 @@ export const getCallGraphDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Generate call graph showing function invocation relationships and execution flow. Bidirectional: callers (who calls this), callees (what this calls), or both. ' +
-		'Use depth to control traversal, excludeExternal to filter library calls. Supports graph visualization data.',
+		'Generate call graph showing function relationships. USER ASKS: "Show call graph", "What calls this?", "Visualize execution flow". depth=1 <50ms, depth=3 <200ms. direction: callers/callees/both. excludeExternal removes library calls.',
 
 	shortDescription: 'Generate call graph showing function invocation relationships',
 
 	whenToUse: [
-		'Understanding execution flow through a codebase',
-		'Finding all functions that call a specific function',
-		'Discovering the full call chain for debugging',
-		'Analyzing function dependencies before refactoring',
-		'Tracing code execution paths',
+		'❓ **USER ASKS:** "Show call graph", "What calls this function?", "Visualize execution flow", "What does X call?", "Trace call chain"',
+		'🔍 Understanding execution flow through a codebase',
+		'🔍 Finding all functions that call a specific function',
+		'🔍 Discovering the full call chain for debugging',
+		'🔍 Analyzing function dependencies before refactoring',
+		'🔍 Tracing code execution paths',
 	],
 
 	relatedTools: ['trace_symbol_usage', 'get_symbol_details', 'get_dependencies', 'find_entry_points'],
@@ -115,8 +115,9 @@ export const getCallGraphDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using high depth (>4) on initial queries - returns overwhelming results',
-		'Not excluding external calls when focused on internal logic',
+		'❌ MISTAKE: Starting with depth=5+ on first query → ✅ DO: Use depth=3 (default) first, then increase only if needed',
+		'❌ MISTAKE: Including external library calls when analyzing internal code → ✅ DO: Set excludeExternal=true to focus on your codebase',
+		'❌ MISTAKE: Using direction="both" when you only need callers → ✅ DO: Use direction="callers" or "callees" to reduce result size by ~50%',
 	],
 
 	sinceVersion: '0.0.1',

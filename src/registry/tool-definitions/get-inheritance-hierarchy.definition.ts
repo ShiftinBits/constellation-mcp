@@ -9,13 +9,18 @@ export const getInheritanceHierarchyDefinition: McpToolDefinition = {
 	category: 'Refactoring',
 
 	description:
-		'Analyze class inheritance hierarchies, interfaces, and type relationships. Find ancestors (parent classes) or descendants (child classes). ' +
-		'Use direction parameter to control traversal. Detects deep inheritance chains and design issues. ' +
-		'TYPICAL WORKFLOW: Find hierarchy here → Review with get_symbol_details → Refactor if chains are too deep.',
+		'Show class inheritance tree (extends/implements). USER ASKS: "Show class hierarchy", "What extends X?", "Inheritance tree". direction: ancestors/descendants/both. Detects deep chains. Refactor if too deep.',
 
 	shortDescription: 'Analyze class inheritance and type hierarchies',
 
-	whenToUse: ['Understanding class inheritance structure', 'Finding all subclasses of a base class', 'Analyzing interface implementations', 'Detecting inheritance design issues', 'Planning OOP refactoring'],
+	whenToUse: [
+		'❓ **USER ASKS:** "Show class hierarchy", "What extends X?", "Inheritance tree", "Show OOP structure", "What are the subclasses?"',
+		'🔍 Understanding class inheritance structure and relationships',
+		'🔍 Finding all subclasses of a base class',
+		'🔍 Analyzing interface implementations',
+		'🔍 Detecting inheritance design issues (deep hierarchies)',
+		'🔍 Planning OOP refactoring and simplification',
+	],
 	relatedTools: ['get_symbol_details', 'find_similar_patterns', 'contextual_symbol_resolution', 'trace_symbol_usage'],
 
 	inputSchema: {
@@ -88,6 +93,11 @@ export const getInheritanceHierarchyDefinition: McpToolDefinition = {
 		{ title: 'Find all subclasses', description: 'Get all classes extending BaseController', parameters: { className: 'BaseController', direction: 'descendants', includeGraph: 'false' }, expectedOutcome: 'Returns all classes that extend BaseController' },
 		{ title: 'Full inheritance tree', description: 'Get complete hierarchy for a class', parameters: { className: 'UserService', direction: 'both', includeGraph: 'true' }, expectedOutcome: 'Returns parents and children with graph visualization' },
 	],
-	commonMistakes: ['Not specifying direction - defaults may not be what you want', 'Unlimited depth on large hierarchies - can be slow'],
+	commonMistakes: [
+		'❌ MISTAKE: Not specifying direction parameter → ✅ DO: Always specify direction (ancestors/descendants/both) for correct results',
+		'❌ MISTAKE: Using unlimited depth on large hierarchies → ✅ DO: Start with depth=3, increase only if needed',
+		'❌ MISTAKE: Not using filePath for common class names → ✅ DO: Add filePath to disambiguate when multiple classes share a name',
+		'❌ MISTAKE: Forgetting to filter by relationship type → ✅ DO: Use filterByRelationshipType to show only extends or implements if needed',
+	],
 	sinceVersion: '0.0.1',
 };

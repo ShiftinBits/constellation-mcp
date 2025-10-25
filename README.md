@@ -32,10 +32,7 @@ Add to your Claude Code configuration `mcpServers` section:
 		"constellation": {
 			"type": "stdio",
 			"command": "npx",
-			"args": ["-y", "@constellationdev/mcp@latest"],
-			"env": {
-				"CONSTELLATION_API_KEY": "your-api-key-here"
-			}
+			"args": ["-y", "@constellationdev/mcp@latest"]
 		}
 	}
 }
@@ -52,10 +49,7 @@ For tools using the Model Context Protocol, add to the proper section of your MC
   "args": [
     "-y",
     "@constellationdev/mcp@latest"
-  ],
-  "env": {
-    "CONSTELLATION_API_KEY": "your-api-key-here"
-  }
+  ]
 }
 ```
 
@@ -70,7 +64,7 @@ You'll need a Constellation API key and access to a Constellation service instan
 Set your API key (required):
 
 ```bash
-export CONSTELLATION_API_KEY="your-api-key-here"
+export CONSTELLATION_ACCESS_KEY="your-api-key-here"
 ```
 
 This can also be provided in the MCP server configuration JSON in the `env` section.
@@ -122,7 +116,7 @@ All 20 tools include enhanced definitions with examples, use cases, and usage gu
 
 ```
 ❌ Authentication Failed
-Set CONSTELLATION_API_KEY environment variable.
+Set CONSTELLATION_ACCESS_KEY environment variable.
 ```
 
 **Solution**: Verify your API key is set correctly in environment variables or tool configuration.

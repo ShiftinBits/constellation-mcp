@@ -4,7 +4,7 @@
 			"type": "stdio",
 			"command": "mcp-constellation",
 			"env": {
-				"CONSTELLATION_API_KEY": "your-api-key-here"
+				"CONSTELLATION_ACCESS_KEY": "your-api-key-here"
 			}
 		},
 		"neo4j": {

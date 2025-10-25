@@ -9,18 +9,17 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 	category: 'Impact',
 
 	description:
-		'Find code that is never used or imported (dead code). Identifies exported symbols with zero references and files with no dependents. ' +
-		'Use exportedOnly=true to focus on public APIs. Provides confidence scores and reasons why code is orphaned. ' +
-		'TYPICAL WORKFLOW: Find candidates here → Verify with trace_symbol_usage → Check impact with impact_analysis before deletion.',
+		'Find dead code (never used/imported). USER ASKS: "Find dead code", "What can I delete?", "Show unused exports". Fast <500ms. exportedOnly=true for public APIs. Verify with trace_symbol_usage before deleting.',
 
 	shortDescription: 'Find unused code that can be safely removed',
 
 	whenToUse: [
-		'Cleaning up dead code and unused exports',
-		'Reducing codebase size and complexity',
-		'Preparing for a major refactoring',
-		'Auditing what public APIs are actually used',
-		'Finding candidates for deprecation',
+		'❓ **USER ASKS:** "Find dead code", "What can I delete?", "Show unused exports", "Clean up unused code"',
+		'🔍 Cleaning up dead code and unused exports',
+		'🔍 Reducing codebase size and complexity',
+		'🔍 Preparing for a major refactoring',
+		'🔍 Auditing what public APIs are actually used',
+		'🔍 Finding candidates for deprecation',
 	],
 
 	relatedTools: ['impact_analysis', 'trace_symbol_usage', 'get_dependents', 'analyze_package_usage'],
@@ -117,9 +116,10 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Not using exportedOnly filter - gets many false positives from internal helpers',
-		'Deleting code without verifying it\'s truly unused - double-check results',
-		'Not considering dynamic imports or runtime usage',
+		'❌ MISTAKE: Not using exportedOnly filter → ✅ DO: Use exportedOnly=true to avoid false positives from internal helpers',
+		'❌ MISTAKE: Deleting immediately without verification → ✅ DO: Use trace_symbol_usage and impact_analysis to double-check',
+		'❌ MISTAKE: Not considering dynamic imports → ✅ DO: Check confidence scores, review low-confidence results manually',
+		'❌ MISTAKE: Ignoring filterByKind → ✅ DO: Use filterByKind=["function"] to focus on specific symbol types',
 	],
 
 	sinceVersion: '0.0.1',

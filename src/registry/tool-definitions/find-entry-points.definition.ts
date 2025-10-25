@@ -9,14 +9,18 @@ export const findEntryPointsDefinition: McpToolDefinition = {
 	category: 'Refactoring',
 
 	description:
-		'Identify application entry points: main functions, API endpoints, CLI commands, event handlers, and test suites. ' +
-		'ENTRY POINT TYPES: main (app startup), API endpoints (HTTP handlers), CLI commands, event listeners, test suites. ' +
-		'includeCallDepth controls execution tree depth (1=immediate, 2-3=deeper chains). ' +
-		'TYPICAL WORKFLOW: Find entry points → Trace with get_call_graph → Analyze with get_dependencies.',
+		'Find application/module entry points. USER ASKS: "Where does this start?", "Find main entry", "Show entry points". includeCallDepth: 1=immediate, 2-3=deeper chains. Types: main, API endpoints, CLI commands, tests.',
 
 	shortDescription: 'Find application entry points and invocation points',
 
-	whenToUse: ['Understanding application startup flow', 'Mapping API endpoints and routes', 'Finding all CLI command handlers', 'Locating event listeners and handlers', 'Identifying test entry points'],
+	whenToUse: [
+		'❓ **USER ASKS:** "Where does this start?", "Find main entry", "Show entry points", "What\'s the starting point?", "How does app initialize?"',
+		'🔍 Understanding application startup flow and initialization',
+		'🔍 Mapping API endpoints and HTTP routes',
+		'🔍 Finding all CLI command handlers',
+		'🔍 Locating event listeners and handlers',
+		'🔍 Identifying test entry points and test suites',
+	],
 	relatedTools: ['get_call_graph', 'get_architecture_overview', 'search_files', 'trace_symbol_usage'],
 
 	inputSchema: {
@@ -61,6 +65,11 @@ export const findEntryPointsDefinition: McpToolDefinition = {
 		{ title: 'Find all entry points', description: 'Locate all application entry points', parameters: { includeCallDepth: '1', groupByModule: 'false', includeConfidence: 'false' }, expectedOutcome: 'Returns main functions, API endpoints, CLI commands' },
 		{ title: 'Entry points with call trees', description: 'Get entry points with execution flow', parameters: { includeCallDepth: '3', groupByModule: 'true', includeConfidence: 'false' }, expectedOutcome: 'Returns entry points grouped by module with call chains' },
 	],
-	commonMistakes: ['Not using this before tracing execution', 'High call depth overwhelms results'],
+	commonMistakes: [
+		'❌ MISTAKE: Starting with get_call_graph without finding entry points first → ✅ DO: Use find_entry_points first to understand where execution starts',
+		'❌ MISTAKE: Setting includeCallDepth too high (>3) → ✅ DO: Start with depth=2, increase only if needed',
+		'❌ MISTAKE: Not grouping results for large apps → ✅ DO: Use groupByModule=true for projects with many entry points',
+		'❌ MISTAKE: Ignoring confidence scores → ✅ DO: Use includeConfidence=true to distinguish definite vs possible entry points',
+	],
 	sinceVersion: '0.0.1',
 };

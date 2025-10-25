@@ -8,15 +8,15 @@ export const analyzePackageUsageDefinition: McpToolDefinition = {
 	name: 'analyze_package_usage',
 	category: 'Architecture',
 	description:
-		'Analyze external package usage: heavily used, unused dependencies, optimization opportunities. Two modes: all packages (no packageName) or specific package deep dive. ' +
-		'Filter by category (production/development), find duplicates, track module-level usage.',
+		'Analyze external package dependencies and usage. USER ASKS: "What packages do we use?", "Analyze dependencies", "Show package usage". Fast, cached data. Two modes: all packages or specific package deep dive.',
 	shortDescription: 'Analyze external package usage and dependencies',
 	whenToUse: [
-		'Dependency audit (finding unused packages)',
-		'Bundle size optimization',
-		'Security review (identifying problematic dependencies)',
-		'Understanding which packages are most critical',
-		'Finding duplicate or conflicting package versions',
+		'❓ **USER ASKS:** "What packages do we use?", "Analyze dependencies", "Show package usage", "External deps", "Find unused packages"',
+		'🔍 Dependency audit (finding unused packages)',
+		'🔍 Bundle size optimization',
+		'🔍 Security review (identifying problematic dependencies)',
+		'🔍 Understanding which packages are most critical',
+		'🔍 Finding duplicate or conflicting package versions',
 	],
 	relatedTools: ['get_dependencies', 'get_architecture_overview', 'find_orphaned_code', 'get_module_overview'],
 	inputSchema: {
@@ -101,9 +101,9 @@ export const analyzePackageUsageDefinition: McpToolDefinition = {
 		},
 	],
 	commonMistakes: [
-		'Not checking includeDuplicates in monorepos - common source of build issues',
-		'Removing packages without checking minUsageCount=0 first',
-		'Not analyzing before dependency updates',
+		'❌ MISTAKE: Not checking includeDuplicates in monorepos → ✅ DO: Common source of build issues, always check for duplicate versions',
+		'❌ MISTAKE: Removing packages without checking minUsageCount=0 first → ✅ DO: Verify package is truly unused before removal',
+		'❌ MISTAKE: Not analyzing before dependency updates → ✅ DO: Run this tool before major dependency updates to understand impact',
 	],
 	sinceVersion: '0.0.1',
 };

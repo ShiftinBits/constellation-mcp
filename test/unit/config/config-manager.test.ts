@@ -1,5 +1,5 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { createTempDir, cleanupTempDir } from '../../helpers/test-utils.js';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { cleanupTempDir, createTempDir } from '../../helpers/test-utils.js';
 
 // Mock dependencies BEFORE importing
 jest.mock('../../../src/config/config.loader.js');
@@ -26,7 +26,7 @@ describe('ConfigurationManager', () => {
 		tempDir = await createTempDir();
 
 		// Set up default environment
-		process.env.CONSTELLATION_API_KEY = 'test-api-key';
+		process.env.CONSTELLATION_ACCESS_KEY = 'test-api-key';
 		process.env.CONSTELLATION_API_URL = 'https://api.test.com';
 	});
 
@@ -35,7 +35,7 @@ describe('ConfigurationManager', () => {
 		jest.restoreAllMocks();
 
 		// Clean up environment
-		delete process.env.CONSTELLATION_API_KEY;
+		delete process.env.CONSTELLATION_ACCESS_KEY;
 		delete process.env.CONSTELLATION_API_URL;
 	});
 
@@ -89,10 +89,19 @@ describe('ConfigurationManager', () => {
 			expect(context.branchName).toBe('develop');
 		});
 
-		it('should throw error when config file not found', async () => {
+		it('should handle missing config file with degraded mode', async () => {
 			mockConfigLoader.loadConfig.mockResolvedValue(null);
 
-			await expect(initializeConfig(tempDir)).rejects.toThrow('constellation.json not found at git repository root');
+			await initializeConfig(tempDir);
+			const context = getConfigContext();
+
+			// Should not throw but should indicate initialization error
+			expect(context.configLoaded).toBe(false);
+			expect(context.initializationError).toBeDefined();
+			expect(context.initializationError).toContain('constellation.json not found');
+			// Should still have default values
+			expect(context.projectId).toBeDefined();
+			expect(context.branchName).toBeDefined();
 		});
 
 		it('should throw error if getConfigContext called before initialization', () => {
@@ -161,7 +170,7 @@ describe('ConfigurationManager', () => {
 
 	describe('API key handling', () => {
 		it('should load API key from environment', async () => {
-			process.env.CONSTELLATION_API_KEY = 'test-key-123';
+			process.env.CONSTELLATION_ACCESS_KEY = 'test-key-123';
 
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
@@ -178,7 +187,7 @@ describe('ConfigurationManager', () => {
 		});
 
 		it('should use empty string if API key not set', async () => {
-			delete process.env.CONSTELLATION_API_KEY;
+			delete process.env.CONSTELLATION_ACCESS_KEY;
 
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',

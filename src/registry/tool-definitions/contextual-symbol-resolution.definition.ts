@@ -8,15 +8,15 @@ export const contextualSymbolResolutionDefinition: McpToolDefinition = {
 	name: 'contextual_symbol_resolution',
 	category: 'Refactoring',
 	description:
-		'Resolve symbol with full context: definition, type information, scope, imports, usage. Shows how to import and use symbols correctly. ' +
-		'Provides type system and import context. Depth parameter controls dependency traversal (1-3, usually 1 is sufficient).',
+		'Resolve symbol type/import context. USER ASKS: "What type is X?", "Where does Y come from?", "How do I import this?". depth 1-3 (usually 1). Shows how to import and use symbols with full context: definition, type, scope.',
 	shortDescription: 'Resolve symbols with complete semantic context',
 	whenToUse: [
-		'Need to understand how to import a symbol into your code',
-		'Want full type signature with generics, constraints, inferred types',
-		'Understanding scope chain (global/module/class/function/block)',
-		'Need to see how a symbol is properly used with context',
-		'Resolving where a symbol comes from in complex import chains',
+		'❓ **USER ASKS:** "What type is X?", "Where does Y come from?", "Resolve ambiguous symbol", "Find import source", "How do I import this?"',
+		'🔍 Need to understand how to import a symbol into your code',
+		'🔍 Want full type signature with generics, constraints, inferred types',
+		'🔍 Understanding scope chain (global/module/class/function/block)',
+		'🔍 Need to see how a symbol is properly used with context',
+		'🔍 Resolving where a symbol comes from in complex import chains',
 	],
 	relatedTools: [
 		'search_symbols',
@@ -118,11 +118,11 @@ export const contextualSymbolResolutionDefinition: McpToolDefinition = {
 		},
 	],
 	commonMistakes: [
-		'Using for simple symbol search → use search_symbols instead',
-		'Using for basic details without type context → use get_symbol_details instead',
-		'Not providing filePath for common symbol names - results may be ambiguous',
-		'Using depth > 1 without needing deep import chain analysis - slower unnecessarily',
-		'Enabling both dependencies and dependents when you only need one direction',
+		'❌ MISTAKE: Using for simple symbol search → ✅ DO: Use search_symbols instead for basic lookup',
+		'❌ MISTAKE: Using for basic details without type context → ✅ DO: Use get_symbol_details instead if you don\'t need import/type resolution',
+		'❌ MISTAKE: Not providing filePath for common symbol names → ✅ DO: Add filePath to disambiguate when multiple symbols share a name',
+		'❌ MISTAKE: Using depth > 1 without needing deep import chain analysis → ✅ DO: Start with depth=1, only increase for complex re-export chains',
+		'❌ MISTAKE: Enabling both dependencies and dependents when you only need one → ✅ DO: Enable only what you need to reduce response size',
 	],
 	sinceVersion: '0.0.1',
 };

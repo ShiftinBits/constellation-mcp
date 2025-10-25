@@ -12,19 +12,18 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Trace where and how a symbol is used across the codebase: imports, calls, references with code context. ' +
-		'Provides usage TYPE (CALLS/IMPORTS/INHERITS) and surrounding code for each usage. ' +
-		'Filter by relationship type, exclude tests/generated files. Max 500 results per page.',
+		'Trace how a symbol is used with code context. USER ASKS: "How is X used?", "Show all callers", "Where is this referenced?". Fast <100ms for 50 results. Filter by type (CALLS/IMPORTS), exclude tests. includeContext shows HOW used, not just WHERE.',
 
 	shortDescription:
 		'Trace all usages of a symbol across the codebase with detailed context',
 
 	whenToUse: [
-		'Finding all places where a function is called or a class is instantiated',
-		'Understanding how an API is being used across the codebase before changing it',
-		'Identifying usage patterns to guide refactoring decisions',
-		'Locating dead code by checking if a symbol has zero usages',
-		'Filtering usage by type (calls vs imports vs inheritance) for specific analysis',
+		'❓ **USER ASKS:** "How is X used?", "Show me all callers of this function", "Where is Y referenced?", "What depends on this class?", "Show usage patterns"',
+		'🔍 Finding all places where a function is called or a class is instantiated',
+		'🔍 Understanding how an API is being used across the codebase before changing it',
+		'🔍 Identifying usage patterns to guide refactoring decisions',
+		'🔍 Locating dead code by checking if a symbol has zero usages',
+		'🔍 Filtering usage by type (calls vs imports vs inheritance) for specific analysis',
 	],
 
 	relatedTools: [
@@ -193,10 +192,10 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Confusing filterByUsageType with filterByRelationshipType - you almost always want filterByRelationshipType',
-		'Not using excludeTests or excludeGenerated - results get cluttered with test and build artifacts',
-		'Disabling includeContext - context is extremely valuable for understanding usage patterns',
-		'Using includeTransitive when you only need direct usage - returns far more results than needed',
+		'❌ MISTAKE: Using filterByUsageType to filter how symbols are used → ✅ DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.)',
+		'❌ MISTAKE: Including test and generated files in results, creating noise → ✅ DO: Set excludeTests=true and excludeGenerated=true for production code only',
+		'❌ MISTAKE: Setting includeContext=false to reduce data → ✅ DO: Keep includeContext=true (default) - context is the primary value of this tool',
+		'❌ MISTAKE: Using includeTransitive=true for simple usage checks → ✅ DO: Use includeTransitive=false (default) unless you need ripple effect analysis',
 	],
 
 	sinceVersion: '0.0.1',

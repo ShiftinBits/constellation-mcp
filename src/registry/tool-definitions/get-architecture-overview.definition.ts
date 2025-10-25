@@ -9,17 +9,17 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	category: 'Architecture',
 
 	description:
-		'High-level codebase architecture overview: modules, layers, dependencies, statistics. START HERE when exploring a new codebase. ' +
-		'Shows tech stack, frameworks, file counts, complexity. Then drill down with get_module_overview for specific modules.',
+		'High-level codebase architecture overview. USER ASKS: "How is this organized?", "Show architecture", "Overview of codebase". Fast cached response. START HERE when exploring new codebase. Shows modules, layers, tech stack.',
 
 	shortDescription: 'Get high-level architectural overview of the codebase',
 
 	whenToUse: [
-		'First time exploring a new codebase - start here before other tools',
-		'Understanding tech stack, frameworks, and languages used',
-		'Getting file counts, module structure, and organizational patterns',
-		'Assessing code health and complexity at high level',
-		'Identifying major dependencies and external packages',
+		'❓ **USER ASKS:** "How is this organized?", "Show me architecture", "What\'s the structure?", "Overview of codebase"',
+		'🔍 First time exploring a new codebase - start here before other tools',
+		'🔍 Understanding tech stack, frameworks, and languages used',
+		'🔍 Getting file counts, module structure, and organizational patterns',
+		'🔍 Assessing code health and complexity at high level',
+		'🔍 Identifying major dependencies and external packages',
 	],
 
 	relatedTools: ['get_module_overview', 'detect_architecture_violations', 'compare_modules', 'analyze_package_usage'],
@@ -91,9 +91,9 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Expecting file-level details - this is high-level overview only, use get_module_overview or search_files for details',
-		'Not using this as starting point before deeper analysis - always start here for new codebases',
-		'Enabling includeModuleGraph initially - start without it for faster response',
+		'❌ MISTAKE: Expecting file-level details → ✅ DO: This is high-level overview only, use get_module_overview or search_files for details',
+		'❌ MISTAKE: Not using this as starting point before deeper analysis → ✅ DO: Always start here for new codebases',
+		'❌ MISTAKE: Enabling includeModuleGraph initially → ✅ DO: Start without it for faster response',
 	],
 
 	sinceVersion: '0.0.1',

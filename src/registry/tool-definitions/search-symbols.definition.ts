@@ -12,19 +12,18 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Search for symbols (functions, classes, variables, types) by name or pattern across the codebase. Returns symbol names, locations, signatures. ' +
-		'Fast pattern matching with filtering by kind, visibility, export status. ' +
-		'TYPICAL WORKFLOW: Search here first → use get_symbol_details for specifics.',
+		'Search for symbols (functions, classes, variables, types) by name/pattern. USER ASKS: "Find function X", "Where is Y?", "Show all components". Fast (<200ms), supports wildcards. Use get_symbol_details for full info.',
 
 	shortDescription:
 		'Find symbols by name or pattern with advanced filtering',
 
 	whenToUse: [
-		'You know part of a symbol name (e.g., "User" or "*Service") but not exact location',
-		'Finding all symbols of a specific kind (all classes, all functions)',
-		'Locating exported vs internal symbols',
-		'Exploring available APIs in a module or package',
-		'Pattern matching across codebase ("format*", "handle*")',
+		'❓ **USER ASKS:** "Find X", "Where is X?", "Show me all Y", "What functions do Z?"',
+		'🔍 You know part of a symbol name (e.g., "User" or "*Service") but not exact location',
+		'🔍 Finding all symbols of a specific kind (all classes, all functions)',
+		'🔍 Locating exported vs internal symbols (public API discovery)',
+		'🔍 Exploring available APIs in a module or package',
+		'🔍 Pattern matching across codebase ("format*", "handle*", "*Service")',
 	],
 
 	relatedTools: [
@@ -179,12 +178,12 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using when you already have exact file path and symbol name → use get_symbol_details directly instead',
-		'Using for dependency information → use get_dependencies/get_dependents instead',
-		'Using empty query without filters - returns all symbols (overwhelming)',
-		'Setting limit too high (>50) initially - start with 10-20, increase if needed',
-		'Not using filePattern when you know general location - significantly narrows results',
-		'Using when you need type/import context → use contextual_symbol_resolution instead',
+		'❌ MISTAKE: Using when you already have exact file+symbol → ✅ DO: Use get_symbol_details directly',
+		'❌ MISTAKE: Using for "what uses X?" → ✅ DO: Use get_dependents or trace_symbol_usage',
+		'❌ MISTAKE: Empty query without filters → ✅ DO: Always provide query or specific filters',
+		'❌ MISTAKE: Setting limit=100 initially → ✅ DO: Start with limit=10-20, increase if needed',
+		'❌ MISTAKE: Not using filePattern when you know location → ✅ DO: Use filePattern to narrow results',
+		'❌ MISTAKE: Using for type/import resolution → ✅ DO: Use contextual_symbol_resolution instead',
 	],
 
 	sinceVersion: '0.0.1',

@@ -8,10 +8,16 @@ export const compareModulesDefinition: McpToolDefinition = {
 	name: 'compare_modules',
 	category: 'Architecture',
 	description:
-		'Compare two modules: similarities, differences, dependencies, relationships. For refactoring/consolidation decisions. ' +
-		'Accepts module1/module2 OR moduleA/moduleB. Control detail with include flags (Structure, Patterns, Dependencies, Similarity).',
+		'Side-by-side comparison of two modules. USER ASKS: "Compare X and Y", "Diff modules", "Which is larger?". Moderate speed. Shows similarities, differences, dependencies. For refactoring/consolidation decisions.',
 	shortDescription: 'Compare two modules for similarities and differences',
-	whenToUse: ['Deciding whether to consolidate similar modules', 'Understanding differences before merging code', 'Identifying duplicate functionality', 'Analyzing module relationships', 'Planning module refactoring'],
+	whenToUse: [
+		'❓ **USER ASKS:** "Compare X and Y", "Diff modules", "Which is larger?", "Compare directories", "Are X and Y similar?"',
+		'🔍 Deciding whether to consolidate similar modules',
+		'🔍 Understanding differences before merging code',
+		'🔍 Identifying duplicate functionality',
+		'🔍 Analyzing module relationships',
+		'🔍 Planning module refactoring',
+	],
 	relatedTools: ['get_module_overview', 'find_similar_patterns', 'get_architecture_overview', 'detect_architecture_violations'],
 	inputSchema: {
 		type: 'object',
@@ -32,6 +38,10 @@ export const compareModulesDefinition: McpToolDefinition = {
 		{ title: 'Compare two service modules', description: 'Check if auth and user services can be consolidated', parameters: { module1: 'src/services/auth', module2: 'src/services/user', includeStructure: 'true', includeSimilarity: 'true', includePatterns: 'true', includeDependencies: 'true', includeConfidence: 'false' }, expectedOutcome: 'Returns similarity score and structural comparison' },
 		{ title: 'Quick similarity check', description: 'Fast comparison without details', parameters: { module1: 'src/utils/string', module2: 'src/helpers/text', includeStructure: 'false', includePatterns: 'false', includeDependencies: 'false', includeSimilarity: 'true', includeConfidence: 'false' }, expectedOutcome: 'Returns similarity score only' },
 	],
-	commonMistakes: ['Comparing unrelated modules - no useful insights', 'Not acting on high similarity findings'],
+	commonMistakes: [
+		'❌ MISTAKE: Comparing unrelated modules (e.g., auth vs. ui components) → ✅ DO: Compare modules with similar purposes for useful insights',
+		'❌ MISTAKE: Not acting on high similarity findings → ✅ DO: High similarity (>70%) often indicates consolidation opportunities',
+		'❌ MISTAKE: Only comparing size/file count → ✅ DO: Enable includePatterns and includeDependencies for deeper insights',
+	],
 	sinceVersion: '0.0.1',
 };

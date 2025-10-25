@@ -9,13 +9,18 @@ export const findSimilarPatternsDefinition: McpToolDefinition = {
 	category: 'Refactoring',
 
 	description:
-		'Find duplicate or similar code patterns across the codebase using similarity scoring (0-1 scale). Use referenceFile or referenceSymbol as comparison point. ' +
-		'SIMILARITY SCALE: 0.7=somewhat similar, 0.8=very similar (recommended), 0.9+=nearly identical (copy-paste candidates). ' +
-		'TYPICAL WORKFLOW: Find patterns here → Review with get_symbol_details → Extract common logic → Verify with trace_symbol_usage.',
+		'Find duplicate or similar code patterns. USER ASKS: "Find duplicates", "Show similar code", "Find copy-paste". Similarity: 0.7=somewhat, 0.8=very similar (recommended), 0.9+=nearly identical. Use referenceFile or referenceSymbol.',
 
 	shortDescription: 'Find duplicate or similar code patterns',
 
-	whenToUse: ['Identifying code duplication for refactoring', 'Finding candidates for utility function extraction', 'Detecting copy-paste code', 'Improving code maintainability', 'Reducing codebase size through consolidation'],
+	whenToUse: [
+		'❓ **USER ASKS:** "Find duplicates", "Show similar code", "Find copy-paste", "Detect code duplication", "What can I consolidate?"',
+		'🔍 Identifying code duplication for refactoring',
+		'🔍 Finding candidates for utility function extraction',
+		'🔍 Detecting copy-paste code patterns',
+		'🔍 Improving code maintainability through consolidation',
+		'🔍 Reducing codebase size by eliminating redundancy',
+	],
 	relatedTools: ['compare_modules', 'find_orphaned_code', 'get_architecture_overview', 'contextual_symbol_resolution'],
 
 	inputSchema: {
@@ -89,6 +94,11 @@ export const findSimilarPatternsDefinition: McpToolDefinition = {
 		{ title: 'Find similar functions', description: 'Locate functions similar to a reference', parameters: { referenceSymbol: 'formatUserData', minSimilarity: '0.8', filterByKind: 'function', includeConfidence: 'false', limit: '20', offset: '0' }, expectedOutcome: 'Returns functions with 80%+ similarity to formatUserData' },
 		{ title: 'Find duplicate code patterns', description: 'Detect copy-paste code across codebase', parameters: { referenceFile: 'src/utils/validators.ts', minSimilarity: '0.7', includeConfidence: 'true', limit: '30', offset: '0' }, expectedOutcome: 'Returns files with similar patterns to validators.ts' },
 	],
-	commonMistakes: ['Setting similarity too high (>0.9) - misses useful matches', 'Not refactoring after finding duplicates'],
+	commonMistakes: [
+		'❌ MISTAKE: Setting similarity too high (>0.9) → ✅ DO: Start with 0.8, only use 0.9+ for exact copy-paste detection',
+		'❌ MISTAKE: Using without reviewing matches → ✅ DO: Review with get_symbol_details before refactoring',
+		'❌ MISTAKE: Finding duplicates but not refactoring → ✅ DO: Extract to shared utility after finding similar patterns',
+		'❌ MISTAKE: Using referenceFile AND referenceSymbol → ✅ DO: Use EITHER referenceFile OR referenceSymbol, not both',
+	],
 	sinceVersion: '0.0.1',
 };

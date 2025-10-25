@@ -12,19 +12,19 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Get detailed information about a specific symbol: signature, documentation, dependencies, dependents, usage locations. ' +
-		'Call with symbolId (from search_symbols, recommended) OR symbolName+filePath. ' +
-		'Use includeReferences/includeRelationships/includeImpactScore flags to control detail level.',
+		'Get detailed info about a specific symbol (function, class, variable). USER ASKS: "What does X do?", "Show function Y", "What is Z?". Fast (<100ms), includeReferences may take 200-500ms. Use symbolId from search_symbols.',
 
 	shortDescription:
 		'Get detailed information about a specific symbol including signature, usage, and relationships',
 
 	whenToUse: [
-		'You know the exact symbol name and file path, or have a symbolId from search_symbols',
-		'Need comprehensive details about a specific symbol (definition, signature, documentation)',
-		'Want to see all references/usage locations for a symbol (with includeReferences=true)',
-		'Analyzing relationships (calls, inheritance, implementations) for a symbol',
-		'Assessing impact of changing a symbol (with includeImpactScore=true)',
+		'❓ **USER ASKS:** "What is X?", "Show me Y", "What does Z do?", "Where is X defined?"',
+		'🔍 You have a symbolId from search_symbols (preferred identification method)',
+		'🔍 You know exact symbol name and file path',
+		'🔍 Need comprehensive details (definition, signature, documentation)',
+		'🔍 Want to see all references/usage locations (with includeReferences=true)',
+		'🔍 Analyzing relationships (calls, inheritance, implementations)',
+		'🔍 Assessing impact of changing a symbol (with includeImpactScore=true)',
 	],
 
 	relatedTools: [
@@ -134,12 +134,12 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using for symbol search → use search_symbols instead',
-		'Using for type/import context → use contextual_symbol_resolution instead',
-		'Providing only symbolName without filePath - ambiguous if multiple symbols share the name',
-		'Requesting includeReferences for highly-used symbols - can return hundreds of results; use trace_symbol_usage instead',
-		'Not using symbolId when available from search_symbols - symbolId is more precise and faster',
-		'Enabling all options (references, relationships, impact) when you only need basic info',
+		'❌ MISTAKE: Using for symbol search → ✅ DO: Use search_symbols first to find symbols',
+		'❌ MISTAKE: Using for type/import context → ✅ DO: Use contextual_symbol_resolution',
+		'❌ MISTAKE: Providing only symbolName without filePath → ✅ DO: Provide both or use symbolId',
+		'❌ MISTAKE: includeReferences on popular symbols (1000+ refs) → ✅ DO: Use trace_symbol_usage instead',
+		'❌ MISTAKE: Not using symbolId from search_symbols → ✅ DO: Always use symbolId when available',
+		'❌ MISTAKE: Enabling all options when you need basic info → ✅ DO: Start minimal, add flags as needed',
 	],
 
 	sinceVersion: '0.0.1',

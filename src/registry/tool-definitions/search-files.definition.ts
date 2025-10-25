@@ -12,18 +12,17 @@ export const searchFilesDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Search for files by name or path pattern. Returns file paths, language info, symbol counts, and metadata. ' +
-		'Filter by language, module type, domain, test/entry point status. ' +
-		'Use get_file_details for complete file analysis.',
+		'Search for files by name or path pattern using glob syntax. USER ASKS: "Find file X", "Show test files", "Where are components?". Fast glob search <300ms. Use get_file_details for analysis.',
 
 	shortDescription: 'Find files by name or path pattern',
 
 	whenToUse: [
-		'Locating a file when you know part of its name or path',
-		'Finding all files of a specific type (e.g., all .test.ts files)',
-		'Exploring project structure and organization',
-		'Finding files in a specific directory or module',
-		'Identifying entry points or configuration files',
+		'❓ **USER ASKS:** "Find file X", "Where is Y?", "Show me all test files", "List components"',
+		'🔍 Locating a file when you know part of its name or path',
+		'🔍 Finding all files of a specific type (e.g., all .test.ts files)',
+		'🔍 Exploring project structure and organization',
+		'🔍 Finding files in a specific directory or module',
+		'🔍 Identifying entry points or configuration files',
 	],
 
 	relatedTools: ['get_file_details', 'search_symbols', 'find_entry_points', 'get_architecture_overview'],
@@ -121,9 +120,10 @@ export const searchFilesDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using overly broad patterns without filters - returns too many results',
-		'Forgetting glob syntax (use **/ for recursive search)',
-		'Not using isTest filter when you only want production code',
+		'❌ MISTAKE: Using overly broad patterns without filters → ✅ DO: Add language or domain filters',
+		'❌ MISTAKE: Forgetting glob syntax (using * instead of **/) → ✅ DO: Use **/ for recursive search',
+		'❌ MISTAKE: Not filtering tests when you want production code → ✅ DO: Set isTest=false',
+		'❌ MISTAKE: Using for symbol search → ✅ DO: Use search_symbols for finding code symbols',
 	],
 
 	sinceVersion: '0.0.1',

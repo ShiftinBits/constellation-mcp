@@ -1,8 +1,8 @@
-import { jest, afterEach } from '@jest/globals';
+import { afterEach, jest } from '@jest/globals';
 
 // Set test environment
 process.env.NODE_ENV = 'test';
-process.env.CONSTELLATION_API_KEY = 'test-api-key';
+process.env.CONSTELLATION_ACCESS_KEY = 'test-api-key';
 process.env.CONSTELLATION_API_URL = 'https://api.constellation.test';
 
 // Increase timeout for integration tests

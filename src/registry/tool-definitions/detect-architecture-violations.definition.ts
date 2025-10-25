@@ -8,10 +8,16 @@ export const detectArchitectureViolationsDefinition: McpToolDefinition = {
 	name: 'detect_architecture_violations',
 	category: 'Architecture',
 	description:
-		'Detect architectural violations: layer boundaries, circular deps, dependency rules, cohesion/coupling issues. ' +
-		'SEVERITY: critical/high/medium/low. Filter by type (layer-boundary, circular-dependency, etc.) or minSeverity.',
+		'Find layer violations and architectural problems. USER ASKS: "Find violations", "Check architecture", "Are there layer violations?". Moderate speed, analyzes entire codebase. SEVERITY: critical/high/medium/low.',
 	shortDescription: 'Detect architectural violations and anti-patterns',
-	whenToUse: ['Auditing codebase for architectural issues', 'Enforcing layered architecture boundaries', 'Identifying anti-patterns and code smells', 'Maintaining clean architecture principles', 'Pre-merge architectural validation'],
+	whenToUse: [
+		'❓ **USER ASKS:** "Find violations", "Check architecture", "Are there layer violations?", "Validate architecture"',
+		'🔍 Auditing codebase for architectural issues',
+		'🔍 Enforcing layered architecture boundaries',
+		'🔍 Identifying anti-patterns and code smells',
+		'🔍 Maintaining clean architecture principles',
+		'🔍 Pre-merge architectural validation',
+	],
 	relatedTools: ['get_architecture_overview', 'find_circular_dependencies', 'analyze_package_usage', 'get_module_overview'],
 	inputSchema: {
 		type: 'object',
@@ -69,6 +75,10 @@ export const detectArchitectureViolationsDefinition: McpToolDefinition = {
 		{ title: 'Find critical violations', description: 'Detect serious architectural issues', parameters: { minSeverity: 'high', includeSuggestions: true }, expectedOutcome: 'Returns high/critical violations with fix suggestions' },
 		{ title: 'Comprehensive violation scan', description: 'Full architectural audit', parameters: { minSeverity: 'low', includeContext: true, includeSuggestions: true, includeCodeHealth: true }, expectedOutcome: 'Returns all violations with context and health metrics' },
 	],
-	commonMistakes: ['Setting minSeverity too high - misses important issues', 'Not reviewing fix suggestions'],
+	commonMistakes: [
+		'❌ MISTAKE: Setting minSeverity too high (e.g., critical only) → ✅ DO: Start with "low" or "medium" to catch important issues',
+		'❌ MISTAKE: Not reviewing fix suggestions → ✅ DO: Always check includeSuggestions for actionable remediation steps',
+		'❌ MISTAKE: Ignoring medium severity violations → ✅ DO: Medium violations often indicate design debt that will become critical',
+	],
 	sinceVersion: '0.0.1',
 };

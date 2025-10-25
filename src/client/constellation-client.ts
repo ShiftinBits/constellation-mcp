@@ -216,7 +216,7 @@ export class ConstellationClient {
 				// Handle authentication errors
 				if (response.status === 401) {
 					throw new AuthenticationError(
-						'Authentication failed. Check your CONSTELLATION_API_KEY environment variable.'
+						'Authentication failed. Check your CONSTELLATION_ACCESS_KEY environment variable.'
 					);
 				}
 

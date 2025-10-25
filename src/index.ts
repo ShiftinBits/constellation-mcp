@@ -16,7 +16,7 @@ async function startServer() {
 	try {
 		console.error("[CONSTELLATION] Starting server...");
 		console.error("[CONSTELLATION] Environment check:");
-		console.error(`  CONSTELLATION_API_KEY: ${process.env.CONSTELLATION_API_KEY ? '***SET***' : 'NOT SET'}`);
+		console.error(`  CONSTELLATION_ACCESS_KEY: ${process.env.CONSTELLATION_ACCESS_KEY ? '***SET***' : 'NOT SET'}`);
 		console.error(`  Working directory: ${process.cwd()}`);
 
 		// Initialize configuration FIRST (before creating MCPServer)

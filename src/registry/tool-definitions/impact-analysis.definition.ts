@@ -9,17 +9,17 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	category: 'Impact',
 
 	description:
-		'Comprehensive impact analysis: change impact, breaking changes, dependencies. Consolidated tool (replaces analyze_change_impact and analyze_breaking_changes). ' +
-		'Quick (depth=1) to comprehensive (depth=3-5). Use analyzeBreakingChanges=true for API changes.',
+		'Comprehensive impact analysis for changes. USER ASKS: "What will break?", "Is it safe to change this?", "Show blast radius". depth=1 <1s (10-50 files), depth=2-3 1-2s (100-500 files). analyzeBreakingChanges for API changes.',
 
-	shortDescription: 'Comprehensive impact analysis combining multiple perspectives',
+	shortDescription: 'Comprehensive impact analysis - what breaks if you change something',
 
 	whenToUse: [
-		'Quick impact check before making a change (depth=1)',
-		'Standard pre-refactoring analysis (depth=2-3)',
-		'Comprehensive API change analysis (analyzeBreakingChanges=true)',
-		'Understanding full ripple effect with transitive dependencies (depth=4-5)',
-		'Generating detailed change reports and migration plans',
+		'❓ **USER ASKS:** "What will break?", "How many files use this?", "Is it safe to change?"',
+		'🔍 Quick impact check before making a change (depth=1)',
+		'🔍 Standard pre-refactoring analysis (depth=2-3, default)',
+		'🔍 Comprehensive API change analysis (analyzeBreakingChanges=true)',
+		'🔍 Full ripple effect with transitive dependencies (depth=4-5)',
+		'🔍 Generating detailed change reports and migration plans',
 	],
 
 	relatedTools: ['get_dependencies', 'get_dependents', 'trace_symbol_usage', 'find_orphaned_code'],
@@ -131,10 +131,11 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using depth=5 on widely-used code - can take 10+ seconds and return thousands of results',
-		'Not starting with quick check (depth=1) before running comprehensive analysis',
-		'Forgetting to exclude tests when analyzing production-only impact',
-		'Not using this tool when other simpler tools (get_dependents) would suffice',
+		'❌ MISTAKE: Setting depth=5 immediately → ✅ DO: Start with depth=1, check count, then increase if needed',
+		'❌ MISTAKE: Using this when simple get_dependents suffices → ✅ DO: Use simpler tools first, escalate if needed',
+		'❌ MISTAKE: Not excluding tests (excludeTests=false) → ✅ DO: Exclude tests for production impact',
+		'❌ MISTAKE: Using for "where is X defined?" → ✅ DO: Use search_symbols + get_symbol_details',
+		'❌ MISTAKE: Running depth=4-5 on core infrastructure → ✅ DO: Use depth=1-2 first, understand scope',
 	],
 
 	sinceVersion: '0.0.1',

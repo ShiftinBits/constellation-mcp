@@ -12,19 +12,18 @@ export const getDependenciesDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Find what a file depends on (forward dependencies): imports, function calls, references. Shows what this code needs to function. ' +
-		'Use depth parameter to control traversal (1=direct, 2-3=transitive). ' +
-		'For reverse direction (what depends on this), use get_dependents.',
+		'Find what a file depends on (forward dependencies). USER ASKS: "What does X import?", "Show dependencies", "What packages does this use?". depth=1 <200ms, depth=2 ~500ms. For reverse use get_dependents.',
 
 	shortDescription:
 		'Find what a file imports and depends on (forward dependencies)',
 
 	whenToUse: [
-		'Understanding what modules or packages a file requires to function',
-		'Identifying tightly-coupled code by analyzing dependency depth',
-		'Preparing to extract a file to a separate package by reviewing its dependencies',
-		'Finding circular dependency chains starting from a specific file',
-		'Auditing external package usage across specific files',
+		'❓ **USER ASKS:** "What does X import?", "Show dependencies", "What packages does this use?"',
+		'🔍 Understanding what modules or packages a file requires to function',
+		'🔍 Identifying tightly-coupled code by analyzing dependency depth',
+		'🔍 Preparing to extract a file to a separate package',
+		'🔍 Finding circular dependency chains starting from a specific file',
+		'🔍 Auditing external package usage across specific files',
 	],
 
 	relatedTools: [
@@ -127,10 +126,10 @@ export const getDependenciesDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Using high depth (>3) on initial analysis - start with 1 or 2, then increase if needed',
-		'Not enabling includePackages when investigating external dependencies - misses npm/pip packages',
-		'Confusing get_dependencies (forward: what does X need) with get_dependents (backward: what needs X)',
-		'Enabling includeSymbols without needing it - increases response size and time',
+		'❌ MISTAKE: Starting with depth=3+ → ✅ DO: Start with depth=1, increase if needed (exponential growth)',
+		'❌ MISTAKE: Not enabling includePackages for external deps → ✅ DO: Enable to see npm/pip packages',
+		'❌ MISTAKE: Confusing with get_dependents → ✅ DO: Dependencies=what X needs, Dependents=who needs X',
+		'❌ MISTAKE: Enabling includeSymbols unnecessarily → ✅ DO: Only enable if you need symbol-level detail',
 	],
 
 	sinceVersion: '0.0.1',

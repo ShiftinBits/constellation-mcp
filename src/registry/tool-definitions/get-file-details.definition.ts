@@ -12,18 +12,17 @@ export const getFileDetailsDefinition: McpToolDefinition = {
 	category: 'Discovery',
 
 	description:
-		'Get comprehensive details about a specific file: symbols defined, dependencies, dependents, and metrics. ' +
-		'Use include* parameters to control detail level (all default to false for fast queries). ' +
-		'TYPICAL WORKFLOW: Start with basic file info → Add includeSymbols to see exports → Add includeDependencies/Dependents for impact analysis.',
+		'Get comprehensive file details: symbols, dependencies, dependents, metrics. USER ASKS: "What\'s in file X?", "Show exports", "What uses this?". Basic <100ms, includeSymbols +100ms, full analysis ~500ms.',
 
 	shortDescription: 'Get comprehensive details about a specific file',
 
 	whenToUse: [
-		'Understanding what a file does and what it exports',
-		'Finding all symbols (functions, classes) defined in a file',
-		'Checking file dependencies and dependents',
-		'Analyzing file complexity and metrics',
-		'Reviewing file structure before making changes',
+		'❓ **USER ASKS:** "What\'s in this file?", "What does file X export?", "Show me file structure"',
+		'🔍 Understanding what a file does and what it exports',
+		'🔍 Finding all symbols (functions, classes) defined in a file',
+		'🔍 Checking file dependencies and dependents',
+		'🔍 Analyzing file complexity and metrics',
+		'🔍 Reviewing file structure before making changes',
 	],
 
 	relatedTools: ['search_files', 'get_symbol_details', 'get_dependencies', 'get_dependents'],
@@ -106,8 +105,10 @@ export const getFileDetailsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Enabling all options when you only need basic info - increases response time',
-		'Using relative paths incorrectly - provide path from project root',
+		'❌ MISTAKE: Enabling all options when you need basic info → ✅ DO: Start minimal, add flags progressively',
+		'❌ MISTAKE: Using relative paths incorrectly → ✅ DO: Provide path from project root (e.g., "src/file.ts")',
+		'❌ MISTAKE: Using for file search → ✅ DO: Use search_files first to find files',
+		'❌ MISTAKE: Not reading actual source code → ✅ DO: Use Read tool to view file contents (Constellation = metadata only)',
 	],
 
 	sinceVersion: '0.0.1',

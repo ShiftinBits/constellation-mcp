@@ -9,13 +9,13 @@
  */
 
 import { MCPTool } from 'mcp-framework';
-import { getConfigContext } from '../config/config-manager.js';
 import { ConstellationClient, McpToolResult } from '../client/constellation-client.js';
 import { mapErrorToMessage } from '../client/error-mapper.js';
-import { generateSymbolId } from '../utils/symbol-id.utils.js';
-import { getToolRegistry } from '../registry/ToolRegistry.js';
+import { getConfigContext } from '../config/config-manager.js';
 import { McpToolDefinition } from '../registry/McpToolDefinition.interface.js';
+import { getToolRegistry } from '../registry/ToolRegistry.js';
 import { standardErrors } from '../utils/error-messages.js';
+import { generateSymbolId } from '../utils/symbol-id.utils.js';
 
 /**
  * Abstract base class for all Constellation MCP tools
@@ -33,7 +33,7 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 
 		if (!context.apiKey) {
 			throw new Error(
-				'API key not configured. Set CONSTELLATION_API_KEY environment variable.'
+				'API key not configured. Set CONSTELLATION_ACCESS_KEY environment variable.'
 			);
 		}
 
@@ -107,7 +107,7 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 
 			// Format the result for AI consumption
 			console.error(`[BaseMcpTool] Formatting successful result`);
-			const formatted = this.formatResult(result.data!, result.metadata);
+			const formatted = this.formatResult(result.data!, result.metadata, input);
 			console.error(`[BaseMcpTool] Formatted result length:`, formatted.length);
 			return formatted;
 		} catch (error) {
@@ -127,11 +127,13 @@ export abstract class BaseMcpTool<TInput extends Record<string, any>, TOutput = 
 	 *
 	 * @param data Result data from API
 	 * @param metadata Execution metadata
+	 * @param params Optional input parameters (for contextual suggestions)
 	 * @returns Formatted string for AI consumption
 	 */
 	protected formatResult(
 		data: TOutput,
-		metadata: { executionTime: number; cached: boolean; [key: string]: any }
+		metadata: { executionTime: number; cached: boolean; [key: string]: any },
+		params?: TInput
 	): string {
 		// Default implementation: JSON stringify
 		// Subclasses should override for better formatting

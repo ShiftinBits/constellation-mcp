@@ -112,11 +112,11 @@ class ConfigurationManager {
 		}
 
 		// Determine API key (priority: env > error)
-		const apiKey = process.env.CONSTELLATION_API_KEY || '';
+		const apiKey = process.env.CONSTELLATION_ACCESS_KEY || '';
 
 		if (!apiKey && !initializationError) {
 			console.warn(
-				'[CONSTELLATION] Warning: CONSTELLATION_API_KEY not set in environment'
+				'[CONSTELLATION] Warning: CONSTELLATION_ACCESS_KEY not set in environment'
 			);
 			console.warn(
 				'[CONSTELLATION] Run: constellation auth'
@@ -235,7 +235,7 @@ export function getConfigContext(): ConfigContext {
 				config,
 				projectId: projectId, // Always from config.namespace
 				branchName: config.branch, // Always from config.branch
-				apiKey: process.env.CONSTELLATION_API_KEY || '',
+				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
 				configLoaded: fs.existsSync(configPath),
 				initializationError: undefined,
 			};
@@ -248,7 +248,7 @@ export function getConfigContext(): ConfigContext {
 				config: defaultConfig,
 				projectId: defaultConfig.namespace, // Always from config
 				branchName: defaultConfig.branch, // Always from config
-				apiKey: process.env.CONSTELLATION_API_KEY || '',
+				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
 				configLoaded: false,
 				initializationError: undefined,
 			};

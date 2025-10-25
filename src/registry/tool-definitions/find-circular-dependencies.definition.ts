@@ -9,18 +9,17 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	category: 'Dependency',
 
 	description:
-		'Detect circular dependency cycles where File A → File B → File C → File A. Circular dependencies cause module loading errors and prevent tree-shaking. ' +
-		'Detects cycles of any length (minCycleLength=2 for simple A→B→A, =3 for A→B→C→A). Shows complete dependency paths. ' +
-		'TYPICAL WORKFLOW: Find cycles here → Analyze with compare_modules → Refactor to break cycles → Verify with get_dependencies.',
+		'Detect import cycles and circular dependencies (A→B→C→A). USER ASKS: "Find circular dependencies", "Are there import cycles?", "Why is module loading failing?". Scans <1s for small codebases, <5s large. Break cycles immediately.',
 
 	shortDescription: 'Detect circular dependency cycles',
 
 	whenToUse: [
-		'Debugging module loading or import errors',
-		'Auditing codebase health and architecture',
-		'Identifying tightly-coupled code that needs refactoring',
-		'Preparing for tree-shaking or code splitting',
-		'Understanding complex interdependencies',
+		'❓ **USER ASKS:** "Find circular dependencies", "Are there import cycles?", "Show circular refs", "Why is module loading failing?", "Check for dependency loops"',
+		'🔍 Debugging module loading or import errors',
+		'🔍 Auditing codebase health and architecture',
+		'🔍 Identifying tightly-coupled code that needs refactoring',
+		'🔍 Preparing for tree-shaking or code splitting',
+		'🔍 Understanding complex interdependencies',
 	],
 
 	relatedTools: ['get_dependencies', 'get_dependents', 'detect_architecture_violations', 'compare_modules'],
@@ -111,8 +110,9 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'Setting minCycleLength too high - misses simple 2-file cycles',
-		'Not breaking cycles after finding them - they cause real problems',
+		'❌ MISTAKE: Setting minCycleLength=3 or higher initially → ✅ DO: Start with minCycleLength=2 (default) to catch all cycles including simple A→B→A patterns',
+		'❌ MISTAKE: Finding cycles but not fixing them → ✅ DO: Break cycles immediately - they cause module loading errors and prevent tree-shaking',
+		'❌ MISTAKE: Ignoring low confidence cycles → ✅ DO: Investigate all cycles, especially high confidence (0.9+) ones first',
 	],
 
 	sinceVersion: '0.0.1',

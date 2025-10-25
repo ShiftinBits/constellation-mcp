@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { BaseMcpTool } from '../../../../src/tools/base/BaseMcpTool.js';
+import { BaseMcpTool } from '../../../../src/lib/BaseMcpTool.js';
 import { z } from 'zod';
 import { createMockToolResult, mockGlobalFetch, createMockResponse } from '../../../helpers/test-utils.js';
 
