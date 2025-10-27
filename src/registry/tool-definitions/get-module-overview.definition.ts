@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: get_module_overview
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getModuleOverviewDefinition: McpToolDefinition = {
 	name: 'get_module_overview',

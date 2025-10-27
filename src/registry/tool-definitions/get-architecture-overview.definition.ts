@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: get_architecture_overview
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	name: 'get_architecture_overview',

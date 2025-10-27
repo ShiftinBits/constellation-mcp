@@ -5,7 +5,7 @@
  * understand when and how to use it effectively.
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getSymbolDetailsDefinition: McpToolDefinition = {
 	name: 'get_symbol_details',

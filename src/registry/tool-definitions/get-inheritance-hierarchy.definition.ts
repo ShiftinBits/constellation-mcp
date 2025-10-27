@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: get_inheritance_hierarchy
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getInheritanceHierarchyDefinition: McpToolDefinition = {
 	name: 'get_inheritance_hierarchy',

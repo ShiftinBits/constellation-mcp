@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: find_similar_patterns
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const findSimilarPatternsDefinition: McpToolDefinition = {
 	name: 'find_similar_patterns',

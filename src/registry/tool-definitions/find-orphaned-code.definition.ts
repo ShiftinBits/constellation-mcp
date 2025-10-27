@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: find_orphaned_code
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const findOrphanedCodeDefinition: McpToolDefinition = {
 	name: 'find_orphaned_code',

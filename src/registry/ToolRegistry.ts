@@ -8,9 +8,8 @@
 import {
 	McpToolDefinition,
 	ToolCategory,
-	validateToolDefinition,
-	isValidToolDefinition,
-} from './McpToolDefinition.interface.js';
+	validateToolDefinition
+} from './McpToolDefinition.interface';
 
 /**
  * Tool Registry class

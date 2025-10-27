@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: compare_modules
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const compareModulesDefinition: McpToolDefinition = {
 	name: 'compare_modules',

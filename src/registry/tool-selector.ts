@@ -5,7 +5,7 @@
  * based on intent, use case, and parameters.
  */
 
-import { McpToolDefinition, ToolExample } from './McpToolDefinition.interface.js';
+import { McpToolDefinition, ToolExample } from './McpToolDefinition.interface';
 import { getToolRegistry } from './ToolRegistry.js';
 
 /**

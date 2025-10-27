@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: analyze_package_usage
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const analyzePackageUsageDefinition: McpToolDefinition = {
 	name: 'analyze_package_usage',

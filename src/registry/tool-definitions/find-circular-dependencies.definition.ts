@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: find_circular_dependencies
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const findCircularDependenciesDefinition: McpToolDefinition = {
 	name: 'find_circular_dependencies',

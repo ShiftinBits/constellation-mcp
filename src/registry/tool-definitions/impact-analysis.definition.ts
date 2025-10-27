@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: impact_analysis
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const impactAnalysisDefinition: McpToolDefinition = {
 	name: 'impact_analysis',

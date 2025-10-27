@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: contextual_symbol_resolution
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const contextualSymbolResolutionDefinition: McpToolDefinition = {
 	name: 'contextual_symbol_resolution',

@@ -5,7 +5,7 @@
  * understand when and how to use it effectively.
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getDependentsDefinition: McpToolDefinition = {
 	name: 'get_dependents',

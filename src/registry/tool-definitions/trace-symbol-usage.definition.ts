@@ -5,7 +5,7 @@
  * understand when and how to use it effectively.
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const traceSymbolUsageDefinition: McpToolDefinition = {
 	name: 'trace_symbol_usage',

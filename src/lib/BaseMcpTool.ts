@@ -12,7 +12,7 @@ import { MCPTool } from 'mcp-framework';
 import { ConstellationClient, McpToolResult } from '../client/constellation-client.js';
 import { mapErrorToMessage } from '../client/error-mapper.js';
 import { getConfigContext } from '../config/config-manager.js';
-import { McpToolDefinition } from '../registry/McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../registry/McpToolDefinition.interface';
 import { getToolRegistry } from '../registry/ToolRegistry.js';
 import { standardErrors } from '../utils/error-messages.js';
 import { generateSymbolId } from '../utils/symbol-id.utils.js';

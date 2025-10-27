@@ -2,7 +2,7 @@
  * Enhanced Tool Definition: get_call_graph
  */
 
-import { McpToolDefinition } from '../McpToolDefinition.interface.js';
+import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const getCallGraphDefinition: McpToolDefinition = {
 	name: 'get_call_graph',
