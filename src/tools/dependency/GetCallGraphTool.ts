@@ -6,7 +6,8 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-import { formatLocation } from '../../utils/format-helpers.js';
+import { formatLocation, section, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
 interface GetCallGraphParams {
 	symbolId?: string;
@@ -121,13 +122,18 @@ class GetCallGraphTool extends BaseMcpTool<
 
 		const { root, callers, callees, graph } = data;
 
-		let output = `Call Graph Analysis\n\n`;
+		let output = `${section('Call Graph Analysis', 1)}\n\n`;
 
 		// Root function info
 		if (root) {
-			output += `Root Function: ${root.name}\n`;
-			output += `Location: ${formatLocation(root.filePath, 0)}\n`;
-			output += `Symbol ID: ${root.symbolId}\n\n`;
+			const rootFileMarkers = getFileMarkers(root.filePath);
+			const rootFileDisplay = rootFileMarkers.length > 0
+				? applyMarkers(rootFileMarkers, root.filePath)
+				: root.filePath;
+
+			output += `${keyValue('Root Function', root.name)}\n`;
+			output += `${keyValue('Location', formatLocation(rootFileDisplay, 0))}\n`;
+			output += `${keyValue('Symbol ID', root.symbolId)}\n\n`;
 		}
 
 		// Count total nodes and edges
@@ -136,15 +142,15 @@ class GetCallGraphTool extends BaseMcpTool<
 		const totalNodes = 1 + callersArray.length + calleesArray.length; // root + callers + callees
 		const totalEdges = callersArray.length + calleesArray.length;
 
-		output += `Total nodes: ${totalNodes}\n`;
-		output += `Total call relationships: ${totalEdges}\n\n`;
+		output += `${keyValue('Total nodes', totalNodes)}\n`;
+		output += `${keyValue('Total call relationships', totalEdges)}\n\n`;
 
 		if (callersArray.length === 0 && calleesArray.length === 0) {
 			output += 'No call relationships found.';
 		} else {
 			// Show callees (what this function calls)
 			if (calleesArray.length > 0) {
-				output += `## ${root.name} calls (${calleesArray.length}):\n`;
+				output += `${section(`${root.name} calls`, 2)} (${calleesArray.length}):\n`;
 
 				// Group by depth
 				const calleesByDepth = new Map<number, CalleeNode[]>();
@@ -160,11 +166,16 @@ class GetCallGraphTool extends BaseMcpTool<
 				const depths = Array.from(calleesByDepth.keys()).sort((a, b) => a - b);
 				for (const depth of depths) {
 					const nodes = calleesByDepth.get(depth)!;
-					output += `\n### Depth ${depth} (${nodes.length} calls):\n`;
+					output += `\n${section(`Depth ${depth}`, 3)} (${nodes.length} calls):\n`;
 					for (const callee of nodes) {
 						const asyncMarker = callee.isAsync ? ' (async)' : '';
+						const calleeFileMarkers = getFileMarkers(callee.filePath);
+						const calleeFileDisplay = calleeFileMarkers.length > 0
+							? applyMarkers(calleeFileMarkers, callee.filePath)
+							: callee.filePath;
+
 						output += `  → ${callee.name}${asyncMarker}\n`;
-						output += `    ${formatLocation(callee.filePath, 0)}\n`;
+						output += `    ${formatLocation(calleeFileDisplay, 0)}\n`;
 					}
 				}
 				output += '\n';
@@ -172,7 +183,7 @@ class GetCallGraphTool extends BaseMcpTool<
 
 			// Show callers (what calls this function)
 			if (callersArray.length > 0) {
-				output += `## Called by (${callersArray.length}):\n`;
+				output += `${section('Called by', 2)} (${callersArray.length}):\n`;
 
 				// Group by depth
 				const callersByDepth = new Map<number, CallerNode[]>();
@@ -188,10 +199,15 @@ class GetCallGraphTool extends BaseMcpTool<
 				const depths = Array.from(callersByDepth.keys()).sort((a, b) => a - b);
 				for (const depth of depths) {
 					const nodes = callersByDepth.get(depth)!;
-					output += `\n### Depth ${depth} (${nodes.length} callers):\n`;
+					output += `\n${section(`Depth ${depth}`, 3)} (${nodes.length} callers):\n`;
 					for (const caller of nodes) {
+						const callerFileMarkers = getFileMarkers(caller.filePath);
+						const callerFileDisplay = callerFileMarkers.length > 0
+							? applyMarkers(callerFileMarkers, caller.filePath)
+							: caller.filePath;
+
 						output += `  ← ${caller.name}\n`;
-						output += `    ${formatLocation(caller.filePath, 0)}\n`;
+						output += `    ${formatLocation(callerFileDisplay, 0)}\n`;
 					}
 				}
 				output += '\n';
@@ -199,17 +215,17 @@ class GetCallGraphTool extends BaseMcpTool<
 
 			// Show graph if included
 			if (graph && graph.nodes && graph.edges) {
-				output += `## Graph Representation:\n`;
-				output += `Nodes: ${graph.nodes.length}\n`;
-				output += `Edges: ${graph.edges.length}\n\n`;
+				output += `${section('Graph Representation')}\n`;
+				output += `${keyValue('Nodes', graph.nodes.length)}\n`;
+				output += `${keyValue('Edges', graph.edges.length)}\n\n`;
 
 				if (graph.edges.length > 0) {
-					output += `### Call Relationships:\n`;
+					output += `${section('Call Relationships', 3)}\n`;
 					for (const edge of graph.edges.slice(0, 20)) { // Limit to first 20
 						output += `  ${edge.from} → ${edge.to}\n`;
 					}
 					if (graph.edges.length > 20) {
-						output += `  ... and ${graph.edges.length - 20} more\n`;
+						output += `  ${collapsedHint(graph.edges.length, 20)}\n`;
 					}
 				}
 			}

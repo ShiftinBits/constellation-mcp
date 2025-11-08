@@ -6,7 +6,8 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-import { formatLocation } from '../../utils/format-helpers.js';
+import { formatLocation, section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
 interface TraceSymbolUsageParams {
 	symbolId?: string;
@@ -127,12 +128,12 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 		const usages = directUsages || [];
 		const transitive = transitiveUsages || [];
 
-		let output = `Symbol Usage Trace: ${symbol?.name || 'unknown'}\n\n`;
-		output += `Defined in: ${symbol?.filePath || 'unknown'}\n`;
-		output += `Type: ${symbol?.kind || 'unknown'}\n`;
-		output += `Total direct usages: ${usages.length}\n`;
+		let output = `${section('Symbol Usage Trace', 1)}: ${symbol?.name || 'unknown'}\n\n`;
+		output += `${keyValue('Defined in', symbol?.filePath || 'unknown')}\n`;
+		output += `${keyValue('Type', symbol?.kind || 'unknown')}\n`;
+		output += `${keyValue('Total direct usages', usages.length)}\n`;
 		if (transitive.length > 0) {
-			output += `Total transitive usages: ${transitive.length}\n`;
+			output += `${keyValue('Total transitive usages', transitive.length)}\n`;
 		}
 		output += '\n';
 
@@ -144,7 +145,7 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 		}
 
 		if (Object.keys(usagesByType).length > 0) {
-			output += `## Usage Breakdown:\n`;
+			output += `${section('Usage Breakdown')}:\n`;
 			for (const [type, count] of Object.entries(usagesByType).sort(
 				([, a], [, b]) => b - a
 			)) {
@@ -155,7 +156,7 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 
 		// Show usage locations
 		if (usages.length > 0) {
-			output += `## Direct Usage Locations (${usages.length}):\n\n`;
+			output += `${section('Direct Usage Locations')} (${usages.length}):\n\n`;
 
 			// Group by file
 			const usagesByFile = new Map<string, typeof usages>();
@@ -169,7 +170,13 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 
 			// Display grouped by file
 			for (const [filePath, fileUsages] of usagesByFile.entries()) {
-				output += `### ${filePath} (${fileUsages.length} ${fileUsages.length === 1 ? 'usage' : 'usages'})\n`;
+				// Apply file markers
+				const fileMarkers = getFileMarkers(filePath);
+				const fileDisplay = fileMarkers.length > 0
+					? applyMarkers(fileMarkers, filePath)
+					: filePath;
+
+				output += `${section(fileDisplay, 3)} (${fileUsages.length} ${fileUsages.length === 1 ? 'usage' : 'usages'})\n`;
 				for (const usage of fileUsages) {
 					const line = usage?.line || 0;
 					const column = usage?.column;
@@ -194,7 +201,7 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 
 		// Transitive usages
 		if (transitive.length > 0) {
-			output += `\n## Transitive Usage (${transitive.length}):\n`;
+			output += `\n${section('Transitive Usage')} (${transitive.length}):\n`;
 			output += `Files that indirectly depend on this symbol:\n\n`;
 			for (const trans of transitive.slice(0, 20)) {
 				output += `  ${trans?.filePath || 'unknown'} (distance: ${trans?.distance || 0})\n`;
@@ -203,7 +210,7 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 				}
 			}
 			if (transitive.length > 20) {
-				output += `  ... and ${transitive.length - 20} more\n`;
+				output += `  ${collapsedHint(transitive.length, 20)}\n`;
 			}
 		}
 

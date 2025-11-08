@@ -5,6 +5,14 @@ import {
 	formatFileList,
 	formatDependencies,
 	formatBytes,
+	emphasize,
+	section,
+	keyValue,
+	summaryLine,
+	bulletList,
+	numberedList,
+	collapsedHint,
+	formatMetric,
 } from '../../../src/utils/format-helpers.js';
 
 describe('format-helpers', () => {
@@ -202,6 +210,219 @@ describe('format-helpers', () => {
 			// Function only supports up to GB, so returns "1024 GB" or similar
 			expect(result).toBeDefined();
 			expect(typeof result).toBe('string');
+		});
+	});
+
+	describe('emphasize', () => {
+		it('should wrap text in bold markdown', () => {
+			const result = emphasize('Important');
+			expect(result).toBe('**Important**');
+		});
+
+		it('should handle empty string', () => {
+			const result = emphasize('');
+			expect(result).toBe('****');
+		});
+
+		it('should preserve spacing', () => {
+			const result = emphasize('  spaced  ');
+			expect(result).toBe('**  spaced  **');
+		});
+	});
+
+	describe('section', () => {
+		it('should create level 1 section header', () => {
+			const result = section('Main Title', 1);
+			expect(result).toBe('# Main Title');
+		});
+
+		it('should create level 2 section header by default', () => {
+			const result = section('Subtitle');
+			expect(result).toBe('## Subtitle');
+		});
+
+		it('should create level 3 section header', () => {
+			const result = section('Sub-subtitle', 3);
+			expect(result).toBe('### Sub-subtitle');
+		});
+
+		it('should create section with large level number', () => {
+			const result = section('Deep', 10);
+			expect(result).toBe('########## Deep');
+		});
+
+		it('should create section with level 1', () => {
+			const result = section('Title', 1);
+			expect(result).toBe('# Title');
+		});
+	});
+
+	describe('keyValue', () => {
+		it('should format key-value pair with emphasis', () => {
+			const result = keyValue('Name', 'John');
+			expect(result).toBe('**Name**: John');
+		});
+
+		it('should format key-value without emphasis when specified', () => {
+			const result = keyValue('Age', 25, false);
+			expect(result).toBe('Age: 25');
+		});
+
+		it('should handle boolean values', () => {
+			const result = keyValue('Active', true);
+			expect(result).toBe('**Active**: true');
+		});
+
+		it('should handle number values', () => {
+			const result = keyValue('Count', 42);
+			expect(result).toBe('**Count**: 42');
+		});
+
+		it('should handle empty string value', () => {
+			const result = keyValue('Empty', '');
+			expect(result).toBe('**Empty**: ');
+		});
+	});
+
+	describe('summaryLine', () => {
+		it('should format summary with multiple values', () => {
+			const result = summaryLine('Stats', [
+				{ key: 'Files', value: 10 },
+				{ key: 'Lines', value: 1000 },
+			]);
+			expect(result).toBe('**Stats**: Files: 10 | Lines: 1000');
+		});
+
+		it('should handle single value', () => {
+			const result = summaryLine('Total', [{ key: 'Count', value: 5 }]);
+			expect(result).toBe('**Total**: Count: 5');
+		});
+
+		it('should handle empty values array', () => {
+			const result = summaryLine('Empty', []);
+			expect(result).toBe('**Empty**: ');
+		});
+
+		it('should handle string values', () => {
+			const result = summaryLine('Info', [
+				{ key: 'Name', value: 'Test' },
+				{ key: 'Type', value: 'Unit' },
+			]);
+			expect(result).toBe('**Info**: Name: Test | Type: Unit');
+		});
+	});
+
+	describe('bulletList', () => {
+		it('should create bulleted list with default bullet', () => {
+			const result = bulletList(['First', 'Second', 'Third']);
+			expect(result).toBe('- First\n- Second\n- Third');
+		});
+
+		it('should create bulleted list with custom bullet', () => {
+			const result = bulletList(['One', 'Two'], '*');
+			expect(result).toBe('* One\n* Two');
+		});
+
+		it('should handle empty array', () => {
+			const result = bulletList([]);
+			expect(result).toBe('');
+		});
+
+		it('should handle single item', () => {
+			const result = bulletList(['Only']);
+			expect(result).toBe('- Only');
+		});
+
+		it('should preserve empty strings in items', () => {
+			const result = bulletList(['First', '', 'Third']);
+			expect(result).toBe('- First\n- \n- Third');
+		});
+	});
+
+	describe('numberedList', () => {
+		it('should create numbered list', () => {
+			const result = numberedList(['First', 'Second', 'Third']);
+			expect(result).toBe('1. First\n2. Second\n3. Third');
+		});
+
+		it('should handle empty array', () => {
+			const result = numberedList([]);
+			expect(result).toBe('');
+		});
+
+		it('should handle single item', () => {
+			const result = numberedList(['Only']);
+			expect(result).toBe('1. Only');
+		});
+
+		it('should number sequentially', () => {
+			const result = numberedList(['A', 'B', 'C', 'D', 'E']);
+			expect(result).toContain('1. A');
+			expect(result).toContain('5. E');
+		});
+	});
+
+	describe('collapsedHint', () => {
+		it('should show remaining items hint', () => {
+			const result = collapsedHint(100, 20);
+			expect(result).toBe('... and 80 more');
+		});
+
+		it('should return empty string when all shown', () => {
+			const result = collapsedHint(10, 10);
+			expect(result).toBe('');
+		});
+
+		it('should handle single remaining item', () => {
+			const result = collapsedHint(21, 20);
+			expect(result).toBe('... and 1 more');
+		});
+
+		it('should handle large numbers', () => {
+			const result = collapsedHint(10000, 50);
+			expect(result).toBe('... and 9950 more');
+		});
+
+		it('should return empty string when none shown', () => {
+			const result = collapsedHint(100, 100);
+			expect(result).toBe('');
+		});
+	});
+
+	describe('formatMetric', () => {
+		it('should format metric above threshold', () => {
+			const result = formatMetric(75, 'complexity', 50, '>');
+			expect(result).toBe('**complexity**: **75**');
+		});
+
+		it('should format metric below threshold', () => {
+			const result = formatMetric(75, 'coverage', 80, '<');
+			expect(result).toBe('**coverage**: **75**');
+		});
+
+		it('should format metric at threshold (greater than)', () => {
+			const result = formatMetric(50, 'value', 50, '>');
+			expect(result).toBe('**value**: 50');
+		});
+
+		it('should format metric at threshold (less than)', () => {
+			const result = formatMetric(50, 'value', 50, '<');
+			expect(result).toBe('**value**: 50');
+		});
+
+		it('should handle no threshold', () => {
+			const result = formatMetric(42, 'score');
+			expect(result).toBe('**score**: 42');
+		});
+
+		it('should handle zero values', () => {
+			const result = formatMetric(0, 'count', 10, '>');
+			expect(result).toBe('**count**: 0');
+		});
+
+		it('should handle negative values', () => {
+			const result = formatMetric(-5, 'delta', 0, '>');
+			expect(result).toBe('**delta**: -5');
 		});
 	});
 });

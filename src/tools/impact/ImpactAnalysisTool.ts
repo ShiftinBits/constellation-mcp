@@ -11,6 +11,8 @@ import {
 	ImpactAnalysisParams,
 	ImpactAnalysisResult,
 } from '../../types/api-types.js';
+import { section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { MARKERS, markExported } from '../../utils/semantic-markers.js';
 
 class ImpactAnalysisTool extends BaseMcpTool<
 	ImpactAnalysisParams,
@@ -83,15 +85,15 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		let output = `Comprehensive Impact Analysis\n\n`;
 
 		// Target info
-		output += `## Target\n`;
-		output += `Type: ${symbol.kind}\n`;
-		output += `Name: ${symbol.name}\n`;
+		output += `${section('Target')}\n`;
+		output += `${keyValue('Type', symbol.kind)}\n`;
+		output += `${keyValue('Name', symbol.name)}\n`;
 		if (symbol.filePath) {
-			output += `File: ${symbol.filePath}\n`;
+			output += `${keyValue('File', symbol.filePath)}\n`;
 		}
 
 		// Summary
-		output += `\n## Impact Summary\n`;
+		output += `\n${section('Impact Summary')}\n`;
 		const directCount = directDependents?.length || 0;
 		const transitiveCount = transitiveDependents?.length || 0;
 		const impactedFileCount = impactedFiles?.length || 0;
@@ -105,24 +107,22 @@ class ImpactAnalysisTool extends BaseMcpTool<
 
 		// Direct dependents
 		if (directCount > 0) {
-			output += `\n## Direct Dependents (${directCount})\n\n`;
+			output += `\n${section('Direct Dependents')} (${directCount})\n\n`;
 			for (const dep of directDependents!.slice(0, 10)) {
-				output += `  ${dep.name} (${dep.kind})\n`;
+				const depName = dep.isExported ? markExported(dep.name) : dep.name;
+				output += `  ${depName} (${dep.kind})\n`;
 				output += `    ${dep.filePath}:${dep.line}\n`;
 				output += `    Relationship: ${dep.relationshipType}\n`;
-				if (dep.isExported) {
-					output += `     Exported - breaking change risk\n`;
-				}
 				output += '\n';
 			}
 			if (directCount > 10) {
-				output += `  ... and ${directCount - 10} more\n\n`;
+				output += `  ${collapsedHint(directCount, 10)}\n\n`;
 			}
 		}
 
 		// Transitive dependents
 		if (transitiveCount > 0) {
-			output += `## Transitive Dependents (${transitiveCount})\n\n`;
+			output += `${section('Transitive Dependents')} (${transitiveCount})\n\n`;
 			for (const dep of transitiveDependents!.slice(0, 10)) {
 				output += `  ${dep.name} (${dep.kind}) - depth ${dep.depth}\n`;
 				output += `    ${dep.filePath}:${dep.line}\n`;
@@ -130,45 +130,43 @@ class ImpactAnalysisTool extends BaseMcpTool<
 				output += '\n';
 			}
 			if (transitiveCount > 10) {
-				output += `  ... and ${transitiveCount - 10} more\n\n`;
+				output += `  ${collapsedHint(transitiveCount, 10)}\n\n`;
 			}
 		}
 
 		// Impacted files
 		if (impactedFileCount > 0) {
-			output += `## Impacted Files (${impactedFileCount})\n\n`;
+			output += `${section('Impacted Files')} (${impactedFileCount})\n\n`;
 			for (const file of impactedFiles!.slice(0, 15)) {
-				output += `  ${file.filePath}\n`;
+				const fileLine = file.isTest ? `${MARKERS.TEST} ${file.filePath}` : file.filePath;
+				output += `  ${fileLine}\n`;
 				output += `    ${file.symbolCount} symbol(s) affected\n`;
-				if (file.isTest) {
-					output += `    Test file\n`;
-				}
 				if (file.symbols && file.symbols.length > 0) {
 					output += `    Symbols: ${file.symbols.map(s => s.name).join(', ')}\n`;
 				}
 				output += '\n';
 			}
 			if (impactedFileCount > 15) {
-				output += `  ... and ${impactedFileCount - 15} more files\n\n`;
+				output += `  ${collapsedHint(impactedFileCount, 15)}\n\n`;
 			}
 		}
 
 		// Breaking change risk
 		if (breakingChangeRisk) {
-			output += `##  Breaking Change Risk\n`;
-			output += `Level: ${this.getRiskEmoji(breakingChangeRisk.riskLevel)} ${breakingChangeRisk.riskLevel.toUpperCase()}\n\n`;
+			output += `${section('Breaking Change Risk')}\n`;
+			output += `${keyValue('Level', `${this.getRiskMarker(breakingChangeRisk.riskLevel)} ${breakingChangeRisk.riskLevel.toUpperCase()}`)}\n\n`;
 
 			if (breakingChangeRisk.factors && breakingChangeRisk.factors.length > 0) {
-				output += `### Risk Factors:\n`;
+				output += `${section('Risk Factors', 3)}\n`;
 				for (const factor of breakingChangeRisk.factors) {
-					output += `  • **${factor.factor}** (${factor.severity})\n`;
+					output += `  - ${emphasize(factor.factor)} (${factor.severity})\n`;
 					output += `    ${factor.description}\n`;
 				}
 				output += '\n';
 			}
 
 			if (breakingChangeRisk.recommendations && breakingChangeRisk.recommendations.length > 0) {
-				output += `### Recommendations:\n`;
+				output += `${section('Recommendations', 3)}\n`;
 				for (let i = 0; i < breakingChangeRisk.recommendations.length; i++) {
 					output += `${i + 1}. ${breakingChangeRisk.recommendations[i]}\n`;
 				}
@@ -176,7 +174,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 
 		// Action plan
-		output += `\n## Suggested Action Plan\n\n`;
+		output += `\n${section('Suggested Action Plan')}\n\n`;
 		const riskLevel = breakingChangeRisk?.riskLevel || 'low';
 		const totalImpacted = directCount + transitiveCount;
 		const hasCriticalPaths = (breakingChangeRisk?.factors?.length || 0) > 0;
@@ -202,7 +200,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 
 		// Contextual follow-up tools
-		output += `\n\n## Recommended Follow-up Tools\n\n`;
+		output += `\n\n${section('Recommended Follow-up Tools')}\n\n`;
 
 		if (totalImpacted > 100) {
 			output += `- **trace_symbol_usage** - Large impact surface (${totalImpacted} dependents). Trace usage patterns to understand how this symbol is called.\n`;
@@ -232,16 +230,16 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		return output.trim();
 	}
 
-	private getRiskEmoji(level: string): string {
-		switch (level) {
+	private getRiskMarker(level: string): string {
+		switch (level.toUpperCase()) {
 			case 'CRITICAL':
-				return '[CRITICAL]';
+				return MARKERS.BREAKING;
 			case 'HIGH':
-				return '[HIGH]';
+				return MARKERS.RISKY;
 			case 'MEDIUM':
-				return '[MEDIUM]';
+				return MARKERS.RISKY;
 			case 'LOW':
-				return '[LOW]';
+				return MARKERS.SAFE;
 			default:
 				return '[UNKNOWN]';
 		}

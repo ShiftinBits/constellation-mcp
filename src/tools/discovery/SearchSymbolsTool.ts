@@ -11,7 +11,7 @@ import {
 	SearchSymbolsParams,
 	SearchSymbolsResult,
 } from '../../types/api-types.js';
-import { formatSymbolList } from '../../utils/format-helpers.js';
+import { formatSymbolList, section, emphasize } from '../../utils/format-helpers.js';
 
 class SearchSymbolsTool extends BaseMcpTool<
 	SearchSymbolsParams,
@@ -101,7 +101,7 @@ class SearchSymbolsTool extends BaseMcpTool<
 		const totalCount = pagination?.total || resultCount;
 		const hasMore = pagination?.hasMore ?? false;
 
-		output += `\n\n## Suggested Next Steps\n\n`;
+		output += `\n\n${section('Suggested Next Steps')}\n\n`;
 
 		if (resultCount === 0) {
 			output += `No symbols found matching your query.\n\n`;
@@ -138,8 +138,8 @@ class SearchSymbolsTool extends BaseMcpTool<
 				output += `- **Filter by location** - Use filePattern to search in specific directories\n`;
 			}
 		} else {
-			output += `⚠️  Found ${totalCount} symbols${hasMore ? ` (showing first ${resultCount})` : ''}. Results may be too broad.\n\n`;
-			output += `**Refine your search:**\n`;
+			output += `WARNING: Found ${totalCount} symbols${hasMore ? ` (showing first ${resultCount})` : ''}. Results may be too broad.\n\n`;
+			output += `${emphasize('Refine your search:')}\n`;
 			if (!params?.filterByKind || params.filterByKind.length === 0) {
 				output += `- Add **filterByKind** - Focus on specific types: function, class, variable, interface, etc.\n`;
 			}

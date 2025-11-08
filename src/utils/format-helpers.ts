@@ -4,6 +4,8 @@
  * Converts API JSON responses into human-readable text optimized for AI consumption
  */
 
+import { applyMarkers, getSymbolMarkers, getFileMarkers } from './semantic-markers.js';
+
 /**
  * Format a file location with line numbers for easy navigation
  *
@@ -66,7 +68,22 @@ export function formatSymbolList(
 	for (const symbol of symbols) {
 		const name = symbol?.name || 'unknown';
 		const kind = symbol?.kind || 'unknown';
-		output += `${name} (${kind})\n`;
+
+		// Get semantic markers for this symbol
+		const markers = getSymbolMarkers({
+			isExported: symbol?.isExported,
+			isAbstract: symbol?.modifiers?.includes('abstract'),
+			isDeprecated: symbol?.isDeprecated,
+			usageCount: symbol?.usageCount,
+			isExternal: false,
+		});
+
+		// Format symbol name with markers
+		const symbolLine = markers.length > 0
+			? `${applyMarkers(markers, name)} (${kind})`
+			: `${name} (${kind})`;
+
+		output += `${symbolLine}\n`;
 		output += `  Location: ${formatLocation(symbol?.filePath || 'unknown', symbol?.line)}\n`;
 
 		if (symbol?.qualifiedName && symbol.qualifiedName !== symbol.name) {
@@ -79,10 +96,6 @@ export function formatSymbolList(
 
 		if (symbol?.visibility) {
 			output += `  Visibility: ${symbol.visibility}\n`;
-		}
-
-		if (symbol?.isExported !== undefined) {
-			output += `  Exported: ${symbol.isExported ? 'yes' : 'no'}\n`;
 		}
 
 		if (symbol?.usageCount !== undefined) {
@@ -126,7 +139,16 @@ export function formatFileList(
 	for (const file of files) {
 		// Backend returns 'path' not 'filePath' - use defensive access
 		const filePath = file?.path || file?.filePath || 'unknown';
-		output += `${filePath}\n`;
+
+		// Get semantic markers for this file
+		const markers = getFileMarkers(filePath);
+
+		// Format file path with markers
+		const fileLine = markers.length > 0
+			? applyMarkers(markers, filePath)
+			: filePath;
+
+		output += `${fileLine}\n`;
 
 		if (file?.symbolCount !== undefined) {
 			output += `  Symbols: ${file.symbolCount}\n`;
@@ -254,4 +276,112 @@ export function pluralize(
 		return singular;
 	}
 	return plural || `${singular}s`;
+}
+
+/**
+ * Emphasize text for visual prominence in output
+ * Uses markdown bold formatting
+ *
+ * @param text Text to emphasize
+ * @returns Emphasized text
+ */
+export function emphasize(text: string): string {
+	return `**${text}**`;
+}
+
+/**
+ * Create a section header with consistent formatting
+ * Uses markdown heading level 2 (##)
+ *
+ * @param title Section title
+ * @param level Heading level (default: 2)
+ * @returns Formatted section header
+ */
+export function section(title: string, level: number = 2): string {
+	const hashes = '#'.repeat(level);
+	return `${hashes} ${title}`;
+}
+
+/**
+ * Format a key-value pair for consistent display
+ *
+ * @param key Key name
+ * @param value Value to display
+ * @param emphasizeKey Whether to emphasize the key (default: true)
+ * @returns Formatted key-value string
+ */
+export function keyValue(key: string, value: string | number | boolean, emphasizeKey: boolean = true): string {
+	const formattedKey = emphasizeKey ? emphasize(key) : key;
+	return `${formattedKey}: ${value}`;
+}
+
+/**
+ * Create a summary line for quick scanning
+ * Formats as "Label: value1 | value2 | value3"
+ *
+ * @param label Summary label
+ * @param values Array of key-value pairs
+ * @returns Formatted summary line
+ */
+export function summaryLine(label: string, values: Array<{ key: string; value: string | number }>): string {
+	const parts = values.map(v => `${v.key}: ${v.value}`);
+	return `${emphasize(label)}: ${parts.join(' | ')}`;
+}
+
+/**
+ * Create a list with bullet points
+ *
+ * @param items Array of items
+ * @param bullet Bullet character (default: '-')
+ * @returns Formatted bullet list
+ */
+export function bulletList(items: string[], bullet: string = '-'): string {
+	return items.map(item => `${bullet} ${item}`).join('\n');
+}
+
+/**
+ * Create a numbered list
+ *
+ * @param items Array of items
+ * @returns Formatted numbered list
+ */
+export function numberedList(items: string[]): string {
+	return items.map((item, index) => `${index + 1}. ${item}`).join('\n');
+}
+
+/**
+ * Create a collapsed view hint for long lists
+ *
+ * @param itemCount Total number of items
+ * @param shownCount Number of items being shown
+ * @returns Hint text for collapsed content
+ */
+export function collapsedHint(itemCount: number, shownCount: number): string {
+	const hidden = itemCount - shownCount;
+	if (hidden <= 0) return '';
+	return `... and ${hidden} more`;
+}
+
+/**
+ * Format a metric with emphasis if it exceeds a threshold
+ *
+ * @param value Metric value
+ * @param label Metric label
+ * @param threshold Threshold for emphasis
+ * @param comparison Comparison operator ('>' or '<')
+ * @returns Formatted metric
+ */
+export function formatMetric(
+	value: number,
+	label: string,
+	threshold?: number,
+	comparison: '>' | '<' = '>'
+): string {
+	if (threshold !== undefined) {
+		const shouldEmphasize = comparison === '>' ? value > threshold : value < threshold;
+		if (shouldEmphasize) {
+			return keyValue(label, emphasize(value.toString()));
+		}
+	}
+	return keyValue(label, value);
 }

@@ -13,9 +13,13 @@ import {
 } from '../../types/api-types.js';
 import {
 	formatLocation,
-	formatDependencies,
+	section,
+	emphasize,
+	keyValue,
+	collapsedHint,
 } from '../../utils/format-helpers.js';
 import { standardErrors } from '../../utils/error-messages.js';
+import { getSymbolMarkers, applyMarkers, MARKERS } from '../../utils/semantic-markers.js';
 
 class GetSymbolDetailsTool extends BaseMcpTool<
 	GetSymbolDetailsParams,
@@ -74,35 +78,42 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 		const { symbol, references, relationships, impactScore } = data;
 
 		const name = symbol?.name || 'unknown';
-		let output = `Symbol Details: ${name}\n\n`;
+
+		// Get semantic markers for the symbol
+		const markers = getSymbolMarkers({
+			isExported: symbol?.isExported,
+			isAbstract: symbol?.modifiers?.includes('abstract'),
+			isDeprecated: symbol?.isDeprecated,
+			usageCount: impactScore?.directUsage,
+		});
+
+		const symbolHeader = markers.length > 0
+			? `${section('Symbol Details', 1)}: ${applyMarkers(markers, name)}`
+			: `${section('Symbol Details', 1)}: ${name}`;
+
+		let output = `${symbolHeader}\n\n`;
 
 		// Basic info
-		output += `Type: ${symbol?.kind || 'unknown'}\n`;
-		output += `Location: ${formatLocation(symbol?.filePath || 'unknown', symbol?.line, symbol?.column)}\n`;
+		output += `${keyValue('Type', symbol?.kind || 'unknown')}\n`;
+		output += `${keyValue('Location', formatLocation(symbol?.filePath || 'unknown', symbol?.line, symbol?.column))}\n`;
 
 		if (symbol?.qualifiedName && symbol.qualifiedName !== symbol.name) {
-			output += `Qualified Name: ${symbol.qualifiedName}\n`;
+			output += `${keyValue('Qualified Name', symbol.qualifiedName)}\n`;
 		}
 
 		if (symbol?.signature) {
-			output += `Signature: ${symbol.signature}\n`;
+			output += `${keyValue('Signature', symbol.signature)}\n`;
 		}
 
 		if (symbol?.visibility) {
-			output += `Visibility: ${symbol.visibility}\n`;
+			output += `${keyValue('Visibility', symbol.visibility)}\n`;
 		}
 
 		if (symbol?.modifiers) {
 			const modifiers = Array.isArray(symbol.modifiers) ? symbol.modifiers : [];
 			if (modifiers.length > 0) {
-				output += `Modifiers: ${modifiers.join(', ')}\n`;
+				output += `${keyValue('Modifiers', modifiers.join(', '))}\n`;
 			}
-		}
-
-		output += `Exported: ${symbol?.isExported ? 'yes' : 'no'}\n`;
-
-		if (symbol?.isDeprecated) {
-			output += `⚠️ Deprecated: yes\n`;
 		}
 
 		if (symbol?.decorators) {
@@ -123,12 +134,12 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 		}
 
 		if (symbol?.documentation) {
-			output += `\nDocumentation:\n${symbol.documentation}\n`;
+			output += `\n${emphasize('Documentation')}:\n${symbol.documentation}\n`;
 		}
 
 		// References/Usages
 		if (references && references.length > 0) {
-			output += `\n## References (${references.length} locations)\n\n`;
+			output += `\n${section('References')} (${references.length} locations)\n\n`;
 			for (const ref of references.slice(0, 20)) {
 				const location = formatLocation(ref?.filePath || 'unknown', ref?.line);
 				const usageType = ref?.usageType || 'reference';
@@ -139,73 +150,71 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 				output += '\n';
 			}
 			if (references.length > 20) {
-				output += `  ... and ${references.length - 20} more\n`;
+				output += `  ${collapsedHint(references.length, 20)}\n`;
 			}
 		}
 
 		// Relationships
 		if (relationships) {
-			let hasRelationships = false;
-
 			if (relationships.calls && relationships.calls.length > 0) {
-				output += `\n## Calls (${relationships.calls.length})\n`;
+				output += `\n${section('Calls')} (${relationships.calls.length})\n`;
 				for (const call of relationships.calls.slice(0, 10)) {
 					output += `  → ${call}\n`;
 				}
 				if (relationships.calls.length > 10) {
-					output += `  ... and ${relationships.calls.length - 10} more\n`;
+					output += `  ${collapsedHint(relationships.calls.length, 10)}\n`;
 				}
-				hasRelationships = true;
 			}
 
 			if (relationships.calledBy && relationships.calledBy.length > 0) {
-				output += `\n## Called By (${relationships.calledBy.length})\n`;
+				output += `\n${section('Called By')} (${relationships.calledBy.length})\n`;
 				for (const caller of relationships.calledBy.slice(0, 10)) {
 					output += `  ← ${caller}\n`;
 				}
 				if (relationships.calledBy.length > 10) {
-					output += `  ... and ${relationships.calledBy.length - 10} more\n`;
+					output += `  ${collapsedHint(relationships.calledBy.length, 10)}\n`;
 				}
-				hasRelationships = true;
 			}
 
 			if (relationships.inheritsFrom && relationships.inheritsFrom.length > 0) {
-				output += `\n## Inherits From\n`;
+				output += `\n${section('Inherits From')}\n`;
 				for (const parent of relationships.inheritsFrom) {
 					output += `  ↑ ${parent}\n`;
 				}
-				hasRelationships = true;
 			}
 
 			if (relationships.inheritedBy && relationships.inheritedBy.length > 0) {
-				output += `\n## Inherited By (${relationships.inheritedBy.length})\n`;
+				output += `\n${section('Inherited By')} (${relationships.inheritedBy.length})\n`;
 				for (const child of relationships.inheritedBy.slice(0, 10)) {
 					output += `  ↓ ${child}\n`;
 				}
 				if (relationships.inheritedBy.length > 10) {
-					output += `  ... and ${relationships.inheritedBy.length - 10} more\n`;
+					output += `  ${collapsedHint(relationships.inheritedBy.length, 10)}\n`;
 				}
-				hasRelationships = true;
 			}
 
 			if (relationships.children && relationships.children.length > 0) {
-				output += `\n## Children (${relationships.children.length})\n`;
+				output += `\n${section('Children')} (${relationships.children.length})\n`;
 				for (const child of relationships.children.slice(0, 10)) {
-					output += `  • ${child}\n`;
+					output += `  - ${child}\n`;
 				}
 				if (relationships.children.length > 10) {
-					output += `  ... and ${relationships.children.length - 10} more\n`;
+					output += `  ${collapsedHint(relationships.children.length, 10)}\n`;
 				}
-				hasRelationships = true;
 			}
 		}
 
 		// Impact Score
 		if (impactScore) {
-			output += `\n## Impact Analysis\n`;
-			output += `Direct Usage: ${impactScore.directUsage || 0} location${impactScore.directUsage === 1 ? '' : 's'}\n`;
-			output += `Transitive Impact: ${impactScore.transitiveImpact || 0}\n`;
-			output += `Risk Score: ${impactScore.riskScore || 0}/100 (${impactScore.riskLevel || 'unknown'})\n`;
+			output += `\n${section('Impact Analysis')}\n`;
+			output += `${keyValue('Direct Usage', `${impactScore.directUsage || 0} location${impactScore.directUsage === 1 ? '' : 's'}`)}\n`;
+			output += `${keyValue('Transitive Impact', impactScore.transitiveImpact || 0)}\n`;
+			const riskLevel = impactScore.riskLevel || 'unknown';
+			const riskMarker = impactScore.riskScore >= 75 ? MARKERS.HIGH_IMPACT : '';
+			const riskDisplay = riskMarker
+				? `${riskMarker} ${impactScore.riskScore || 0}/100 (${riskLevel})`
+				: `${impactScore.riskScore || 0}/100 (${riskLevel})`;
+			output += `${keyValue('Risk Score', riskDisplay)}\n`;
 		}
 
 		if (metadata.cached) {

@@ -10,7 +10,8 @@ import {
 	GetDependenciesParams,
 	GetDependenciesResult,
 } from '../../types/api-types.js';
-import { formatDependencies } from '../../utils/format-helpers.js';
+import { section, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
 class GetDependenciesTool extends BaseMcpTool<
 	GetDependenciesParams,
@@ -69,15 +70,25 @@ class GetDependenciesTool extends BaseMcpTool<
 
 		const { file, directDependencies, transitiveDependencies, packages } = data;
 
-		let output = `Dependencies Analysis\n\n`;
-		output += `File: ${file || 'unknown'}\n\n`;
+		// Apply file markers to main file
+		const fileMarkers = getFileMarkers(file || 'unknown');
+		const fileDisplay = fileMarkers.length > 0
+			? applyMarkers(fileMarkers, file || 'unknown')
+			: file || 'unknown';
+
+		let output = `${section('Dependencies Analysis', 1)}\n\n`;
+		output += `${keyValue('File', fileDisplay)}\n\n`;
 
 		// Direct dependencies
 		const directCount = directDependencies?.length || 0;
 		if (directCount > 0) {
-			output += `## Direct Dependencies (${directCount})\n\n`;
+			output += `${section('Direct Dependencies', 2)} (${directCount})\n\n`;
 			for (const dep of directDependencies!) {
-				output += `→ ${dep?.filePath || 'unknown'}`;
+				const depPath = dep?.filePath || 'unknown';
+				const depMarkers = getFileMarkers(depPath);
+				const depDisplay = depMarkers.length > 0 ? applyMarkers(depMarkers, depPath) : depPath;
+
+				output += `→ ${depDisplay}`;
 				if (dep?.isDefault) {
 					output += ' (default import)';
 				} else if (dep?.isNamespace) {
@@ -93,9 +104,13 @@ class GetDependenciesTool extends BaseMcpTool<
 		// Transitive dependencies
 		const transitiveCount = transitiveDependencies?.length || 0;
 		if (transitiveCount > 0) {
-			output += `\n## Transitive Dependencies (${transitiveCount})\n\n`;
+			output += `\n${section('Transitive Dependencies', 2)} (${transitiveCount})\n\n`;
 			for (const dep of transitiveDependencies!.slice(0, 20)) {
-				output += `→ ${dep?.filePath || 'unknown'}`;
+				const depPath = dep?.filePath || 'unknown';
+				const depMarkers = getFileMarkers(depPath);
+				const depDisplay = depMarkers.length > 0 ? applyMarkers(depMarkers, depPath) : depPath;
+
+				output += `→ ${depDisplay}`;
 				if (dep?.distance !== undefined) {
 					output += ` (distance: ${dep.distance})`;
 				}
@@ -105,14 +120,14 @@ class GetDependenciesTool extends BaseMcpTool<
 				output += '\n';
 			}
 			if (transitiveCount > 20) {
-				output += `\n... and ${transitiveCount - 20} more\n`;
+				output += `\n${collapsedHint(transitiveCount, 20)}\n`;
 			}
 		}
 
 		// Package dependencies
 		const packageCount = packages?.length || 0;
 		if (packageCount > 0) {
-			output += `\n## Package Dependencies (${packageCount})\n\n`;
+			output += `\n${section('Package Dependencies', 2)} (${packageCount})\n\n`;
 			for (const pkg of packages!) {
 				output += `→ ${pkg?.name || 'unknown'}`;
 				if (pkg?.version) {
@@ -129,13 +144,13 @@ class GetDependenciesTool extends BaseMcpTool<
 		if (directCount === 0 && transitiveCount === 0 && packageCount === 0) {
 			output += 'No dependencies found. This file is independent.\n';
 		} else {
-			output += `\n## Summary\n`;
-			output += `Direct: ${directCount}\n`;
+			output += `\n${section('Summary')}\n`;
+			output += `${keyValue('Direct', directCount)}\n`;
 			if (transitiveCount > 0) {
-				output += `Transitive: ${transitiveCount}\n`;
+				output += `${keyValue('Transitive', transitiveCount)}\n`;
 			}
 			if (packageCount > 0) {
-				output += `Packages: ${packageCount}\n`;
+				output += `${keyValue('Packages', packageCount)}\n`;
 			}
 		}
 

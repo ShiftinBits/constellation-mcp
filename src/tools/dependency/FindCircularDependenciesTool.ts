@@ -10,6 +10,8 @@ import {
 	FindCircularDependenciesParams,
 	FindCircularDependenciesResult,
 } from '../../types/api-types.js';
+import { section, emphasize, keyValue, collapsedHint, numberedList } from '../../utils/format-helpers.js';
+import { MARKERS } from '../../utils/semantic-markers.js';
 
 class FindCircularDependenciesTool extends BaseMcpTool<
 	FindCircularDependenciesParams,
@@ -67,12 +69,12 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 		const cyclesArray = cycles || [];
 		const total = totalCycles || 0;
 
-		let output = `Circular Dependencies Analysis\n\n`;
+		let output = `${section('Circular Dependencies Analysis', 1)}\n\n`;
 
 		if (total === 0 || cyclesArray.length === 0) {
-			output += 'No circular dependencies found! Your codebase has a clean dependency graph.';
+			output += `${MARKERS.SAFE} No circular dependencies found! Your codebase has a clean dependency graph.`;
 		} else {
-			output += ` Found ${total} circular ${total === 1 ? 'dependency' : 'dependencies'}\n\n`;
+			output += `${MARKERS.CIRCULAR} Found ${total} circular ${total === 1 ? 'dependency' : 'dependencies'}\n\n`;
 
 			// Sort by cycle length (shortest first, as they're usually more problematic)
 			const sortedCycles = [...cyclesArray].sort((a, b) => (a?.length || 0) - (b?.length || 0));
@@ -82,7 +84,7 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 				const cycleFiles = cycle?.cycle || [];
 				const cycleLength = cycle?.length || cycleFiles.length;
 
-				output += `## Cycle ${i + 1} (length: ${cycleLength})\n`;
+				output += `${section(`Cycle ${i + 1} (length: ${cycleLength})`, 3)}\n`;
 
 				for (let j = 0; j < cycleFiles.length; j++) {
 					const file = cycleFiles[j];
@@ -96,14 +98,16 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 			}
 
 			if (total > 10) {
-				output += `\n... and ${total - 10} more cycles\n`;
+				output += `\n${collapsedHint(total, 10)}\n`;
 			}
 
-			output += '\n**How to fix:**\n';
-			output += '1. Extract shared code into a separate module\n';
-			output += '2. Use dependency injection to break the cycle\n';
-			output += '3. Refactor to use interfaces/abstractions\n';
-			output += '4. Move one dependency to a parent module\n';
+			const fixes = [
+				'Extract shared code into a separate module',
+				'Use dependency injection to break the cycle',
+				'Refactor to use interfaces/abstractions',
+				'Move one dependency to a parent module',
+			];
+			output += `\n${emphasize('How to fix')}:\n${numberedList(fixes)}\n`;
 		}
 
 		if (metadata.cached) {
