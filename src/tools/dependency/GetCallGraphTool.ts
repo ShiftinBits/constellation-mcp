@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-import { formatLocation, section, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { formatLocation, section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
 interface GetCallGraphParams {

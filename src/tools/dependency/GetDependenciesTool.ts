@@ -10,8 +10,8 @@ import {
 	GetDependenciesParams,
 	GetDependenciesResult,
 } from '../../types/api-types.js';
-import { section, keyValue, collapsedHint } from '../../utils/format-helpers.js';
-import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
+import { section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
+import { MARKERS, getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
 class GetDependenciesTool extends BaseMcpTool<
 	GetDependenciesParams,
@@ -141,6 +141,7 @@ class GetDependenciesTool extends BaseMcpTool<
 		}
 
 		// Summary
+		const totalCount = directCount + transitiveCount;
 		if (directCount === 0 && transitiveCount === 0 && packageCount === 0) {
 			output += 'No dependencies found. This file is independent.\n';
 		} else {

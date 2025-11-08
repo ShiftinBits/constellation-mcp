@@ -199,30 +199,6 @@ class ImpactAnalysisTool extends BaseMcpTool<
 			output += `3. **Run Relevant Tests**: Targeted test execution\n`;
 		}
 
-		// Contextual follow-up tools
-		output += `\n\n${section('Recommended Follow-up Tools')}\n\n`;
-
-		if (totalImpacted > 100) {
-			output += `- **trace_symbol_usage** - Large impact surface (${totalImpacted} dependents). Trace usage patterns to understand how this symbol is called.\n`;
-		}
-
-		if (hasCriticalPaths && impactedFileCount > 0) {
-			output += `- **get_call_graph** - Critical paths detected. Visualize call chains to understand execution flow impacts.\n`;
-		}
-
-		if (impactedFileCount > 20) {
-			output += `- **search_symbols** - ${impactedFileCount} files affected. Search for specific symbols or patterns that need updating.\n`;
-		}
-
-		if (directCount > 10) {
-			output += `- **get_dependents** - ${directCount} direct dependents. Get detailed dependent analysis for refactoring planning.\n`;
-		}
-
-		if (breakingChangeRisk && (riskLevel === 'critical' || riskLevel === 'high')) {
-			output += `- **detect_circular_dependencies** - High risk change. Verify no circular dependencies complicate refactoring.\n`;
-			output += `- **get_symbol_details** - Review symbol signature and documentation before changing.\n`;
-		}
-
 		if (metadata.cached) {
 			output += '\n\n(Results served from cache)';
 		}

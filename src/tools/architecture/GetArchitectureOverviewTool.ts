@@ -204,28 +204,6 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 			}
 		}
 
-		// Contextual next-step suggestions
-		output += `\n\n${section('Next Steps for Exploration')}\n\n`;
-
-		if (dependencies.internal.mostConnectedFiles.length > 0) {
-			const topFile = dependencies.internal.mostConnectedFiles[0];
-			output += `- **get_dependents** - Analyze high-traffic files like "${topFile.path}" (${topFile.incomingCount + topFile.outgoingCount} connections).\n`;
-		}
-
-		if (dependencies.internal.totalConnections > 50) {
-			output += `- **find_circular_dependencies** - ${dependencies.internal.totalConnections} internal connections. Check for circular dependencies and coupling issues.\n`;
-		}
-
-		if (structure.symbols.total > 1000) {
-			output += `- **search_symbols** - ${structure.symbols.total.toLocaleString()} symbols available. Search for specific functions, classes, or types.\n`;
-		}
-
-		output += `- ${emphasize('get_dependencies')} - Analyze dependency relationships for specific files or modules.\n`;
-
-		if (metrics?.complexity?.high && metrics.complexity.high > 10) {
-			output += `- ${emphasize('search_symbols')} - ${metrics.complexity.high} high-complexity items detected. Search for complex functions to identify refactoring candidates.\n`;
-		}
-
 		if (metadata.cached) {
 			output += '\n\n---\n*Results served from cache*';
 		}

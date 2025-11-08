@@ -2,29 +2,45 @@
 
 <img src="https://img.shields.io/badge/mcp-@constellationdev/mcp-lightgray.svg?logo=modelcontextprotocol" alt="MCP Server"> <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-blue.svg" alt="License"></a>
 
-AI-powered code intelligence for your development workflow. Constellation provides powerful specialized tools that enable AI assistants to understand your codebase through advanced analysis.
+**Your AI assistant's telescope to a bespoke constellation of code knowledge**
 
-## ✨ Enhanced Tool Definitions
+Give your AI coding assistant (Claude Code, Cursor, GitHub Copilot, Google Gemini) instant, intelligent access to your entire codebase's structure, dependencies, and relationships without sending any source code.
 
-**NEW**: All tools now include rich, AI-friendly metadata:
+## Why Constellation?
 
-- **Rich Descriptions**: 2-3 sentences explaining what, when, and why to use each tool
-- **Concrete Examples**: Real-world parameter combinations (2-3 per tool)
-- **Use Case Mapping**: Clear scenarios linking user intent to tool selection
-- **Common Mistakes**: Guidance to avoid pitfalls
-- **Performance Notes**: Optimization tips and timing expectations
-- **Related Tools**: Suggestions for effective tool chaining
+When AI assistants work with code, they typically can only see the files you explicitly show them. Constellation changes this by providing **code intelligence as a service** - your assistant can instantly understand:
 
-This enhancement helps AI agents like Claude Code make better decisions about which tools to use and how to use them effectively.
+- Where any function, class, or variable is defined
+- What depends on what (and what will break if you change it)
+- Call graphs and execution flows
+- Circular dependencies and architectural issues
+- Dead code and refactoring opportunities
+
+**The key difference**: All this intelligence comes from a pre-indexed graph database, not by reading your source code. This means:
+
+✅ **Instant results** - Millisecond responses, not minutes of parsing
+✅ **No source code transmission** - Only metadata and relationships, never your code
+✅ **Team-wide consistency** - Everyone's assistant uses the same code intelligence
+✅ **Always up-to-date** - Indexed automatically when code changes
+
+## How It Works
+
+```
+Your Codebase → [Constellation CLI] → Index → [MCP Server] → Your AI Assistant
+                  (parses locally)    (team-shared)    (this package)   (instant answers)
+```
+
+1. **Local Parsing**: The Constellation CLI parses your code locally.
+2. **Secure Upload**: Only source metadata is uploaded, never source code
+3. **Knowledge Graph**: Your team's code intelligence resides in a centralized bespoke knowledge graph
+4. **MCP Tools**: This server provides specialized tools for utilizing that intelligence
+5. **AI-Powered**: Your coding assistant uses these tools to understand your codebase
 
 ## Installation
 
 ### Claude Code
 
-Add to your Claude Code configuration `mcpServers` section:
-
-**macOS**: `~/.claude.json`
-**Windows**: `%CURRENTUSER%/claude.json`
+Add to `~/.claude.json` (macOS) or `%CURRENTUSER%/claude.json` (Windows):
 
 ```json
 {
@@ -38,103 +54,161 @@ Add to your Claude Code configuration `mcpServers` section:
 }
 ```
 
-### Cline / Continue / Other MCP-Compatible Tools
+### Cursor / Cline / Continue
 
-For tools using the Model Context Protocol, add to the proper section of your MCP configuration file:
+Add to your MCP configuration file:
 
 ```json
-"constellation": {
-  "type": "stdio",
-  "command": "npx",
-  "args": [
-    "-y",
-    "@constellationdev/mcp@latest"
-  ]
+{
+	"mcpServers": {
+		"constellation": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@constellationdev/mcp@latest"]
+		}
+	}
 }
 ```
 
-## Configuration
+### GitHub Copilot / VS Code
 
-### Prerequisites
-
-You'll need a Constellation API key and access to a Constellation service instance. Contact your team administrator or visit [constellationdev.io](https://constellationdev.io) to get started.
-
-### Environment Variables
-
-Set your API key (required):
-
-```bash
-export CONSTELLATION_ACCESS_KEY="your-api-key-here"
-```
-
-This can also be provided in the MCP server configuration JSON in the `env` section.
+Configure through your IDE's MCP settings with the same parameters.
 
 ## Available Tools
 
-All tools include enhanced definitions with examples, use cases, and usage guidance.
+Your AI assistant will automatically use these tools when appropriate. You don't need to invoke them directly.
 
-### Discovery
+### 🔍 Discovery & Search
 
-- `search_symbols` - Find functions, classes, variables, and other code symbols
-- `get_symbol_details` - Get detailed information about a specific symbol
+- **search_symbols** - Find functions, classes, variables by name or pattern
+- **get_symbol_details** - Complete information about a specific symbol
 
-### Dependencies
+### 🔗 Dependency Analysis
 
-- `get_dependencies` - What does this file/symbol depend on?
-- `get_dependents` - What depends on this file/symbol?
-- `find_circular_dependencies` - Detect circular dependency
-- `trace_symbol_usage` - Track how a symbol is used across the codebase
-- `get_call_graph` - Generate function call hierarchy
+- **get_dependencies** - What does this file/symbol import or use?
+- **get_dependents** - What depends on this file/symbol? (critical for impact analysis)
+- **get_call_graph** - Function invocation hierarchy (who calls what?)
+- **trace_symbol_usage** - Every place a symbol is used across the codebase
+- **find_circular_dependencies** - Detect import cycles and dependency loops
 
-### Impact Analysis (2 tools)
+### 💥 Impact & Risk Assessment
 
-- `impact_analysis` - Comprehensive change impact assessment
-- `find_orphaned_code` - Identify unused or unreachable code
+- **impact_analysis** - Comprehensive change impact with risk scoring
+- **find_orphaned_code** - Identify unused exports and dead code
 
-### Architecture (1 tool)
+### 🏗️ Architecture
 
-- `get_architecture_overview` - High-level system structure and patterns
+- **get_architecture_overview** - High-level codebase structure and metrics
 
-> **For Developers**: See [docs/TOOL_DEFINITIONS_GUIDE.md](docs/TOOL_DEFINITIONS_GUIDE.md) for details on the enhanced definition system and how to create new tool definitions.
+## Example Workflows
+
+### "Is it safe to change this function?"
+
+```
+AI Assistant automatically:
+1. get_symbol_details → Check signature and usage count
+2. get_dependents → Find all dependent files
+3. impact_analysis → Assess risk and provide recommendations
+```
+
+### "Find and fix circular dependencies"
+
+```
+AI Assistant automatically:
+1. find_circular_dependencies → Detect cycles
+2. get_dependencies → Understand dependency chains
+3. Suggests refactoring approach
+```
+
+### "What does this file import?"
+
+```
+AI Assistant automatically:
+1. get_dependencies → List imports and dependencies
+2. Suggests which dependencies might need updating
+```
+
+## What Makes This Different?
+
+### Traditional AI Assistant Approach
+
+- ❌ Can only see files you show it
+- ❌ No understanding of dependencies
+- ❌ Can't assess impact of changes
+- ❌ Slow to parse large codebases
+- ❌ Inconsistent results across team
+
+### With Constellation MCP
+
+- ✅ Instant access to entire codebase structure
+- ✅ Understands all dependencies and relationships
+- ✅ Risk assessment before changes
+- ✅ Sub-100ms responses (cached)
+- ✅ Team shares same code intelligence
+
+## Verification
+
+After installation, your AI assistant should be able to answer questions like:
+
+- "Where is the UserService class defined?"
+- "What files depend on utils/helpers.ts?"
+- "Show me all functions named 'calculate\*'"
+- "Is it safe to delete this function?"
+- "Find circular dependencies in the codebase"
+
+If these work, you're all set!
 
 ## Troubleshooting
 
-### Authentication Error
+### "Authentication Failed"
 
-```
-❌ Authentication Failed
-Set CONSTELLATION_ACCESS_KEY environment variable.
-```
+**Problem**: `CONSTELLATION_ACCESS_KEY` not set or invalid
 
-**Solution**: Verify your API key is set correctly in environment variables or tool configuration.
+**Solutions**:
 
-### Project Not Indexed
+1. Use the CLI `constellation auth` command to automatically set the environment variable
+2. Or manually set globally: `export CONSTELLATION_ACCESS_KEY="your-key"`
+3. Verify the key is correct with your team admin
 
-```
-❌ Project Not Indexed
-Run 'constellation index' to parse your codebase first.
-```
+### "Project Not Indexed"
 
-**Solution**: Your project needs to be indexed first. If you have the Constellation CLI installed:
+**Problem**: Your codebase hasn't been parsed and uploaded yet
 
-```bash
-constellation index
-```
+**Solutions**:
 
-Otherwise, contact your team administrator.
+1. If you have the Constellation CLI: `constellation index`
+2. Otherwise, contact your team admin to index the project
+3. Indexing happens automatically in CI/CD for most setups
 
-### Connection Error
+### "Connection Error"
 
-```
-❌ Cannot connect to Constellation API
-```
+**Problem**: Cannot reach Constellation API
 
-**Solution**: Confirm internet connectivity and DNS resolution to `api.constellationdev.io`.
+**Solutions**:
 
-## Support
+1. Check internet connectivity
+2. Verify you can reach `api.constellationdev.io`
+3. Check if a firewall/VPN is blocking access
+4. Contact your team admin about network access
 
-- **Documentation**: [docs.constellationdev.io](https://docs.constellationdev.io)
-- **Issues**: [github.com/constellationdev/mcp/issues](https://github.com/constellationdev/mcp/issues)
+### Tools Not Appearing in AI Assistant
+
+**Solutions**:
+
+1. Restart your AI assistant/IDE
+2. Check MCP logs for startup errors
+3. Verify the `npx @constellationdev/mcp@latest` command runs successfully
+
+## Privacy & Security
+
+- **No source code transmission**: Only source metadata is sent to the constellation servers
+- **Access control**: Access keys required for all requests
+- **Branch isolation**: Each git branch maintains discrete code intelligence
+
+## Support & Resources
+
+- 📖 **Documentation**: [docs.constellationdev.io](https://docs.constellationdev.io)
+- 🐛 **Issues**: [github.com/constellationdev/mcp/issues](https://github.com/constellationdev/mcp/issues)
 
 ## License
 

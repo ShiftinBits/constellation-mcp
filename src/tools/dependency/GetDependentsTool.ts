@@ -162,37 +162,6 @@ class GetDependentsTool extends BaseMcpTool<
 			output += `${keyValue('Total Impact', `${totalCount} file${totalCount === 1 ? '' : 's'}`)}\n`;
 		}
 
-		// Contextual next-step suggestions
-		const totalCount = directCount + transitiveCount;
-
-		output += `\n\n${section('Suggested Next Steps')}\n\n`;
-
-		if (totalCount === 0) {
-			output += `${MARKERS.SAFE} ${emphasize('Safe to delete')} - No dependents found. This file appears to be orphaned.\n`;
-			output += `- ${emphasize('find_orphaned_code')} - Discover other unused files to clean up your codebase.\n`;
-		} else if (totalCount <= 10) {
-			output += `${emphasize('Low impact')} - Only ${totalCount} dependent${totalCount === 1 ? '' : 's'}. Changes are relatively safe.\n`;
-			output += `- ${emphasize('get_symbol_details')} - Review individual symbols before making changes.\n`;
-			if (transitiveCount > 0) {
-				output += `- ${emphasize('trace_symbol_usage')} - Understand how transitive dependents use this file.\n`;
-			}
-		} else if (totalCount <= 50) {
-			output += `${emphasize('Moderate impact')} - ${totalCount} dependents. Plan changes carefully.\n`;
-			output += `- ${emphasize('impact_analysis')} - Get comprehensive analysis of what will break if you change this file.\n`;
-			output += `- ${emphasize('get_call_graph')} - Visualize how these dependents interact with this file.\n`;
-			if (directCount > 10) {
-				output += `- ${emphasize('search_symbols')} - Find specific symbols to understand usage patterns.\n`;
-			}
-		} else {
-			output += `${MARKERS.HIGH_IMPACT} ${emphasize('High impact')} - ${totalCount} dependents. Proceed with extreme caution.\n`;
-			output += `- ${emphasize('impact_analysis')} - REQUIRED: Analyze breaking change risk before modifications.\n`;
-			output += `- ${emphasize('trace_symbol_usage')} - Understand all usage patterns across the codebase.\n`;
-			output += `- ${emphasize('find_circular_dependencies')} - Check for circular dependencies that complicate refactoring.\n`;
-			if (detailedMetrics?.criticalPaths && detailedMetrics.criticalPaths.length > 0) {
-				output += `- ${emphasize('get_call_graph')} - Critical paths detected. Map execution flows before changes.\n`;
-			}
-		}
-
 		if (metadata.cached) {
 			output += '\n\n(Results served from cache)';
 		}
