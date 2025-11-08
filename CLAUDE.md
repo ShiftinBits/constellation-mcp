@@ -1,10 +1,55 @@
-# Constellation Project - AI Assistant Guide
+# Constellation MCP Server - AI Assistant Guide
 
 ## Project Overview
 
 Constellation creates a single, shared "code intelligence graph" for entire development teams. Instead of each AI assistant parsing code individually, Constellation parses code once when it changes, extracts the intelligence centrally, and provides all AI assistants with instant access to this shared knowledge.
 
 **Core Value Proposition**: Parse once, benefit everywhere. No more waiting for indexing, no inconsistent understanding across team members, no privacy concerns from uploading source code.
+
+**Primary Purpose**: This MCP server is optimized for use by AI development assistants (like Claude Code) to provide instant access to code intelligence through the Model Context Protocol.
+
+## Code Style and AI Assistant Optimization
+
+### Critical Style Rules
+
+1. **NO EMOJIS**: Never use emojis in code, comments, error messages, or documentation
+2. **NO UNNECESSARY CHARACTERS**: Avoid decorative characters, ASCII art, or visual flourishes
+3. **CLEAN OUTPUT**: All tool responses should be minimal, structured, and parsable
+4. **PROFESSIONAL TONE**: Clear, concise, technical communication only
+
+### Rationale
+
+This MCP server is designed to be consumed by AI assistants, not directly by humans. Visual enhancements that help human readability (emojis, decorative formatting) add noise for AI consumption and should be eliminated.
+
+### Examples
+
+```typescript
+// WRONG - Never do this
+export const ERROR_MESSAGES = {
+  NOT_FOUND: '❌ Symbol not found!',
+  SUCCESS: '✅ Operation completed successfully!'
+};
+
+// RIGHT - Always do this
+export const ERROR_MESSAGES = {
+  NOT_FOUND: 'Symbol not found',
+  SUCCESS: 'Operation completed'
+};
+```
+
+```typescript
+// WRONG - Unnecessary decoration
+/**
+ * ═══════════════════════════════════
+ * 🚀 Get Symbol Details Tool
+ * ═══════════════════════════════════
+ */
+
+// RIGHT - Clean documentation
+/**
+ * Get detailed information about a specific symbol
+ */
+```
 
 ## Architecture Overview
 
@@ -358,6 +403,26 @@ MATCH (n) RETURN count(n) as total_nodes
 - Use meaningful variable and function names
 - Document public APIs with JSDoc
 - Keep functions small and focused
+- **NEVER use emojis in any code, comments, or output**
+- **AVOID unnecessary decorative characters or formatting**
+- **OPTIMIZE for AI assistant consumption, not human visual appeal**
+- Tool descriptions should be clear and technical, not conversational
+- Error messages should be informative, not friendly or decorated
+
+### MCP Tool Design Principles
+
+This server implements the Model Context Protocol to bridge AI assistants with Constellation's code intelligence graph. When designing or modifying tools:
+
+1. **Clarity over Friendliness**: Tool descriptions should be precise and technical
+2. **Structured Responses**: Return clean JSON structures, not formatted text
+3. **Minimal Noise**: No emojis, no decorative separators, no ASCII art
+4. **Parsable Output**: AI assistants need to parse responses programmatically
+5. **Consistent Patterns**: All tools should follow the same response structure
+6. **Error Precision**: Errors should indicate exactly what went wrong, not comfort the user
+7. **Performance Metrics**: Include execution time and cache status when relevant
+8. **Pagination Support**: Large result sets should be paginated with clear continuation tokens
+
+**Remember**: The end user is an AI assistant, not a human developer. Optimize accordingly.
 
 ### Security Review
 
