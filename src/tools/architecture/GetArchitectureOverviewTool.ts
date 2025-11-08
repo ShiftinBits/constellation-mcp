@@ -315,30 +315,22 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 		}
 
 		// Contextual next-step suggestions
-		output += `\n\n## 📋 Next Steps for Exploration\n\n`;
-
-		if (structure.modules.total > 0) {
-			output += `- **get_module_overview** - Deep dive into specific modules (${structure.modules.total} available). Start with "${structure.modules.largest}" (largest module).\n`;
-		}
-
-		if (dependencies.internal.totalConnections > 100) {
-			output += `- **detect_architecture_violations** - ${dependencies.internal.totalConnections} internal connections. Check for layering violations and coupling issues.\n`;
-		}
+		output += `\n\n## Next Steps for Exploration\n\n`;
 
 		if (dependencies.internal.mostConnectedFiles.length > 0) {
 			const topFile = dependencies.internal.mostConnectedFiles[0];
 			output += `- **get_dependents** - Analyze high-traffic files like "${topFile.path}" (${topFile.incomingCount + topFile.outgoingCount} connections).\n`;
 		}
 
-		output += `- **find_entry_points** - Understand application execution flow by identifying main entry points.\n`;
+		if (dependencies.internal.totalConnections > 50) {
+			output += `- **find_circular_dependencies** - ${dependencies.internal.totalConnections} internal connections. Check for circular dependencies and coupling issues.\n`;
+		}
 
 		if (structure.symbols.total > 1000) {
 			output += `- **search_symbols** - ${structure.symbols.total.toLocaleString()} symbols available. Search for specific functions, classes, or types.\n`;
 		}
 
-		if (dependencies.external.topPackages.length > 5) {
-			output += `- **analyze_package_usage** - Review external dependency usage patterns for ${dependencies.external.totalPackages} packages.\n`;
-		}
+		output += `- **get_dependencies** - Analyze dependency relationships for specific files or modules.\n`;
 
 		if (metrics?.complexity.high > 10) {
 			output += `- **get_quality_metrics** - ${metrics.complexity.high} high-complexity items detected. Identify refactoring candidates.\n`;

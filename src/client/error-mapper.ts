@@ -48,7 +48,7 @@ export function mapErrorToMessage(error: unknown, toolName: string): string {
 function formatAuthenticationError(): string {
 	const context = getConfigContext();
 
-	return `❌ Authentication Failed
+	return `Authentication Failed
 
 The Constellation API rejected your access key.
 
@@ -69,7 +69,7 @@ For more information, visit: https://docs.constellationdev.io/
 function formatNotFoundError(toolName: string): string {
 	const context = getConfigContext();
 
-	return `❌ Project Not Indexed
+	return `Project Not Indexed
 
 The tool "${toolName}" cannot find your project in the Constellation index.
 
@@ -97,16 +97,15 @@ For more information, visit: https://docs.constellationdev.io/getting-started
  * Format tool not found error
  */
 function formatToolNotFoundError(message: string): string {
-	return `❌ Tool Not Found
+	return `Tool Not Found
 
 ${message}
 
 **Available tool categories:**
-  • Discovery tools: search_symbols, search_files, get_symbol_details, get_file_details
-  • Dependency tools: get_dependencies, get_dependents, find_circular_dependencies
+  • Discovery tools: search_symbols, get_symbol_details
+  • Dependency tools: get_dependencies, get_dependents, find_circular_dependencies, trace_symbol_usage, get_call_graph
   • Impact tools: impact_analysis, find_orphaned_code
-  • Architecture tools: get_architecture_overview, detect_architecture_violations
-  • Refactoring tools: find_similar_patterns, find_entry_points
+  • Architecture tools: get_architecture_overview
 
 **To see all available tools:**
   Query the tool catalog through the MCP interface or API
@@ -126,14 +125,14 @@ function formatGenericError(toolName: string, error: Error): string {
 	    error.message.includes('ECONNREFUSED') ||
 	    error.message.includes('ENOTFOUND') ||
 	    error.message.includes('timeout')) {
-		return `❌ ${toolName} Failed\n\n${standardErrors.apiError(
+		return `${toolName} Failed\n\n${standardErrors.apiError(
 			toolName,
 			undefined,
 			error.message
 		)}\n\n**Context:**\n  Project ID: ${context.projectId}\n  Branch: ${context.branchName}`;
 	}
 
-	let output = `❌ ${toolName} Failed
+	let output = `${toolName} Failed
 
 ${error.message}
 
@@ -159,7 +158,7 @@ ${error.message}
  * Format unknown error
  */
 function formatUnknownError(toolName: string, error: unknown): string {
-	return `❌ ${toolName} Failed
+	return `${toolName} Failed
 
 An unexpected error occurred: ${String(error)}
 

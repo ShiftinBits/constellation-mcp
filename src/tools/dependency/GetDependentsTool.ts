@@ -148,26 +148,26 @@ class GetDependentsTool extends BaseMcpTool<
 		// Contextual next-step suggestions
 		const totalCount = directCount + transitiveCount;
 
-		output += `\n\n## 💡 Suggested Next Steps\n\n`;
+		output += `\n\n## Suggested Next Steps\n\n`;
 
 		if (totalCount === 0) {
-			output += `✅ **Safe to delete** - No dependents found. This file appears to be orphaned.\n`;
+			output += `**Safe to delete** - No dependents found. This file appears to be orphaned.\n`;
 			output += `- **find_orphaned_code** - Discover other unused files to clean up your codebase.\n`;
 		} else if (totalCount <= 10) {
-			output += `✅ **Low impact** - Only ${totalCount} dependent${totalCount === 1 ? '' : 's'}. Changes are relatively safe.\n`;
+			output += `**Low impact** - Only ${totalCount} dependent${totalCount === 1 ? '' : 's'}. Changes are relatively safe.\n`;
 			output += `- **get_symbol_details** - Review individual symbols before making changes.\n`;
 			if (transitiveCount > 0) {
 				output += `- **trace_symbol_usage** - Understand how transitive dependents use this file.\n`;
 			}
 		} else if (totalCount <= 50) {
-			output += `⚠️  **Moderate impact** - ${totalCount} dependents. Plan changes carefully.\n`;
+			output += ` **Moderate impact** - ${totalCount} dependents. Plan changes carefully.\n`;
 			output += `- **impact_analysis** - Get comprehensive analysis of what will break if you change this file.\n`;
 			output += `- **get_call_graph** - Visualize how these dependents interact with this file.\n`;
 			if (directCount > 10) {
 				output += `- **search_symbols** - Find specific symbols to understand usage patterns.\n`;
 			}
 		} else {
-			output += `🔴 **High impact** - ${totalCount} dependents. Proceed with extreme caution.\n`;
+			output += `[CRITICAL] **High impact** - ${totalCount} dependents. Proceed with extreme caution.\n`;
 			output += `- **impact_analysis** - REQUIRED: Analyze breaking change risk before modifications.\n`;
 			output += `- **trace_symbol_usage** - Understand all usage patterns across the codebase.\n`;
 			output += `- **detect_circular_dependencies** - Check for circular dependencies that complicate refactoring.\n`;

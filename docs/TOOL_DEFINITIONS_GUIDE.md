@@ -24,7 +24,7 @@ src/registry/
     ├── index.ts                      # Export point for all definitions
     ├── search-symbols.definition.ts
     ├── get-symbol-details.definition.ts
-    └── ... (22 total tools)
+    └── ... (10 total tools)
 ```
 
 ## Creating a Tool Definition

@@ -106,13 +106,13 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 		let output = `Orphaned Code Analysis\n\n`;
 
 		if (totalOrphaned === 0) {
-			output += '✅ No orphaned code found! Your codebase is clean.';
+			output += 'No orphaned code found! Your codebase is clean.';
 		} else {
 			output += `Found ${totalOrphaned} orphaned ${totalOrphaned === 1 ? 'item' : 'items'}\n\n`;
 
 			// Orphaned files
 			if (filesArray.length > 0) {
-				output += `## 🗑️ Orphaned Files (${filesArray.length})\n`;
+				output += `## Orphaned Files (${filesArray.length})\n`;
 				output += 'These files are not imported anywhere:\n\n';
 
 				// Sort by confidence descending
@@ -138,7 +138,7 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 
 			// Orphaned symbols
 			if (symbolsArray.length > 0) {
-				output += `## 🔹 Orphaned Symbols (${symbolsArray.length})\n`;
+				output += `## Orphaned Symbols (${symbolsArray.length})\n`;
 				output += 'These exported symbols are never imported:\n\n';
 
 				// Group by file
@@ -175,7 +175,7 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 				}
 			}
 
-			output += `## ⚠️  Before Removing\n`;
+			output += `##  Before Removing\n`;
 			output += `1. Verify these items are truly unused (check dynamic imports)\n`;
 			output += `2. Search for string-based references (e.g., configuration files)\n`;
 			output += `3. Consider if code is used in production but not in tests\n`;

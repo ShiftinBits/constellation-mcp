@@ -25,25 +25,24 @@ Provides **centralized code intelligence** from a shared graph database built fr
 Use these tools instead of manual file searching when you need to understand code structure,
 dependencies, relationships, or impact of changes.
 
-## ⚡ When to Use Constellation (PROACTIVE - Don't Wait for User to Ask)
+## When to Use Constellation (PROACTIVE - Don't Wait for User to Ask)
 
 Use Constellation tools **AUTOMATICALLY** when the user asks about:
 
-### 🔍 Code Discovery & Navigation
+### Code Discovery & Navigation
 - "Where is X defined?", "Find the definition of X"
 - "Show me all classes/functions in this module"
 - "What methods does this class have?"
-- "Find all files matching pattern X"
-→ Tools: \`search_symbols\`, \`search_files\`, \`get_symbol_details\`, \`get_file_details\`
+→ Tools: \`search_symbols\`, \`get_symbol_details\`
 
-### 🔗 Dependencies & Relationships
+### Dependencies & Relationships
 - "What does this file/function depend on?"
 - "What imports this?", "What uses this?"
 - "Show me the call graph for X"
 - "Find circular dependencies"
 → Tools: \`get_dependencies\`, \`get_dependents\`, \`trace_symbol_usage\`, \`find_circular_dependencies\`, \`get_call_graph\`
 
-### ⚠️ Impact Analysis & Refactoring
+### Impact Analysis & Refactoring
 - "What will break if I change this?"
 - "Is it safe to modify/delete this?"
 - "How many files use this?"
@@ -51,27 +50,18 @@ Use Constellation tools **AUTOMATICALLY** when the user asks about:
 - "What's the impact of this change?"
 → Tools: \`impact_analysis\` (START HERE), \`get_dependents\`, \`trace_symbol_usage\`
 
-### 🏗️ Architecture Understanding
+### Architecture Understanding
 - "How is this codebase organized?"
 - "Show me the architecture"
 - "What's the structure of this module?"
-- "Find layer violations"
-- "Analyze package usage"
-→ Tools: \`get_architecture_overview\`, \`get_module_overview\`, \`detect_architecture_violations\`
+→ Tools: \`get_architecture_overview\`
 
-### 🧹 Code Quality
+### Code Quality
 - "Find unused code", "What can I safely delete?"
 - "Find orphaned files"
-- "Find duplicate/similar code patterns"
-→ Tools: \`find_orphaned_code\`, \`find_similar_patterns\`
+→ Tools: \`find_orphaned_code\`
 
-### 🔄 Refactoring Support
-- "Find all entry points to the application"
-- "Show me the inheritance hierarchy"
-- "Resolve this symbol in context"
-→ Tools: \`find_entry_points\`, \`get_inheritance_hierarchy\`, \`contextual_symbol_resolution\`
-
-## ❌ When NOT to Use Constellation
+## When NOT to Use Constellation
 
 - **Reading file contents** (source code) → Use \`Read\` tool instead
 - **Modifying files** → Use \`Edit\` or \`Write\` tools
@@ -83,17 +73,15 @@ Use Constellation tools **AUTOMATICALLY** when the user asks about:
 **IMPORTANT:** Constellation provides METADATA about code (structure, relationships, dependencies),
 NOT the source code itself. Always use \`Read\` to view actual file contents.
 
-## 🎯 Tool Selection Quick Reference
+## Tool Selection Quick Reference
 
-### 📖 Discovery (Finding Things)
+### Discovery (Finding Things)
 | User Says | Use Tool | Notes |
 |-----------|----------|-------|
 | "Find function X" | \`search_symbols\` | Returns list with symbolIds |
-| "Show me file Y" | \`search_files\` | Find files by path pattern |
 | "What is X?" / "Show me X" | \`get_symbol_details\` | After search, use symbolId |
-| "What's in this file?" | \`get_file_details\` | File metadata + symbols list |
 
-### 🔗 Dependencies (Relationships)
+### Dependencies (Relationships)
 | User Says | Use Tool | Notes |
 |-----------|----------|-------|
 | "What does X use?" | \`get_dependencies\` | What X imports/calls |
@@ -102,7 +90,7 @@ NOT the source code itself. Always use \`Read\` to view actual file contents.
 | "Show call graph" | \`get_call_graph\` | Function call relationships |
 | "Find circular deps" | \`find_circular_dependencies\` | Import cycles |
 
-### ⚠️ Impact (Refactoring Safety)
+### Impact (Refactoring Safety)
 | User Says | Use Tool | Notes |
 |-----------|----------|-------|
 | "What breaks if...?" | \`impact_analysis\` | **START HERE** - comprehensive |
@@ -110,24 +98,12 @@ NOT the source code itself. Always use \`Read\` to view actual file contents.
 | "Full blast radius" | \`impact_analysis\` (depth=3-4) | Deep analysis |
 | "Find dead code" | \`find_orphaned_code\` | Safe-to-delete candidates |
 
-### 🏗️ Architecture (Understanding Structure)
+### Architecture (Understanding Structure)
 | User Says | Use Tool | Notes |
 |-----------|----------|-------|
 | "How is this organized?" | \`get_architecture_overview\` | **START HERE** for new codebases |
-| "Deep dive into module X" | \`get_module_overview\` | Specific module details |
-| "Find violations" | \`detect_architecture_violations\` | Layer violations |
-| "Analyze dependencies" | \`analyze_package_usage\` | Package/module coupling |
-| "Compare modules" | \`compare_modules\` | Side-by-side comparison |
 
-### 🔄 Refactoring (Code Modification Support)
-| User Says | Use Tool | Notes |
-|-----------|----------|-------|
-| "Find entry points" | \`find_entry_points\` | App/module main functions |
-| "Show class hierarchy" | \`get_inheritance_hierarchy\` | OOP inheritance tree |
-| "Find similar code" | \`find_similar_patterns\` | Duplication detection |
-| "Resolve symbol X" | \`contextual_symbol_resolution\` | Type/import context |
-
-## 🔄 Common Tool Chaining Patterns
+## Common Tool Chaining Patterns
 
 ### Pattern 1: Before Any Refactoring
 \`\`\`
@@ -140,10 +116,9 @@ NOT the source code itself. Always use \`Read\` to view actual file contents.
 ### Pattern 2: Understanding New Codebase
 \`\`\`
 1. get_architecture_overview → Bird's eye view
-2. get_module_overview (key modules) → Deep dive into important areas
-3. search_symbols → Find specific symbols of interest
-4. get_symbol_details → Understand key symbols
-5. trace_symbol_usage → Follow execution flow
+2. search_symbols → Find specific symbols of interest
+3. get_symbol_details → Understand key symbols
+4. trace_symbol_usage → Follow execution flow
 \`\`\`
 
 ### Pattern 3: Debugging Dependency Issues
@@ -170,7 +145,7 @@ NOT the source code itself. Always use \`Read\` to view actual file contents.
 4. Plan refactor with full knowledge of affected areas
 \`\`\`
 
-## ⚡ Performance Guidelines
+## Performance Guidelines
 
 ### Response Times (Typical)
 - **Cached queries**: <100ms (most common - results are cached)
@@ -191,7 +166,7 @@ NOT the source code itself. Always use \`Read\` to view actual file contents.
 4. **Leverage cache**: Repeated queries are instant (Redis-backed)
 5. **Avoid over-fetching**: Don't use \`includeReferences=true\` unless needed
 
-### ⚠️ EXPONENTIAL GROWTH WARNING
+### **EXPONENTIAL GROWTH WARNING**
 The \`depth\` parameter grows EXPONENTIALLY:
 - depth=1: 10-50 files (direct dependents only)
 - depth=2: 100-500 files (dependents + their dependents)
@@ -200,33 +175,33 @@ The \`depth\` parameter grows EXPONENTIALLY:
 
 **RULE OF THUMB**: Use depth=1 for "quick check", depth=2-3 for "what breaks", depth=4-5 for "everything affected"
 
-## 🚨 Common Mistakes & How to Avoid Them
+## Common Mistakes & How to Avoid Them
 
-### ❌ MISTAKE: Using Constellation to read source code
-**✅ CORRECT:** Use \`Read\` tool for source code, Constellation for metadata
+### **MISTAKE:** Using Constellation to read source code
+**CORRECT:** Use \`Read\` tool for source code, Constellation for metadata
 
-### ❌ MISTAKE: Using \`search_symbols\` when you know exact file+symbol
-**✅ CORRECT:** Use \`get_symbol_details\` directly with symbolName+filePath
+### **MISTAKE:** Using \`search_symbols\` when you know exact file+symbol
+**CORRECT:** Use \`get_symbol_details\` directly with symbolName+filePath
 
-### ❌ MISTAKE: Using \`impact_analysis\` for simple "what uses this?"
-**✅ CORRECT:** Use \`get_dependents\` for simple queries, \`impact_analysis\` for refactoring
+### **MISTAKE:** Using \`impact_analysis\` for simple "what uses this?"
+**CORRECT:** Use \`get_dependents\` for simple queries, \`impact_analysis\` for refactoring
 
-### ❌ MISTAKE: Setting depth=5 immediately
-**✅ CORRECT:** Start with depth=1, check result count, increase incrementally
+### **MISTAKE:** Setting depth=5 immediately
+**CORRECT:** Start with depth=1, check result count, increase incrementally
 
-### ❌ MISTAKE: Requesting includeReferences=true for widely-used symbols
-**✅ CORRECT:** Use \`trace_symbol_usage\` for detailed usage, \`get_symbol_details\` for metadata
+### **MISTAKE:** Requesting includeReferences=true for widely-used symbols
+**CORRECT:** Use \`trace_symbol_usage\` for detailed usage, \`get_symbol_details\` for metadata
 
-### ❌ MISTAKE: Using \`trace_symbol_usage\` when basic references suffice
-**✅ CORRECT:** \`trace_symbol_usage\` shows code context; use \`get_symbol_details\` (includeReferences) for just locations
+### **MISTAKE:** Using \`trace_symbol_usage\` when basic references suffice
+**CORRECT:** \`trace_symbol_usage\` shows code context; use \`get_symbol_details\` (includeReferences) for just locations
 
-### ❌ MISTAKE: Not filtering tests (excludeTests=false) when analyzing production impact
-**✅ CORRECT:** Set excludeTests=true to see real production impact
+### **MISTAKE:** Not filtering tests (excludeTests=false) when analyzing production impact
+**CORRECT:** Set excludeTests=true to see real production impact
 
-### ❌ MISTAKE: Chaining tools sequentially when parallel would work
-**✅ CORRECT:** If you need symbol details for multiple symbols, call \`get_symbol_details\` in parallel
+### **MISTAKE:** Chaining tools sequentially when parallel would work
+**CORRECT:** If you need symbol details for multiple symbols, call \`get_symbol_details\` in parallel
 
-## 🎓 Advanced Usage Tips
+## Advanced Usage Tips
 
 ### Tip 1: Use symbolId Whenever Possible
 After \`search_symbols\`, use the returned \`symbolId\` in subsequent calls.
@@ -250,40 +225,37 @@ Results are cached, so repeated queries are free. Feel free to re-run
 Tool outputs include contextual next-step suggestions based on results.
 Follow these hints for effective tool chaining.
 
-## 📋 Quick Decision Matrix
+## Quick Decision Matrix
 
 **I need to...**
-- ✅ Find where X is defined → \`search_symbols\` then \`get_symbol_details\`
-- ✅ Understand a file → \`get_file_details\` then \`Read\` the file
-- ✅ See what X depends on → \`get_dependencies\`
-- ✅ See what depends on X → \`get_dependents\` (simple) or \`impact_analysis\` (comprehensive)
-- ✅ Check if safe to change X → \`impact_analysis\` depth=1-2
-- ✅ Plan a refactor → \`impact_analysis\` depth=2-3 + \`trace_symbol_usage\`
-- ✅ Understand architecture → \`get_architecture_overview\` then \`get_module_overview\`
-- ✅ Find dead code → \`find_orphaned_code\`
-- ✅ Find duplicate code → \`find_similar_patterns\`
-- ✅ Debug circular imports → \`find_circular_dependencies\`
-- ✅ Understand inheritance → \`get_inheritance_hierarchy\`
+- Find where X is defined → \`search_symbols\` then \`get_symbol_details\`
+- Understand a file → \`Read\` the file
+- See what X depends on → \`get_dependencies\`
+- See what depends on X → \`get_dependents\` (simple) or \`impact_analysis\` (comprehensive)
+- Check if safe to change X → \`impact_analysis\` depth=1-2
+- Plan a refactor → \`impact_analysis\` depth=2-3 + \`trace_symbol_usage\`
+- Understand architecture → \`get_architecture_overview\`
+- Find dead code → \`find_orphaned_code\`
+- Debug circular imports → \`find_circular_dependencies\`
 
-## 🎯 Success Criteria
+## Success Criteria
 
 You're using Constellation effectively when:
-- ✅ You chain tools based on previous results (search → details → impact)
-- ✅ You start with simple queries (depth=1) and escalate as needed
-- ✅ You use appropriate filters (excludeTests, includeReferences, etc.)
-- ✅ You understand tool purpose and choose the right one for the task
-- ✅ You combine Constellation metadata with \`Read\` tool for source code
-- ✅ You leverage cache by running similar queries with different parameters
+- You chain tools based on previous results (search → details → impact)
+- You start with simple queries (depth=1) and escalate as needed
+- You use appropriate filters (excludeTests, includeReferences, etc.)
+- You understand tool purpose and choose the right one for the task
+- You combine Constellation metadata with \`Read\` tool for source code
+- You leverage cache by running similar queries with different parameters
 
-## 📚 Tool Categories Summary
+## Tool Categories Summary
 
-**Discovery (4 tools)**: Find symbols and files
+**Discovery (2 tools)**: Find symbols and code elements
 **Dependency (5 tools)**: Understand relationships and calls
 **Impact (2 tools)**: Assess change safety and blast radius
-**Architecture (5 tools)**: Understand code organization
-**Refactoring (4 tools)**: Support for code modifications
+**Architecture (1 tool)**: Understand code organization
 
-**Total: 20 tools** organized for different aspects of code intelligence.
+**Total: 10 tools** organized for different aspects of code intelligence.
 
 ---
 

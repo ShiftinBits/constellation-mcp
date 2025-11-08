@@ -18,12 +18,12 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 		'Trace all usages of a symbol across the codebase with detailed context',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "How is X used?", "Show me all callers of this function", "Where is Y referenced?", "What depends on this class?", "Show usage patterns"',
-		'🔍 Finding all places where a function is called or a class is instantiated',
-		'🔍 Understanding how an API is being used across the codebase before changing it',
-		'🔍 Identifying usage patterns to guide refactoring decisions',
-		'🔍 Locating dead code by checking if a symbol has zero usages',
-		'🔍 Filtering usage by type (calls vs imports vs inheritance) for specific analysis',
+		'**USER ASKS:** "How is X used?", "Show me all callers of this function", "Where is Y referenced?", "What depends on this class?", "Show usage patterns"',
+		'Finding all places where a function is called or a class is instantiated',
+		'Understanding how an API is being used across the codebase before changing it',
+		'Identifying usage patterns to guide refactoring decisions',
+		'Locating dead code by checking if a symbol has zero usages',
+		'Filtering usage by type (calls vs imports vs inheritance) for specific analysis',
 	],
 
 	relatedTools: [
@@ -192,10 +192,10 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Using filterByUsageType to filter how symbols are used → ✅ DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.)',
-		'❌ MISTAKE: Including test and generated files in results, creating noise → ✅ DO: Set excludeTests=true and excludeGenerated=true for production code only',
-		'❌ MISTAKE: Setting includeContext=false to reduce data → ✅ DO: Keep includeContext=true (default) - context is the primary value of this tool',
-		'❌ MISTAKE: Using includeTransitive=true for simple usage checks → ✅ DO: Use includeTransitive=false (default) unless you need ripple effect analysis',
+		'MISTAKE: Using filterByUsageType to filter how symbols are used → DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.)',
+		'MISTAKE: Including test and generated files in results, creating noise → DO: Set excludeTests=true and excludeGenerated=true for production code only',
+		'MISTAKE: Setting includeContext=false to reduce data → DO: Keep includeContext=true (default) - context is the primary value of this tool',
+		'MISTAKE: Using includeTransitive=true for simple usage checks → DO: Use includeTransitive=false (default) unless you need ripple effect analysis',
 	],
 
 	sinceVersion: '0.0.1',

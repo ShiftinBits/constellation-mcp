@@ -6,9 +6,7 @@
  */
 
 // Discovery Tools
-export { getFileDetailsDefinition } from './get-file-details.definition.js';
 export { getSymbolDetailsDefinition } from './get-symbol-details.definition.js';
-export { searchFilesDefinition } from './search-files.definition.js';
 export { searchSymbolsDefinition } from './search-symbols.definition.js';
 
 // Dependency Tools
@@ -23,39 +21,20 @@ export { findOrphanedCodeDefinition } from './find-orphaned-code.definition.js';
 export { impactAnalysisDefinition } from './impact-analysis.definition.js';
 
 // Architecture Tools
-export { analyzePackageUsageDefinition } from './analyze-package-usage.definition.js';
-export { compareModulesDefinition } from './compare-modules.definition.js';
-export { detectArchitectureViolationsDefinition } from './detect-architecture-violations.definition.js';
 export { getArchitectureOverviewDefinition } from './get-architecture-overview.definition.js';
-export { getModuleOverviewDefinition } from './get-module-overview.definition.js';
 
-// Refactoring Tools
-export { contextualSymbolResolutionDefinition } from './contextual-symbol-resolution.definition.js';
-export { findEntryPointsDefinition } from './find-entry-points.definition.js';
-export { findSimilarPatternsDefinition } from './find-similar-patterns.definition.js';
-export { getInheritanceHierarchyDefinition } from './get-inheritance-hierarchy.definition.js';
 
 import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 // Import all definitions
-import { analyzePackageUsageDefinition } from './analyze-package-usage.definition.js';
-import { compareModulesDefinition } from './compare-modules.definition.js';
-import { contextualSymbolResolutionDefinition } from './contextual-symbol-resolution.definition.js';
-import { detectArchitectureViolationsDefinition } from './detect-architecture-violations.definition.js';
 import { findCircularDependenciesDefinition } from './find-circular-dependencies.definition.js';
-import { findEntryPointsDefinition } from './find-entry-points.definition.js';
 import { findOrphanedCodeDefinition } from './find-orphaned-code.definition.js';
-import { findSimilarPatternsDefinition } from './find-similar-patterns.definition.js';
 import { getArchitectureOverviewDefinition } from './get-architecture-overview.definition.js';
 import { getCallGraphDefinition } from './get-call-graph.definition.js';
 import { getDependenciesDefinition } from './get-dependencies.definition.js';
 import { getDependentsDefinition } from './get-dependents.definition.js';
-import { getFileDetailsDefinition } from './get-file-details.definition.js';
-import { getInheritanceHierarchyDefinition } from './get-inheritance-hierarchy.definition.js';
-import { getModuleOverviewDefinition } from './get-module-overview.definition.js';
 import { getSymbolDetailsDefinition } from './get-symbol-details.definition.js';
 import { impactAnalysisDefinition } from './impact-analysis.definition.js';
-import { searchFilesDefinition } from './search-files.definition.js';
 import { searchSymbolsDefinition } from './search-symbols.definition.js';
 import { traceSymbolUsageDefinition } from './trace-symbol-usage.definition.js';
 
@@ -64,11 +43,9 @@ import { traceSymbolUsageDefinition } from './trace-symbol-usage.definition.js';
  * Use this to register all tools at once
  */
 export const allToolDefinitions: McpToolDefinition[] = [
-	// Discovery (4 tools)
+	// Discovery (2 tools)
 	searchSymbolsDefinition,
-	searchFilesDefinition,
 	getSymbolDetailsDefinition,
-	getFileDetailsDefinition,
 
 	// Dependency (5 tools)
 	getDependenciesDefinition,
@@ -81,18 +58,8 @@ export const allToolDefinitions: McpToolDefinition[] = [
 	findOrphanedCodeDefinition,
 	impactAnalysisDefinition,
 
-	// Architecture (5 tools)
+	// Architecture (1 tool)
 	getArchitectureOverviewDefinition,
-	getModuleOverviewDefinition,
-	detectArchitectureViolationsDefinition,
-	analyzePackageUsageDefinition,
-	compareModulesDefinition,
-
-	// Refactoring (4 tools)
-	findSimilarPatternsDefinition,
-	findEntryPointsDefinition,
-	getInheritanceHierarchyDefinition,
-	contextualSymbolResolutionDefinition,
 ];
 
 /**
@@ -101,9 +68,7 @@ export const allToolDefinitions: McpToolDefinition[] = [
 export const toolDefinitionsByCategory = {
 	Discovery: [
 		searchSymbolsDefinition,
-		searchFilesDefinition,
 		getSymbolDetailsDefinition,
-		getFileDetailsDefinition,
 	],
 	Dependency: [
 		getDependenciesDefinition,
@@ -118,16 +83,6 @@ export const toolDefinitionsByCategory = {
 	],
 	Architecture: [
 		getArchitectureOverviewDefinition,
-		getModuleOverviewDefinition,
-		detectArchitectureViolationsDefinition,
-		analyzePackageUsageDefinition,
-		compareModulesDefinition,
-	],
-	Refactoring: [
-		findSimilarPatternsDefinition,
-		findEntryPointsDefinition,
-		getInheritanceHierarchyDefinition,
-		contextualSymbolResolutionDefinition,
 	],
 };
 
@@ -141,6 +96,5 @@ export const toolDefinitionsCount = {
 		Dependency: toolDefinitionsByCategory.Dependency.length,
 		Impact: toolDefinitionsByCategory.Impact.length,
 		Architecture: toolDefinitionsByCategory.Architecture.length,
-		Refactoring: toolDefinitionsByCategory.Refactoring.length,
 	},
 };

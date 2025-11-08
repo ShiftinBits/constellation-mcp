@@ -18,19 +18,17 @@ export const getDependenciesDefinition: McpToolDefinition = {
 		'Find what a file imports and depends on (forward dependencies)',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "What does X import?", "Show dependencies", "What packages does this use?"',
-		'🔍 Understanding what modules or packages a file requires to function',
-		'🔍 Identifying tightly-coupled code by analyzing dependency depth',
-		'🔍 Preparing to extract a file to a separate package',
-		'🔍 Finding circular dependency chains starting from a specific file',
-		'🔍 Auditing external package usage across specific files',
+		'**USER ASKS:** "What does X import?", "Show dependencies", "What packages does this use?"',
+		'Understanding what modules or packages a file requires to function',
+		'Identifying tightly-coupled code by analyzing dependency depth',
+		'Preparing to extract a file to a separate package',
+		'Finding circular dependency chains starting from a specific file',
+		'Auditing external package usage across specific files',
 	],
 
 	relatedTools: [
 		'get_dependents',
 		'find_circular_dependencies',
-		'analyze_package_usage',
-		'get_file_details',
 		'impact_analysis',
 	],
 
@@ -126,10 +124,10 @@ export const getDependenciesDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Starting with depth=3+ → ✅ DO: Start with depth=1, increase if needed (exponential growth)',
-		'❌ MISTAKE: Not enabling includePackages for external deps → ✅ DO: Enable to see npm/pip packages',
-		'❌ MISTAKE: Confusing with get_dependents → ✅ DO: Dependencies=what X needs, Dependents=who needs X',
-		'❌ MISTAKE: Enabling includeSymbols unnecessarily → ✅ DO: Only enable if you need symbol-level detail',
+		'MISTAKE: Starting with depth=3+ → DO: Start with depth=1, increase if needed (exponential growth)',
+		'MISTAKE: Not enabling includePackages for external deps → DO: Enable to see npm/pip packages',
+		'MISTAKE: Confusing with get_dependents → DO: Dependencies=what X needs, Dependents=who needs X',
+		'MISTAKE: Enabling includeSymbols unnecessarily → DO: Only enable if you need symbol-level detail',
 	],
 
 	sinceVersion: '0.0.1',

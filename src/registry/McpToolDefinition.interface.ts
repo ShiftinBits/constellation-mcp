@@ -100,7 +100,7 @@ export interface McpToolDefinition {
 	 * Related tools that might be used before/after this one
 	 * Helps AI agents chain tools effectively
 	 *
-	 * Example: ["get_symbol_details", "search_files", "trace_symbol_usage"]
+	 * Example: ["get_symbol_details", "search_symbols", "trace_symbol_usage"]
 	 */
 	relatedTools: string[];
 

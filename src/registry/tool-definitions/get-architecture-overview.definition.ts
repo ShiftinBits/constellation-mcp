@@ -14,15 +14,15 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	shortDescription: 'Get high-level architectural overview of the codebase',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "How is this organized?", "Show me architecture", "What\'s the structure?", "Overview of codebase"',
-		'🔍 First time exploring a new codebase - start here before other tools',
-		'🔍 Understanding tech stack, frameworks, and languages used',
-		'🔍 Getting file counts, module structure, and organizational patterns',
-		'🔍 Assessing code health and complexity at high level',
-		'🔍 Identifying major dependencies and external packages',
+		'**USER ASKS:** "How is this organized?", "Show me architecture", "What\'s the structure?", "Overview of codebase"',
+		'First time exploring a new codebase - start here before other tools',
+		'Understanding tech stack, frameworks, and languages used',
+		'Getting file counts, module structure, and organizational patterns',
+		'Assessing code health and complexity at high level',
+		'Identifying major dependencies and external packages',
 	],
 
-	relatedTools: ['get_module_overview', 'detect_architecture_violations', 'compare_modules', 'analyze_package_usage'],
+	relatedTools: ['search_symbols', 'get_dependencies', 'find_circular_dependencies'],
 
 	inputSchema: {
 		type: 'object',
@@ -91,9 +91,9 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Expecting file-level details → ✅ DO: This is high-level overview only, use get_module_overview or search_files for details',
-		'❌ MISTAKE: Not using this as starting point before deeper analysis → ✅ DO: Always start here for new codebases',
-		'❌ MISTAKE: Enabling includeModuleGraph initially → ✅ DO: Start without it for faster response',
+		'MISTAKE: Expecting file-level details → DO: This is high-level overview only, use search_symbols for specific code',
+		'MISTAKE: Not using this as starting point before deeper analysis → DO: Always start here for new codebases',
+		'MISTAKE: Enabling includeModuleGraph initially → DO: Start without it for faster response',
 	],
 
 	sinceVersion: '0.0.1',

@@ -1,5 +1,7 @@
 # Constellation MCP Server - Tool Specifications
 
+> **⚠️ DRAFT DOCUMENT - OUTDATED**: This document contains specifications for tools that have been removed. The current MCP server implements only 10 tools. For current tool information, see README.md and the tool-definitions directory.
+
 The following tools give your AI development tools, like Claude Code, the ability to understand your entire codebase at a glance, like an experienced senior developer who knows every corner of the project.
 
 ## Tool Categories

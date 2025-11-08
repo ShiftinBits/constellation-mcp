@@ -6,7 +6,7 @@ AI-powered code intelligence for your development workflow. Constellation provid
 
 ## ✨ Enhanced Tool Definitions
 
-**NEW**: All 20 tools now include rich, AI-friendly metadata:
+**NEW**: All tools now include rich, AI-friendly metadata:
 
 - **Rich Descriptions**: 2-3 sentences explaining what, when, and why to use each tool
 - **Concrete Examples**: Real-world parameter combinations (2-3 per tool)
@@ -71,42 +71,29 @@ This can also be provided in the MCP server configuration JSON in the `env` sect
 
 ## Available Tools
 
-All 20 tools include enhanced definitions with examples, use cases, and usage guidance.
+All tools include enhanced definitions with examples, use cases, and usage guidance.
 
-### Discovery (4 tools)
+### Discovery
 
-- `search_symbols` - Find functions, classes, variables, and other code symbols (3 examples)
-- `search_files` - Locate files by name pattern or path (3 examples)
-- `get_symbol_details` - Get detailed information about a specific symbol (3 examples)
-- `get_file_details` - Get file metadata, imports, exports, and dependencies (3 examples)
+- `search_symbols` - Find functions, classes, variables, and other code symbols
+- `get_symbol_details` - Get detailed information about a specific symbol
 
-### Dependencies (5 tools)
+### Dependencies
 
-- `get_dependencies` - What does this file/symbol depend on? (3 examples)
-- `get_dependents` - What depends on this file/symbol? (3 examples)
-- `find_circular_dependencies` - Detect circular dependency chains (3 examples)
-- `trace_symbol_usage` - Track how a symbol is used across the codebase (3 examples)
-- `get_call_graph` - Generate function call hierarchy (3 examples)
+- `get_dependencies` - What does this file/symbol depend on?
+- `get_dependents` - What depends on this file/symbol?
+- `find_circular_dependencies` - Detect circular dependency
+- `trace_symbol_usage` - Track how a symbol is used across the codebase
+- `get_call_graph` - Generate function call hierarchy
 
 ### Impact Analysis (2 tools)
 
-- `impact_analysis` - Comprehensive change impact assessment (3 examples)
-- `find_orphaned_code` - Identify unused or unreachable code (3 examples)
+- `impact_analysis` - Comprehensive change impact assessment
+- `find_orphaned_code` - Identify unused or unreachable code
 
-### Architecture (5 tools)
+### Architecture (1 tool)
 
-- `get_architecture_overview` - High-level system structure and patterns (3 examples)
-- `get_module_overview` - Detailed module organization (2 examples)
-- `detect_architecture_violations` - Find violations of architectural patterns (2 examples)
-- `analyze_package_usage` - External dependency analysis (2 examples)
-- `compare_modules` - Side-by-side module comparison (2 examples)
-
-### Refactoring (4 tools)
-
-- `find_similar_patterns` - Discover duplicate or similar code patterns (2 examples)
-- `find_entry_points` - Identify main execution entry points (2 examples)
-- `get_inheritance_hierarchy` - Explore class inheritance trees (2 examples)
-- `contextual_symbol_resolution` - Resolve symbols with full context (2 examples)
+- `get_architecture_overview` - High-level system structure and patterns
 
 > **For Developers**: See [docs/TOOL_DEFINITIONS_GUIDE.md](docs/TOOL_DEFINITIONS_GUIDE.md) for details on the enhanced definition system and how to create new tool definitions.
 

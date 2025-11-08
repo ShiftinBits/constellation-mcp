@@ -213,7 +213,7 @@ export function formatError(
 	error: string,
 	suggestion?: string
 ): string {
-	let output = `❌ ${toolName} failed\n\n`;
+	let output = `${toolName} failed\n\n`;
 	output += `Error: ${error}\n`;
 
 	if (suggestion) {

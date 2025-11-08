@@ -14,15 +14,15 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	shortDescription: 'Detect circular dependency cycles',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "Find circular dependencies", "Are there import cycles?", "Show circular refs", "Why is module loading failing?", "Check for dependency loops"',
-		'🔍 Debugging module loading or import errors',
-		'🔍 Auditing codebase health and architecture',
-		'🔍 Identifying tightly-coupled code that needs refactoring',
-		'🔍 Preparing for tree-shaking or code splitting',
-		'🔍 Understanding complex interdependencies',
+		'**USER ASKS:** "Find circular dependencies", "Are there import cycles?", "Show circular refs", "Why is module loading failing?", "Check for dependency loops"',
+		'Debugging module loading or import errors',
+		'Auditing codebase health and architecture',
+		'Identifying tightly-coupled code that needs refactoring',
+		'Preparing for tree-shaking or code splitting',
+		'Understanding complex interdependencies',
 	],
 
-	relatedTools: ['get_dependencies', 'get_dependents', 'detect_architecture_violations', 'compare_modules'],
+	relatedTools: ['get_dependencies', 'get_dependents'],
 
 	inputSchema: {
 		type: 'object',
@@ -110,9 +110,9 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Setting minCycleLength=3 or higher initially → ✅ DO: Start with minCycleLength=2 (default) to catch all cycles including simple A→B→A patterns',
-		'❌ MISTAKE: Finding cycles but not fixing them → ✅ DO: Break cycles immediately - they cause module loading errors and prevent tree-shaking',
-		'❌ MISTAKE: Ignoring low confidence cycles → ✅ DO: Investigate all cycles, especially high confidence (0.9+) ones first',
+		'MISTAKE: Setting minCycleLength=3 or higher initially → DO: Start with minCycleLength=2 (default) to catch all cycles including simple A→B→A patterns',
+		'MISTAKE: Finding cycles but not fixing them → DO: Break cycles immediately - they cause module loading errors and prevent tree-shaking',
+		'MISTAKE: Ignoring low confidence cycles → DO: Investigate all cycles, especially high confidence (0.9+) ones first',
 	],
 
 	sinceVersion: '0.0.1',

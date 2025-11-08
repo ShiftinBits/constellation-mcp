@@ -18,19 +18,17 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 		'Find symbols by name or pattern with advanced filtering',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "Find X", "Where is X?", "Show me all Y", "What functions do Z?"',
-		'🔍 You know part of a symbol name (e.g., "User" or "*Service") but not exact location',
-		'🔍 Finding all symbols of a specific kind (all classes, all functions)',
-		'🔍 Locating exported vs internal symbols (public API discovery)',
-		'🔍 Exploring available APIs in a module or package',
-		'🔍 Pattern matching across codebase ("format*", "handle*", "*Service")',
+		'**USER ASKS:** "Find X", "Where is X?", "Show me all Y", "What functions do Z?"',
+		'You know part of a symbol name (e.g., "User" or "*Service") but not exact location',
+		'Finding all symbols of a specific kind (all classes, all functions)',
+		'Locating exported vs internal symbols (public API discovery)',
+		'Exploring available APIs in a module or package',
+		'Pattern matching across codebase ("format*", "handle*", "*Service")',
 	],
 
 	relatedTools: [
 		'get_symbol_details',
-		'contextual_symbol_resolution',
 		'trace_symbol_usage',
-		'search_files',
 	],
 
 	inputSchema: {
@@ -178,12 +176,11 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Using when you already have exact file+symbol → ✅ DO: Use get_symbol_details directly',
-		'❌ MISTAKE: Using for "what uses X?" → ✅ DO: Use get_dependents or trace_symbol_usage',
-		'❌ MISTAKE: Empty query without filters → ✅ DO: Always provide query or specific filters',
-		'❌ MISTAKE: Setting limit=100 initially → ✅ DO: Start with limit=10-20, increase if needed',
-		'❌ MISTAKE: Not using filePattern when you know location → ✅ DO: Use filePattern to narrow results',
-		'❌ MISTAKE: Using for type/import resolution → ✅ DO: Use contextual_symbol_resolution instead',
+		'MISTAKE: Using when you already have exact file+symbol → DO: Use get_symbol_details directly',
+		'MISTAKE: Using for "what uses X?" → DO: Use get_dependents or trace_symbol_usage',
+		'MISTAKE: Empty query without filters → DO: Always provide query or specific filters',
+		'MISTAKE: Setting limit=100 initially → DO: Start with limit=10-20, increase if needed',
+		'MISTAKE: Not using filePattern when you know location → DO: Use filePattern to narrow results',
 	],
 
 	sinceVersion: '0.0.1',

@@ -35,7 +35,7 @@ async function startServer() {
 		if (!validation.valid) {
 			console.error("[CONSTELLATION] Tool Registry validation errors:");
 			for (const error of validation.errors) {
-				console.error(`  ❌ ${error}`);
+				console.error(`  ${error}`);
 			}
 			throw new Error("Tool Registry validation failed");
 		}
@@ -43,7 +43,7 @@ async function startServer() {
 		if (validation.warnings.length > 0) {
 			console.error("[CONSTELLATION] Tool Registry warnings:");
 			for (const warning of validation.warnings) {
-				console.error(`  ⚠️  ${warning}`);
+				console.error(`   ${warning}`);
 			}
 		}
 
@@ -56,7 +56,7 @@ async function startServer() {
 		const context = getConfigContext();
 
 		if (context.initializationError) {
-			console.error("[CONSTELLATION] ⚠️  WARNING: Server starting in degraded mode");
+			console.error("[CONSTELLATION]  WARNING: Server starting in degraded mode");
 			console.error("[CONSTELLATION] Configuration error:", context.initializationError);
 			console.error("[CONSTELLATION] Tools will return setup instructions when called");
 		}
@@ -80,14 +80,14 @@ async function startServer() {
 		// Tools are automatically discovered from dist/tools directory
 		// The MCP framework will scan for default exports in tools/ subdirectories
 		console.error("[CONSTELLATION] Server started successfully");
-		console.error("[CONSTELLATION] 20 Available tools");
+		console.error("[CONSTELLATION] 10 Available tools");
 
 		// Start the server
 		await server.start();
 
 	} catch (error) {
 		console.error("\n==========================================================");
-		console.error("❌ CONSTELLATION MCP SERVER FAILED TO START");
+		console.error("CONSTELLATION MCP SERVER FAILED TO START");
 		console.error("==========================================================\n");
 
 		if (error instanceof Error) {

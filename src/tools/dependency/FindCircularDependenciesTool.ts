@@ -70,9 +70,9 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 		let output = `Circular Dependencies Analysis\n\n`;
 
 		if (total === 0 || cyclesArray.length === 0) {
-			output += '✅ No circular dependencies found! Your codebase has a clean dependency graph.';
+			output += 'No circular dependencies found! Your codebase has a clean dependency graph.';
 		} else {
-			output += `⚠️  Found ${total} circular ${total === 1 ? 'dependency' : 'dependencies'}\n\n`;
+			output += ` Found ${total} circular ${total === 1 ? 'dependency' : 'dependencies'}\n\n`;
 
 			// Sort by cycle length (shortest first, as they're usually more problematic)
 			const sortedCycles = [...cyclesArray].sort((a, b) => (a?.length || 0) - (b?.length || 0));
@@ -99,7 +99,7 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 				output += `\n... and ${total - 10} more cycles\n`;
 			}
 
-			output += '\n💡 **How to fix:**\n';
+			output += '\n**How to fix:**\n';
 			output += '1. Extract shared code into a separate module\n';
 			output += '2. Use dependency injection to break the cycle\n';
 			output += '3. Refactor to use interfaces/abstractions\n';

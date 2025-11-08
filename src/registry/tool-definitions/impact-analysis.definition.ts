@@ -14,12 +14,12 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	shortDescription: 'Comprehensive impact analysis - what breaks if you change something',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "What will break?", "How many files use this?", "Is it safe to change?"',
-		'🔍 Quick impact check before making a change (depth=1)',
-		'🔍 Standard pre-refactoring analysis (depth=2-3, default)',
-		'🔍 Comprehensive API change analysis (analyzeBreakingChanges=true)',
-		'🔍 Full ripple effect with transitive dependencies (depth=4-5)',
-		'🔍 Generating detailed change reports and migration plans',
+		'**USER ASKS:** "What will break?", "How many files use this?", "Is it safe to change?"',
+		'Quick impact check before making a change (depth=1)',
+		'Standard pre-refactoring analysis (depth=2-3, default)',
+		'Comprehensive API change analysis (analyzeBreakingChanges=true)',
+		'Full ripple effect with transitive dependencies (depth=4-5)',
+		'Generating detailed change reports and migration plans',
 	],
 
 	relatedTools: ['get_dependencies', 'get_dependents', 'trace_symbol_usage', 'find_orphaned_code'],
@@ -131,11 +131,11 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Setting depth=5 immediately → ✅ DO: Start with depth=1, check count, then increase if needed',
-		'❌ MISTAKE: Using this when simple get_dependents suffices → ✅ DO: Use simpler tools first, escalate if needed',
-		'❌ MISTAKE: Not excluding tests (excludeTests=false) → ✅ DO: Exclude tests for production impact',
-		'❌ MISTAKE: Using for "where is X defined?" → ✅ DO: Use search_symbols + get_symbol_details',
-		'❌ MISTAKE: Running depth=4-5 on core infrastructure → ✅ DO: Use depth=1-2 first, understand scope',
+		'MISTAKE: Setting depth=5 immediately → DO: Start with depth=1, check count, then increase if needed',
+		'MISTAKE: Using this when simple get_dependents suffices → DO: Use simpler tools first, escalate if needed',
+		'MISTAKE: Not excluding tests (excludeTests=false) → DO: Exclude tests for production impact',
+		'MISTAKE: Using for "where is X defined?" → DO: Use search_symbols + get_symbol_details',
+		'MISTAKE: Running depth=4-5 on core infrastructure → DO: Use depth=1-2 first, understand scope',
 	],
 
 	sinceVersion: '0.0.1',

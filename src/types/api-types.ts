@@ -64,42 +64,6 @@ export interface SearchSymbolsResult {
 }
 
 /**
- * Search Files
- */
-
-export interface SearchFilesParams {
-	pathPattern?: string;
-	filterByLanguage?: string[];
-	filterByParadigm?: string[];
-	filterByModuleType?: string[];
-	isTest?: boolean;
-	isEntryPoint?: boolean;
-	filterByDomain?: string;
-	limit?: number;
-	offset?: number;
-	includeMetrics?: boolean;
-}
-
-export interface FileInfo {
-	path: string;
-	language: string;
-	paradigm?: string;
-	moduleType?: string;
-	isTest: boolean;
-	domain?: string;
-	symbolCounts?: Record<string, number>;
-	dependencyCount?: number;
-	dependentCount?: number;
-	updatedAt?: string;
-	languageMetadata?: LanguageMetadata;
-}
-
-export interface SearchFilesResult {
-	files: FileInfo[];
-	pagination?: PaginationMetadata;
-}
-
-/**
  * Get Symbol Details
  */
 
@@ -147,34 +111,6 @@ export interface GetSymbolDetailsResult {
 	references?: SymbolUsageReference[];
 	relationships?: SymbolRelationships;
 	impactScore?: ImpactScore;
-}
-
-/**
- * Get File Details
- */
-
-export interface GetFileDetailsParams {
-	filePath: string;
-	includeSymbols?: boolean;
-	includeDependencies?: boolean;
-	includeDependents?: boolean;
-}
-
-export interface FileDetails {
-	filePath: string;
-	language: string;
-	symbols?: SymbolInfo[];
-	dependencies?: Array<{ target: string; type: string; line?: number }>;
-	dependents?: Array<{ source: string; type: string }>;
-	stats?: {
-		size: number;
-		symbolCount: number;
-		lastModified: string;
-	};
-}
-
-export interface GetFileDetailsResult {
-	file: FileDetails;
 }
 
 /**
@@ -316,82 +252,15 @@ export interface GetCallGraphResult {
 }
 
 /**
- * Find Entry Points
- */
-
-export interface FindEntryPointsParams {
-	includeCallDepth?: number;
-	groupByModule?: boolean;
-	includeConfidence?: boolean;
-	limit?: number;
-	offset?: number;
-}
-
-export interface FindEntryPointsResult {
-	summary: {
-		totalEntryPoints: number;
-		byType: Record<string, number>;
-	};
-	entryPoints: Array<{
-		type: string;
-		name: string;
-		filePath: string;
-		line: number;
-	}>;
-}
-
-/**
- * Get Inheritance Hierarchy
- */
-
-export interface GetInheritanceHierarchyParams {
-	symbolId?: string;
-	className?: string;
-	filePath?: string;
-	direction?: 'ancestors' | 'descendants' | 'both';
-	depth?: number;
-	filterByRelationshipType?: string[];
-	includeGraph?: boolean;
-	limit?: number;
-	offset?: number;
-}
-
-export interface GetInheritanceHierarchyResult {
-	root: {
-		name: string;
-		filePath: string;
-		kind: string;
-	};
-	ancestors?: Array<{
-		name: string;
-		filePath: string;
-		depth: number;
-	}>;
-	descendants?: Array<{
-		name: string;
-		filePath: string;
-		depth: number;
-	}>;
-}
-
-/**
  * Additional tool result types would go here...
  * (For brevity, including only the most common ones above)
  *
  * In a full implementation, add types for:
  * - TraceSymbolUsageResult
  * - GetCallGraphResult
- * - GetInheritanceHierarchyResult
  * - AnalyzeChangeImpactResult
  * - AnalyzeBreakingChangesResult
  * - FindOrphanedCodeResult
  * - GetArchitectureOverviewResult
- * - GetModuleOverviewResult
- * - DetectArchitectureViolationsResult
- * - AnalyzePackageUsageResult
- * - CompareModulesResult
- * - FindSimilarPatternsResult
- * - FindEntryPointsResult
- * - ContextualSymbolResolutionResult
  * - ImpactAnalysisResult
  */

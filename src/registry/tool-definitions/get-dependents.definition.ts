@@ -17,12 +17,12 @@ export const getDependentsDefinition: McpToolDefinition = {
 	shortDescription: 'Find what files depend on this file (reverse dependencies)',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "What uses X?", "Who imports this?", "Can I delete this?", "How many use this?"',
-		'🔍 Understanding the impact of modifying or removing a file',
-		'🔍 Finding all consumers of an API or utility function',
-		'🔍 Identifying highly-coupled code by counting dependents',
-		'🔍 Checking if a file is safe to delete (zero dependents = safe)',
-		'🔍 Understanding module usage patterns',
+		'**USER ASKS:** "What uses X?", "Who imports this?", "Can I delete this?", "How many use this?"',
+		'Understanding the impact of modifying or removing a file',
+		'Finding all consumers of an API or utility function',
+		'Identifying highly-coupled code by counting dependents',
+		'Checking if a file is safe to delete (zero dependents = safe)',
+		'Understanding module usage patterns',
 	],
 
 	relatedTools: ['get_dependencies', 'impact_analysis', 'trace_symbol_usage', 'find_orphaned_code'],
@@ -97,10 +97,10 @@ export const getDependentsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Confusing with get_dependencies → ✅ DO: Dependents=who uses X, Dependencies=what X uses',
-		'❌ MISTAKE: Using depth=3+ on core files → ✅ DO: Start depth=1, check count, then increase',
-		'❌ MISTAKE: Not checking before deleting → ✅ DO: Always check dependents before removing code',
-		'❌ MISTAKE: Using for comprehensive impact → ✅ DO: Use impact_analysis for full refactoring analysis',
+		'MISTAKE: Confusing with get_dependencies → DO: Dependents=who uses X, Dependencies=what X uses',
+		'MISTAKE: Using depth=3+ on core files → DO: Start depth=1, check count, then increase',
+		'MISTAKE: Not checking before deleting → DO: Always check dependents before removing code',
+		'MISTAKE: Using for comprehensive impact → DO: Use impact_analysis for full refactoring analysis',
 	],
 
 	sinceVersion: '0.0.1',

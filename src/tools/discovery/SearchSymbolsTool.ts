@@ -101,7 +101,7 @@ class SearchSymbolsTool extends BaseMcpTool<
 		const totalCount = pagination?.total || resultCount;
 		const hasMore = pagination?.hasMore ?? false;
 
-		output += `\n\n## 💡 Suggested Next Steps\n\n`;
+		output += `\n\n## Suggested Next Steps\n\n`;
 
 		if (resultCount === 0) {
 			output += `No symbols found matching your query.\n\n`;
@@ -115,7 +115,6 @@ class SearchSymbolsTool extends BaseMcpTool<
 			if (params?.isExported !== undefined) {
 				output += `- Remove isExported filter to see all symbols\n`;
 			}
-			output += `- **search_files** - Try searching file names instead of symbols\n`;
 			output += `- **get_architecture_overview** - Get overview to understand codebase structure\n`;
 		} else if (resultCount > 0 && resultCount <= 10) {
 			output += `Found ${resultCount} symbol${resultCount === 1 ? '' : 's'}. Review and explore:\n\n`;
@@ -161,7 +160,7 @@ class SearchSymbolsTool extends BaseMcpTool<
 
 		if (params?.isExported === true && symbols.some(s => s.isExported)) {
 			output += `\n**For exported symbols:**\n`;
-			output += `- **analyze_package_usage** - See how these exports are used across the codebase\n`;
+			output += `- **trace_symbol_usage** - See how these exports are used across the codebase\n`;
 		}
 
 		if (metadata.cached) {

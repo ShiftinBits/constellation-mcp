@@ -147,13 +147,13 @@ class ImpactAnalysisTool extends BaseMcpTool<
 
 		// Direct dependents
 		if (directCount > 0) {
-			output += `\n## 🎯 Direct Dependents (${directCount})\n\n`;
+			output += `\n## Direct Dependents (${directCount})\n\n`;
 			for (const dep of directDependents!.slice(0, 10)) {
 				output += `  ${dep.name} (${dep.kind})\n`;
 				output += `    ${dep.filePath}:${dep.line}\n`;
 				output += `    Relationship: ${dep.relationshipType}\n`;
 				if (dep.isExported) {
-					output += `    ⚠️  Exported - breaking change risk\n`;
+					output += `     Exported - breaking change risk\n`;
 				}
 				output += '\n';
 			}
@@ -164,7 +164,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 
 		// Transitive dependents
 		if (transitiveCount > 0) {
-			output += `## 🔄 Transitive Dependents (${transitiveCount})\n\n`;
+			output += `## Transitive Dependents (${transitiveCount})\n\n`;
 			for (const dep of transitiveDependents!.slice(0, 10)) {
 				output += `  ${dep.name} (${dep.kind}) - depth ${dep.depth}\n`;
 				output += `    ${dep.filePath}:${dep.line}\n`;
@@ -178,12 +178,12 @@ class ImpactAnalysisTool extends BaseMcpTool<
 
 		// Impacted files
 		if (impactedFileCount > 0) {
-			output += `## 📁 Impacted Files (${impactedFileCount})\n\n`;
+			output += `## Impacted Files (${impactedFileCount})\n\n`;
 			for (const file of impactedFiles!.slice(0, 15)) {
 				output += `  ${file.filePath}\n`;
 				output += `    ${file.symbolCount} symbol(s) affected\n`;
 				if (file.isTest) {
-					output += `    🧪 Test file\n`;
+					output += `    Test file\n`;
 				}
 				if (file.symbols && file.symbols.length > 0) {
 					output += `    Symbols: ${file.symbols.map(s => s.name).join(', ')}\n`;
@@ -197,7 +197,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 
 		// Breaking change risk
 		if (breakingChangeRisk) {
-			output += `## ⚠️  Breaking Change Risk\n`;
+			output += `##  Breaking Change Risk\n`;
 			output += `Level: ${this.getRiskEmoji(breakingChangeRisk.riskLevel)} ${breakingChangeRisk.riskLevel.toUpperCase()}\n\n`;
 
 			if (breakingChangeRisk.factors && breakingChangeRisk.factors.length > 0) {
@@ -210,7 +210,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 			}
 
 			if (breakingChangeRisk.recommendations && breakingChangeRisk.recommendations.length > 0) {
-				output += `### 📋 Recommendations:\n`;
+				output += `### Recommendations:\n`;
 				for (let i = 0; i < breakingChangeRisk.recommendations.length; i++) {
 					output += `${i + 1}. ${breakingChangeRisk.recommendations[i]}\n`;
 				}
@@ -218,7 +218,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 
 		// Action plan
-		output += `\n## 🎯 Suggested Action Plan\n\n`;
+		output += `\n## Suggested Action Plan\n\n`;
 		const riskLevel = breakingChangeRisk?.riskLevel || 'low';
 		const totalImpacted = directCount + transitiveCount;
 		const hasCriticalPaths = (breakingChangeRisk?.factors?.length || 0) > 0;
@@ -244,7 +244,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 
 		// Contextual follow-up tools
-		output += `\n\n## 🔍 Recommended Follow-up Tools\n\n`;
+		output += `\n\n## Recommended Follow-up Tools\n\n`;
 
 		if (totalImpacted > 100) {
 			output += `- **trace_symbol_usage** - Large impact surface (${totalImpacted} dependents). Trace usage patterns to understand how this symbol is called.\n`;
@@ -255,7 +255,7 @@ class ImpactAnalysisTool extends BaseMcpTool<
 		}
 
 		if (impactedFileCount > 20) {
-			output += `- **search_files** - ${impactedFileCount} files affected. Search for specific patterns or imports that need updating.\n`;
+			output += `- **search_symbols** - ${impactedFileCount} files affected. Search for specific symbols or patterns that need updating.\n`;
 		}
 
 		if (directCount > 10) {
@@ -277,15 +277,15 @@ class ImpactAnalysisTool extends BaseMcpTool<
 	private getRiskEmoji(level: string): string {
 		switch (level) {
 			case 'CRITICAL':
-				return '🔴';
+				return '[CRITICAL]';
 			case 'HIGH':
-				return '🟠';
+				return '[HIGH]';
 			case 'MEDIUM':
-				return '🟡';
+				return '[MEDIUM]';
 			case 'LOW':
-				return '🟢';
+				return '[LOW]';
 			default:
-				return '⚪';
+				return '[UNKNOWN]';
 		}
 	}
 

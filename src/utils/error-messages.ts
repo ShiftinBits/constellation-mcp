@@ -62,7 +62,7 @@ export const standardErrors = {
 		`2. The file path is incorrect\n` +
 		`3. The project needs re-indexing\n\n` +
 		`Try:\n` +
-		`- Verifying the file path with search_files\n` +
+		`- Verifying the file path exists\n` +
 		`- Re-indexing the project: constellation index`,
 
 	/**

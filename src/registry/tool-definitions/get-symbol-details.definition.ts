@@ -18,18 +18,17 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 		'Get detailed information about a specific symbol including signature, usage, and relationships',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "What is X?", "Show me Y", "What does Z do?", "Where is X defined?"',
-		'🔍 You have a symbolId from search_symbols (preferred identification method)',
-		'🔍 You know exact symbol name and file path',
-		'🔍 Need comprehensive details (definition, signature, documentation)',
-		'🔍 Want to see all references/usage locations (with includeReferences=true)',
-		'🔍 Analyzing relationships (calls, inheritance, implementations)',
-		'🔍 Assessing impact of changing a symbol (with includeImpactScore=true)',
+		'**USER ASKS:** "What is X?", "Show me Y", "What does Z do?", "Where is X defined?"',
+		'You have a symbolId from search_symbols (preferred identification method)',
+		'You know exact symbol name and file path',
+		'Need comprehensive details (definition, signature, documentation)',
+		'Want to see all references/usage locations (with includeReferences=true)',
+		'Analyzing relationships (calls, inheritance, implementations)',
+		'Assessing impact of changing a symbol (with includeImpactScore=true)',
 	],
 
 	relatedTools: [
 		'search_symbols',
-		'contextual_symbol_resolution',
 		'trace_symbol_usage',
 		'impact_analysis',
 		'get_dependencies',
@@ -134,12 +133,11 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Using for symbol search → ✅ DO: Use search_symbols first to find symbols',
-		'❌ MISTAKE: Using for type/import context → ✅ DO: Use contextual_symbol_resolution',
-		'❌ MISTAKE: Providing only symbolName without filePath → ✅ DO: Provide both or use symbolId',
-		'❌ MISTAKE: includeReferences on popular symbols (1000+ refs) → ✅ DO: Use trace_symbol_usage instead',
-		'❌ MISTAKE: Not using symbolId from search_symbols → ✅ DO: Always use symbolId when available',
-		'❌ MISTAKE: Enabling all options when you need basic info → ✅ DO: Start minimal, add flags as needed',
+		'MISTAKE: Using for symbol search → DO: Use search_symbols first to find symbols',
+		'MISTAKE: Providing only symbolName without filePath → DO: Provide both or use symbolId',
+		'MISTAKE: includeReferences on popular symbols (1000+ refs) → DO: Use trace_symbol_usage instead',
+		'MISTAKE: Not using symbolId from search_symbols → DO: Always use symbolId when available',
+		'MISTAKE: Enabling all options when you need basic info → DO: Start minimal, add flags as needed',
 	],
 
 	sinceVersion: '0.0.1',

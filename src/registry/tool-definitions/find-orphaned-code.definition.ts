@@ -14,15 +14,15 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 	shortDescription: 'Find unused code that can be safely removed',
 
 	whenToUse: [
-		'❓ **USER ASKS:** "Find dead code", "What can I delete?", "Show unused exports", "Clean up unused code"',
-		'🔍 Cleaning up dead code and unused exports',
-		'🔍 Reducing codebase size and complexity',
-		'🔍 Preparing for a major refactoring',
-		'🔍 Auditing what public APIs are actually used',
-		'🔍 Finding candidates for deprecation',
+		'**USER ASKS:** "Find dead code", "What can I delete?", "Show unused exports", "Clean up unused code"',
+		'Cleaning up dead code and unused exports',
+		'Reducing codebase size and complexity',
+		'Preparing for a major refactoring',
+		'Auditing what public APIs are actually used',
+		'Finding candidates for deprecation',
 	],
 
-	relatedTools: ['impact_analysis', 'trace_symbol_usage', 'get_dependents', 'analyze_package_usage'],
+	relatedTools: ['impact_analysis', 'trace_symbol_usage', 'get_dependents'],
 
 	inputSchema: {
 		type: 'object',
@@ -116,10 +116,10 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'❌ MISTAKE: Not using exportedOnly filter → ✅ DO: Use exportedOnly=true to avoid false positives from internal helpers',
-		'❌ MISTAKE: Deleting immediately without verification → ✅ DO: Use trace_symbol_usage and impact_analysis to double-check',
-		'❌ MISTAKE: Not considering dynamic imports → ✅ DO: Check confidence scores, review low-confidence results manually',
-		'❌ MISTAKE: Ignoring filterByKind → ✅ DO: Use filterByKind=["function"] to focus on specific symbol types',
+		'MISTAKE: Not using exportedOnly filter → DO: Use exportedOnly=true to avoid false positives from internal helpers',
+		'MISTAKE: Deleting immediately without verification → DO: Use trace_symbol_usage and impact_analysis to double-check',
+		'MISTAKE: Not considering dynamic imports → DO: Check confidence scores, review low-confidence results manually',
+		'MISTAKE: Ignoring filterByKind → DO: Use filterByKind=["function"] to focus on specific symbol types',
 	],
 
 	sinceVersion: '0.0.1',
