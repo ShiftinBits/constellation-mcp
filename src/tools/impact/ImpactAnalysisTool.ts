@@ -7,52 +7,10 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-
-interface ImpactAnalysisParams {
-	symbolId?: string;
-	qualifiedName?: string;
-	symbolName?: string;
-	filePath?: string;
-	includeDirectDependents?: boolean;
-	includeTransitiveDependents?: boolean;
-	depth?: number;
-	excludeTests?: boolean;
-	excludeGenerated?: boolean;
-	analyzeBreakingChanges?: boolean;
-}
-
-interface ImpactArea {
-	category: 'direct' | 'indirect' | 'test' | 'documentation' | 'configuration';
-	affectedFiles: string[];
-	description: string;
-	effort: 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTENSIVE';
-}
-
-interface ImpactAnalysisResult {
-	target: {
-		type: 'file' | 'symbol';
-		name: string;
-		filePath: string;
-	};
-	summary: {
-		totalAffectedFiles: number;
-		totalAffectedSymbols: number;
-		riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-		estimatedEffort: string;
-		confidence: number;
-	};
-	impactAreas: ImpactArea[];
-	criticalPaths: {
-		path: string[];
-		reason: string;
-	}[];
-	recommendations: string[];
-	relatedChanges: {
-		filePath: string;
-		reason: string;
-		required: boolean;
-	}[];
-}
+import {
+	ImpactAnalysisParams,
+	ImpactAnalysisResult,
+} from '../../types/api-types.js';
 
 class ImpactAnalysisTool extends BaseMcpTool<
 	ImpactAnalysisParams,
@@ -287,11 +245,6 @@ class ImpactAnalysisTool extends BaseMcpTool<
 			default:
 				return '[UNKNOWN]';
 		}
-	}
-
-
-	private capitalize(str: string): string {
-		return str.charAt(0).toUpperCase() + str.slice(1);
 	}
 }
 

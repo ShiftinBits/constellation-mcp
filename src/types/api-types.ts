@@ -115,51 +115,78 @@ export interface GetSymbolDetailsResult {
 
 /**
  * Get Dependencies
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/get-dependencies.dto.ts
  */
 
 export interface GetDependenciesParams {
-	filePath?: string;
-	symbolId?: string;
+	filePath: string;
 	depth?: number;
-	includeExternal?: boolean;
+	includePackages?: boolean;
+	includeSymbols?: boolean;
 	limit?: number;
 	offset?: number;
 }
 
-export interface Dependency {
-	source: string;
-	target: string;
+export interface DirectDependency {
+	filePath: string;
+	importedSymbols?: string[];
+	isDefault: boolean;
+	isNamespace: boolean;
+}
+
+export interface TransitiveDependency {
+	filePath: string;
+	distance: number;
+	path: string[];
+}
+
+export interface PackageDependency {
+	name: string;
+	version?: string;
 	type: string;
-	line?: number;
 }
 
 export interface GetDependenciesResult {
-	dependencies: Dependency[];
-	totalCount: number;
+	file: string;
+	directDependencies: DirectDependency[];
+	transitiveDependencies?: TransitiveDependency[];
+	packages?: PackageDependency[];
 }
 
 /**
  * Get Dependents
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/get-dependents.dto.ts
  */
 
 export interface GetDependentsParams {
-	filePath?: string;
-	symbolId?: string;
+	filePath: string;
 	depth?: number;
+	includeSymbols?: boolean;
+	includeImpactMetrics?: boolean;
 	limit?: number;
 	offset?: number;
 }
 
-export interface Dependent {
-	source: string;
-	target: string;
-	type: string;
-	usageCount?: number;
+export interface DirectDependent {
+	filePath: string;
+	usedSymbols?: string[];
+}
+
+export interface TransitiveDependent {
+	filePath: string;
+	distance: number;
+	path: string[];
 }
 
 export interface GetDependentsResult {
-	dependents: Dependent[];
-	totalCount: number;
+	file: string;
+	directDependents: DirectDependent[];
+	transitiveDependents?: TransitiveDependent[];
+	detailedMetrics?: {
+		byDepth: Record<number, number>;
+		criticalPaths: string[][];
+		mostImpactedFiles: string[];
+	};
 }
 
 /**
@@ -182,35 +209,79 @@ export interface FindCircularDependenciesResult {
 }
 
 /**
- * Analyze Change Impact
+ * Impact Analysis
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/impact-analysis.dto.ts
  */
 
-export interface AnalyzeChangeImpactParams {
-	filePath?: string;
+export interface ImpactAnalysisParams {
 	symbolId?: string;
-	includeTransitive?: boolean;
-	includeTests?: boolean;
-	includeRiskLevel?: boolean;
-	includeConfidence?: boolean;
-	limit?: number;
-	offset?: number;
+	qualifiedName?: string;
+	symbolName?: string;
+	filePath?: string;
+	includeDirectDependents?: boolean;
+	includeTransitiveDependents?: boolean;
+	depth?: number;
+	excludeTests?: boolean;
+	excludeGenerated?: boolean;
+	analyzeBreakingChanges?: boolean;
 }
 
-export interface AnalyzeChangeImpactResult {
-	target: {
-		type: 'file' | 'symbol';
+export interface ImpactedSymbol extends FileLocation {
+	id: string;
+	name: string;
+	qualifiedName: string;
+	kind: string;
+	relationshipType: string;
+	depth: number;
+	isExported?: boolean;
+	transitiveImpactCount?: number;
+}
+
+export interface ImpactedFile {
+	filePath: string;
+	symbolCount: number;
+	isTest?: boolean;
+	isGenerated?: boolean;
+	symbols: Array<{
+		id: string;
 		name: string;
-		location: string;
-	};
-	affectedFiles: Array<{
-		filePath: string;
-		impactLevel: 'high' | 'medium' | 'low';
-		reason: string;
+		kind: string;
+		line: number;
 	}>;
-	risk?: {
-		level: string;
-		score: number;
-		recommendations: string[];
+}
+
+export interface BreakingChangeRisk {
+	riskLevel: 'low' | 'medium' | 'high' | 'critical';
+	factors: Array<{
+		factor: string;
+		severity: 'low' | 'medium' | 'high';
+		description: string;
+	}>;
+	recommendations: string[];
+}
+
+export interface ImpactAnalysisResult {
+	symbol: {
+		id: string;
+		name: string;
+		qualifiedName: string;
+		kind: string;
+		filePath: string;
+		line: number;
+		column: number;
+		isExported?: boolean;
+	};
+	directDependents?: ImpactedSymbol[];
+	transitiveDependents?: ImpactedSymbol[];
+	impactedFiles: ImpactedFile[];
+	breakingChangeRisk?: BreakingChangeRisk;
+	summary: {
+		directDependentCount: number;
+		transitiveDependentCount: number;
+		impactedFileCount: number;
+		testFileCount: number;
+		productionFileCount: number;
+		maxDepth: number;
 	};
 }
 
@@ -252,15 +323,154 @@ export interface GetCallGraphResult {
 }
 
 /**
- * Additional tool result types would go here...
- * (For brevity, including only the most common ones above)
- *
- * In a full implementation, add types for:
- * - TraceSymbolUsageResult
- * - GetCallGraphResult
- * - AnalyzeChangeImpactResult
- * - AnalyzeBreakingChangesResult
- * - FindOrphanedCodeResult
- * - GetArchitectureOverviewResult
- * - ImpactAnalysisResult
+ * Find Orphaned Code
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/find-orphaned-code.dto.ts
  */
+
+export interface FindOrphanedCodeParams {
+	filePattern?: string;
+	filterByKind?: string[];
+	exportedOnly?: boolean;
+	includeReasons?: boolean;
+	includeConfidence?: boolean;
+	limit?: number;
+	offset?: number;
+}
+
+export interface OrphanedSymbol {
+	symbolId: string;
+	name: string;
+	kind: string;
+	filePath: string;
+	isExported: boolean;
+	reason: string;
+	confidence: number;
+}
+
+export interface OrphanedFile {
+	filePath: string;
+	reason: string;
+	lastUpdated: string;
+	confidence: number;
+}
+
+export interface FindOrphanedCodeResult {
+	orphanedSymbols: OrphanedSymbol[];
+	orphanedFiles: OrphanedFile[];
+}
+
+/**
+ * Get Architecture Overview
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/get-architecture-overview.dto.ts
+ */
+
+export interface GetArchitectureOverviewParams {
+	includeMetrics?: boolean;
+	includeModuleGraph?: boolean;
+	includePackages?: boolean;
+}
+
+export interface LanguageInfo {
+	language: string;
+	fileCount: number;
+	percentage: number;
+}
+
+export interface FrameworkInfo {
+	name: string;
+	version?: string;
+	confidence: 'high' | 'medium' | 'low';
+	evidence: string[];
+}
+
+export interface ProjectMetadata {
+	languages: LanguageInfo[];
+	frameworks: FrameworkInfo[];
+	primaryLanguage: string;
+	totalFiles: number;
+	totalLines?: number;
+}
+
+export interface StructureStatistics {
+	files: {
+		total: number;
+		byType: Record<string, number>;
+		byParadigm: Record<string, number>;
+	};
+	symbols: {
+		total: number;
+		byKind: Record<string, number>;
+		exported: number;
+		public: number;
+	};
+	modules: {
+		total: number;
+		averageSize: number;
+		largest: string;
+	};
+}
+
+export interface DependencyOverview {
+	internal: {
+		totalConnections: number;
+		averagePerFile: number;
+		mostConnectedFiles: Array<{
+			path: string;
+			incomingCount: number;
+			outgoingCount: number;
+		}>;
+	};
+	external: {
+		totalPackages: number;
+		directDependencies: number;
+		production?: number;
+		development?: number;
+		topPackages: Array<{
+			name: string;
+			usageCount: number;
+			type?: 'production' | 'development' | 'peer' | 'optional';
+		}>;
+	};
+}
+
+export interface QualityMetrics {
+	complexity: {
+		average: number;
+		high: number;
+	};
+	maintainability: {
+		score: number;
+		issues: string[];
+	};
+	testCoverage?: {
+		percentage: number;
+		testedFiles: number;
+		totalFiles: number;
+	};
+}
+
+export interface ModuleGraphNode {
+	id: string;
+	name: string;
+	fileCount: number;
+	type: string;
+}
+
+export interface ModuleGraphEdge {
+	from: string;
+	to: string;
+	weight: number;
+}
+
+export interface ModuleGraph {
+	nodes: ModuleGraphNode[];
+	edges: ModuleGraphEdge[];
+}
+
+export interface GetArchitectureOverviewResult {
+	metadata: ProjectMetadata;
+	structure: StructureStatistics;
+	dependencies: DependencyOverview;
+	metrics?: QualityMetrics;
+	moduleGraph?: ModuleGraph;
+}

@@ -6,36 +6,10 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-import { formatLocation } from '../../utils/format-helpers.js';
-
-interface FindOrphanedCodeParams {
-	filePattern?: string;
-	filterByKind?: string[];
-	exportedOnly?: boolean;
-	includeReasons?: boolean;
-	includeConfidence?: boolean;
-	limit?: number;
-	offset?: number;
-}
-
-interface OrphanedItem {
-	type: 'file' | 'symbol';
-	name: string;
-	filePath: string;
-	line?: number;
-	reason: string;
-	confidence: number;
-}
-
-interface FindOrphanedCodeResult {
-	orphanedFiles: OrphanedItem[];
-	orphanedSymbols: OrphanedItem[];
-	totalOrphaned: number;
-	potentialSavings: {
-		files: number;
-		linesOfCode: number;
-	};
-}
+import {
+	FindOrphanedCodeParams,
+	FindOrphanedCodeResult,
+} from '../../types/api-types.js';
 
 class FindOrphanedCodeTool extends BaseMcpTool<
 	FindOrphanedCodeParams,

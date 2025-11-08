@@ -6,125 +6,10 @@
 
 import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
-import { formatBytes } from '../../utils/format-helpers.js';
-
-/**
- * Parameters matching backend API
- */
-interface GetArchitectureOverviewParams {
-	includeMetrics?: boolean;
-	includeModuleGraph?: boolean;
-	includePackages?: boolean;
-	includeConfidence?: boolean;
-}
-
-/**
- * Backend API result types
- */
-interface LanguageInfo {
-	language: string;
-	fileCount: number;
-	percentage: number;
-}
-
-interface FrameworkInfo {
-	name: string;
-	version?: string;
-	confidence: 'high' | 'medium' | 'low';
-	evidence: string[];
-}
-
-interface ProjectMetadata {
-	languages: LanguageInfo[];
-	frameworks: FrameworkInfo[];
-	primaryLanguage: string;
-	totalFiles: number;
-	totalLines?: number;
-}
-
-interface StructureStatistics {
-	files: {
-		total: number;
-		byType: Record<string, number>;
-		byParadigm: Record<string, number>;
-	};
-	symbols: {
-		total: number;
-		byKind: Record<string, number>;
-		exported: number;
-		public: number;
-	};
-	modules: {
-		total: number;
-		averageSize: number;
-		largest: string;
-	};
-}
-
-interface DependencyOverview {
-	internal: {
-		totalConnections: number;
-		averagePerFile: number;
-		mostConnectedFiles: Array<{
-			path: string;
-			incomingCount: number;
-			outgoingCount: number;
-		}>;
-	};
-	external: {
-		totalPackages: number;
-		directDependencies: number;
-		production?: number;
-		development?: number;
-		topPackages: Array<{
-			name: string;
-			usageCount: number;
-			type?: 'production' | 'development' | 'peer' | 'optional';
-		}>;
-	};
-}
-
-interface QualityMetrics {
-	complexity: {
-		average: number;
-		high: number;
-	};
-	maintainability: {
-		score: number;
-		issues: string[];
-	};
-	testCoverage?: {
-		percentage: number;
-		testedFiles: number;
-		totalFiles: number;
-	};
-}
-
-interface ModuleGraphNode {
-	id: string;
-	name: string;
-	fileCount: number;
-	type: string;
-}
-
-interface ModuleGraphEdge {
-	from: string;
-	to: string;
-	weight: number;
-}
-
-interface ModuleGraph {
-	nodes: ModuleGraphNode[];
-	edges: ModuleGraphEdge[];
-}
-
-interface GetArchitectureOverviewResult {
-	metadata: ProjectMetadata;
-	structure: StructureStatistics;
-	dependencies: DependencyOverview;
-	metrics?: QualityMetrics;
-	moduleGraph?: ModuleGraph;
-}
+import {
+	GetArchitectureOverviewParams,
+	GetArchitectureOverviewResult,
+} from '../../types/api-types.js';
 
 class GetArchitectureOverviewTool extends BaseMcpTool<
 	GetArchitectureOverviewParams,
@@ -148,10 +33,6 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 			type: z.coerce.boolean().optional().default(true),
 			description:
 				'Include external package dependency details - default: true',
-		},
-		includeConfidence: {
-			type: z.coerce.boolean().optional().default(false),
-			description: 'Include confidence scores (default: false)',
 		},
 	};
 
@@ -332,7 +213,7 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 
 		output += `- **get_dependencies** - Analyze dependency relationships for specific files or modules.\n`;
 
-		if (metrics?.complexity.high > 10) {
+		if (metrics?.complexity?.high && metrics.complexity.high > 10) {
 			output += `- **get_quality_metrics** - ${metrics.complexity.high} high-complexity items detected. Identify refactoring candidates.\n`;
 		}
 
