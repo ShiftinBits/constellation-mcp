@@ -1,445 +1,374 @@
-# Constellation MCP Server - AI Assistant Guide
+# constellation-mcp
 
-## Project Overview
+**Role**: Model Context Protocol server bridging AI assistants to constellation-core.
+**See**: `../CLAUDE.md` for workspace architecture, `../ADR.md` for MCP rationale.
 
-Constellation creates a single, shared "code intelligence graph" for entire development teams. Instead of each AI assistant parsing code individually, Constellation parses code once when it changes, extracts the intelligence centrally, and provides all AI assistants with instant access to this shared knowledge.
+## Purpose
 
-**Core Value Proposition**: Parse once, benefit everywhere. No more waiting for indexing, no inconsistent understanding across team members, no privacy concerns from uploading source code.
+Provide 18 MCP tools for AI assistants → Query constellation-core:3000 → Return code intelligence.
 
-**Primary Purpose**: This MCP server is optimized for use by AI development assistants (like Claude Code) to provide instant access to code intelligence through the Model Context Protocol.
+## Architecture
 
-## Code Style and AI Assistant Optimization
+```
+AI Assistant → MCP Client → MCP Tools → HTTP POST → constellation-core:3000/api/v1/mcp/execute → Neo4j → Response
+                  ↑
+             BaseMcpTool
+             ToolRegistry
+```
 
-### Critical Style Rules
+## 18 MCP Tools
 
-1. **NO EMOJIS**: Never use emojis in code, comments, error messages, or documentation
-2. **NO UNNECESSARY CHARACTERS**: Avoid decorative characters, ASCII art, or visual flourishes
-3. **CLEAN OUTPUT**: All tool responses should be minimal, structured, and parsable
-4. **PROFESSIONAL TONE**: Clear, concise, technical communication only
+**Architecture** (4):
+- `get-architecture-overview` - High-level project structure
+- `detect-architecture-violations` - Pattern violations
+- `get-module-overview` - Module details
+- `compare-modules` - Module comparison
 
-### Rationale
+**Dependencies** (4):
+- `get-dependencies` - Symbol dependencies
+- `get-dependents` - What depends on symbol
+- `find-circular-dependencies` - Circular refs
+- `analyze-package-usage` - Package usage
 
-This MCP server is designed to be consumed by AI assistants, not directly by humans. Visual enhancements that help human readability (emojis, decorative formatting) add noise for AI consumption and should be eliminated.
+**Discovery** (6):
+- `search-symbols` - Find symbols by name/pattern
+- `search-files` - Find files
+- `get-symbol-details` - Symbol info
+- `get-file-details` - File info
+- `contextual-symbol-resolution` - Context-aware lookup
+- `find-similar-patterns` - Pattern matching
 
-### Examples
+**Impact** (4):
+- `impact-analysis` - Change impact
+- `trace-symbol-usage` - Symbol usage traces
+- `get-call-graph` - Call relationships
+- `find-entry-points` - Entry points
 
+## Key Files
+
+```
+src/
+├── tools/                      18 tool implementations
+│   ├── architecture/           get-architecture-overview, etc.
+│   ├── dependency/             get-dependencies, etc.
+│   ├── discovery/              search-symbols, etc.
+│   └── impact/                 impact-analysis, etc.
+├── lib/
+│   └── BaseMcpTool.ts         Base class for all tools
+├── registry/
+│   ├── ToolRegistry.ts        Tool registration + lookup
+│   └── tool-definitions/      11 definition files
+├── client/
+│   ├── constellation-client.ts  HTTP client to Core
+│   └── error-mapper.ts         Error translation
+├── config/
+│   ├── config-manager.ts      Env config management
+│   └── config-loader.ts       Load + validate config
+├── types/
+│   └── api-types.ts           Mirrors Core DTOs (MANUAL sync)
+└── index.ts                   MCP server entry point
+```
+
+## BaseMcpTool Pattern
+
+**All tools extend BaseMcpTool**:
 ```typescript
-// WRONG - Never do this
-export const ERROR_MESSAGES = {
-  NOT_FOUND: '❌ Symbol not found!',
-  SUCCESS: '✅ Operation completed successfully!'
-};
+// src/lib/BaseMcpTool.ts
+export abstract class BaseMcpTool<TInput, TOutput> {
+  abstract name: string;
+  abstract description: string;
+  abstract inputSchema: z.ZodSchema<TInput>;
 
-// RIGHT - Always do this
-export const ERROR_MESSAGES = {
-  NOT_FOUND: 'Symbol not found',
-  SUCCESS: 'Operation completed'
-};
-```
+  async execute(input: unknown): Promise<TOutput> {
+    const validated = this.inputSchema.parse(input);
+    return this.executeInternal(validated);
+  }
 
-```typescript
-// WRONG - Unnecessary decoration
-/**
- * ═══════════════════════════════════
- * 🚀 Get Symbol Details Tool
- * ═══════════════════════════════════
- */
-
-// RIGHT - Clean documentation
-/**
- * Get detailed information about a specific symbol
- */
-```
-
-## Architecture Overview
-
-### Three-Component System
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   CLI Tool      │───▶│  Central Service │◀───│   MCP Server    │
-│ (@constellation │    │   (NestJS +      │    │(@constellation/ │
-│     /cli)       │    │ Neo4j + Redis)   │    │  mcp-server)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-      │                         │                        │
-      │                         │                        │
-   Local/CI                  Team-wide                Local Dev
-   Parsing                   Knowledge                Environment
-                              Store
-```
-
-#### 1. CLI Tool (`@constellation/cli`)
-
-Source: `cli/`
-
-- **Purpose**: Parse source code and generate ASTs
-- **Technology**: Oclif framework + Tree-sitter parsers
-- **Location**: Runs locally or in CI/CD pipelines
-- **Security**: Source code never leaves local environment
-- **Output**: Serialized and compressed AST structure (no source code)
-
-#### 2. Central Service
-
-Source: `core/`
-
-- **Purpose**: Extract intelligence from ASTs and serve code intelligence graph
-- **Technology**: NestJS + Neo4j + Redis
-- **Deployment**: One instance per team/organization
-- **Processing**: Receives ASTs, extracts symbols and relationships server-side
-- **Data**: Only AST metadata and extracted intelligence, never source code
-- **Performance**: Redis caching for millisecond response times
-
-#### 3. MCP Server (`@constellationdev/mcp-server`)
-
-- **Purpose**: Bridge AI assistants to central service
-- **Technology**: Model Context Protocol implementation
-- **Location**: Runs on each developer's machine
-- **Function**: Translates AI queries to REST API calls
-
-## Core Technical Decisions & Rationale
-
-### Privacy-First Architecture
-
-- **Rule**: Source code NEVER leaves local environment
-- **Implementation**: Tree-sitter parsing happens client-side
-- **Transmission**: Only serialized AST structure sent to service (compressed)
-- **Intelligence Extraction**: Happens server-side from received ASTs
-- **Verification**: All API endpoints reject any source code content
-
-### Project Identification
-
-- **Method**: Normalized git remote URL (automatic, deterministic)
-- **Benefits**: No manual configuration, consistent across team
-- **Branch Isolation**: Each branch maintains separate namespace
-- **Commit Tracking**: Metadata only, one graph per branch
-
-### The Intelligence Transformation
-
-```
-CLI-SIDE:                                  SERVER-SIDE:
-Raw Source Code → Tree-sitter AST → [Network] → Extracted Intelligence → Neo4j Graph
-    (Private)         (Syntax)                     (Semantics)         (Queryable)
-```
-
-The CLI handles parsing (syntax), the server handles intelligence extraction (semantics).
-
-### Technology Stack Rationale
-
-**Tree-sitter**: Industry-standard, multi-language parsing with error recovery
-**Oclif**: Enterprise CLI framework (Heroku/Salesforce proven)
-**NestJS**: Modular, scalable Node.js framework with DI
-**Neo4j**: Graph database optimized for relationship queries
-**Redis**: Sub-millisecond caching for frequent queries
-
-## Development Guidelines for AI Assistants
-
-### Security & Privacy Constraints
-
-1. **NEVER** transmit source code to central service
-2. **ALWAYS** parse locally using Tree-sitter
-3. **SERIALIZE** ASTs without including source code text
-4. **COMPRESS** AST payloads using gzip before transmission
-5. **VALIDATE** all API inputs reject source code
-6. **ENCRYPT** all communications with central service
-
-### Code Organization Principles
-
-1. **Shared Dependencies**: Common utilities in shared packages
-2. **Type Safety**: Full TypeScript across all components
-3. **API Consistency**: RESTful design with OpenAPI specs
-
-### Performance Requirements
-
-1. **CLI Parsing**: Must handle 1000+ files in seconds
-2. **API Response**: Sub-100ms for cached queries
-3. **Memory Usage**: Efficient AST processing
-4. **Scalability**: Horizontal scaling for central service
-
-## Project Structure
-
-```
-constellation/
-├── cli/                       # @constellation/cli - Oclif CLI utility
-│   ├── src/
-│   │   ├── commands/          # CLI command implementations
-│   │   ├── parsers/           # Tree-sitter integration
-│   │   ├── extractors/        # Intelligence extraction
-│   │   └── api/              # Service communication
-│   ├── test/
-│   └── package.json
-├── core/                   # Central NestJS API service
-│   ├── src/
-│   │   ├── modules/          # Feature modules
-│   │   ├── entities/         # Neo4j entities
-│   │   ├── controllers/      # REST API endpoints
-│   │   └── services/         # Business logic
-│   ├── test/
-│   └── package.json
-├── mcp-server/               # @constellationdev/mcp-server (future)
-│   ├── src/
-│   │   ├── handlers/         # MCP request handlers
-│   │   ├── queries/          # Query translations
-│   │   └── cache/            # Local caching
-│   └── test/
-├── prompts/                  # Project documentation & specs
-│   ├── spec.md               # Project specification
-│   ├── api.md                # API documentation
-│   └── project.md            # MVP scope
-├── docs/                     # Technical documentation (future)
-├── scripts/                  # Build and deployment scripts (future)
-├── UML/                      # System diagrams
-└── CLAUDE.md                 # This guide for AI assistants
-```
-
-### Key Files to Understand
-
-- `cli/src/commands/` - CLI command implementations
-- `core/src/` - NestJS service modules and API
-- `prompts/spec.md` - Core project specification
-- `prompts/api.md` - API design and endpoints
-
-## API Design Principles
-
-### Dual-Purpose Architecture
-
-All APIs must serve both:
-
-1. **CLI Integration**: Direct programmatic access
-2. **MCP Server**: Query translation layer
-
-### RESTful Design
-
-```
-GET    /projects/{id}/symbols           # List symbols
-GET    /projects/{id}/symbols/{symbol}  # Symbol details
-POST   /projects/{id}/intelligence      # Upload parsed data
-GET    /projects/{id}/relationships     # Query relationships
-```
-
-### Response Format
-
-```typescript
-interface ApiResponse<T> {
-	success: boolean;
-	data?: T;
-	error?: string;
-	metadata: {
-		timestamp: string;
-		version: string;
-		cached: boolean;
-	};
+  protected abstract executeInternal(input: TInput): Promise<TOutput>;
 }
 ```
 
-## Testing & Quality Requirements
-
-### Test Coverage Targets
-
-- **Unit Tests**: 90%+ coverage for core logic
-- **Integration Tests**: All API endpoints
-- **E2E Tests**: Complete CLI workflows
-- **Performance Tests**: Parsing benchmarks
-
-### Quality Gates
-
-1. **TypeScript**: Strict mode, no `any` types
-2. **Linting**: ESLint + Prettier configuration
-3. **Security**: Automated vulnerability scanning
-4. **Documentation**: JSDoc for all public APIs
-
-### Testing Strategy
-
+**Example Tool**:
 ```typescript
-// Example test structure
-describe('AST Generation', () => {
-	it('should generate valid AST from TypeScript', async () => {
-		const ast = await parseFile('sample.ts');
-		const serialized = serializeAST(ast);
-		expect(serialized.type).toBe('program');
-		expect(serialized.children).toBeDefined();
-	});
-});
+// src/tools/discovery/SearchSymbolsTool.ts
+export class SearchSymbolsTool extends BaseMcpTool<SearchSymbolsInput, SearchSymbolsOutput> {
+  name = 'search-symbols';
+  description = 'Search for symbols by name or pattern';
+  inputSchema = searchSymbolsInputSchema;
 
-// Server-side test
-describe('Intelligence Extraction', () => {
-	it('should extract function definitions from AST', async () => {
-		const serializedAST = getTestAST();
-		const intelligence = extractIntelligence(serializedAST);
-		expect(intelligence.functions).toHaveLength(3);
-	});
-});
-```
-
-## Common Development Tasks
-
-### Adding Language Support
-
-1. **CLI Side**:
-
-   - Install Tree-sitter grammar: `npm install tree-sitter-{language}`
-   - Create parser in `cli/src/parsers/{language}.ts`
-   - Update AST serializer to handle language-specific nodes
-
-2. **Server Side**:
-   - Add extraction logic in `core/src/extractors/{language}.ts`
-   - Update type definitions for language-specific symbols
-   - Add tests for new language extraction
-
-### Extending API Functionality
-
-1. Define schema for new endpoints
-2. Implement service logic in `core/src/modules/`
-3. Add REST endpoint in appropriate controller
-4. Update MCP server query handlers (when implemented)
-5. Add integration tests
-
-### Performance Optimization
-
-1. **CLI**: Optimize Tree-sitter parsing with worker threads
-2. **Service**: Add Redis caching for frequent queries
-3. **Database**: Create Neo4j indexes for common relationships
-4. **MCP**: Implement local caching for repeated queries
-
-### Security Hardening
-
-1. **Input Validation**: Sanitize all API inputs
-2. **Authentication**: API key management
-3. **Rate Limiting**: Prevent abuse
-4. **Audit Logging**: Track all data operations
-
-## Error Handling & Logging
-
-### Error Categories
-
-```typescript
-enum ErrorType {
-	PARSING_ERROR = 'PARSING_ERROR',
-	NETWORK_ERROR = 'NETWORK_ERROR',
-	VALIDATION_ERROR = 'VALIDATION_ERROR',
-	PERMISSION_ERROR = 'PERMISSION_ERROR',
+  protected async executeInternal(input: SearchSymbolsInput): Promise<SearchSymbolsOutput> {
+    const response = await this.client.post('/mcp/execute', {
+      tool: this.name,
+      params: input
+    });
+    return response.data;
+  }
 }
 ```
 
-### Logging Strategy
+## Tool Registry Pattern
 
-- **CLI**: Local file logging with rotation
-- **Service**: Structured JSON logging (ELK stack compatible)
-- **MCP**: Debug logs for troubleshooting
+**Registration**:
+```typescript
+// src/registry/ToolRegistry.ts
+export class ToolRegistry {
+  private tools = new Map<string, BaseMcpTool<any, any>>();
 
-## MVP Scope & Development Priorities
+  register(tool: BaseMcpTool<any, any>): void {
+    this.tools.set(tool.name, tool);
+  }
 
-### Phase 1: Core Functionality
+  get(name: string): BaseMcpTool<any, any> | undefined {
+    return this.tools.get(name);
+  }
+}
 
-- [ ] CLI parsing with Tree-sitter and AST serialization
-- [ ] AST compression and transmission
-- [ ] Server-side intelligence extraction
-- [ ] Basic Neo4j graph storage
-- [ ] Simple MCP integration
-- [ ] REST API for AST upload and queries
+// src/index.ts
+const registry = new ToolRegistry();
+registry.register(new SearchSymbolsTool());
+registry.register(new GetSymbolDetailsTool());
+// ... register all 18 tools
+```
 
-### Phase 2: Production Readiness
+**Tool Definitions** (separate from implementation):
+```typescript
+// src/registry/tool-definitions/search-symbols.definition.ts
+export const searchSymbolsDefinition = {
+  name: 'search-symbols',
+  description: 'Search for symbols by name or pattern',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: { type: 'string' },
+      types: { type: 'array', items: { type: 'string' } }
+    },
+    required: ['query']
+  }
+};
+```
 
-- [ ] Performance optimization
-- [ ] Error recovery and retry logic
-- [ ] Comprehensive test coverage
-- [ ] Security hardening
-- [ ] Documentation completion
+## Type Sync (MANUAL - CRITICAL)
 
-## Development Workflow
+**MCP types** (`src/types/api-types.ts`) must mirror Core DTOs:
+```typescript
+// Core: constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
+export interface SearchSymbolsParams { query: string; types?: string[]; }
+export interface SearchSymbolsResult { symbols: SymbolInfo[]; }
 
-## Architecture Decision Records (ADRs)
+// MCP: constellation-mcp/src/types/api-types.ts (MUST MATCH)
+// Mirrors constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
+export interface SearchSymbolsParams { query: string; types?: string[]; }
+export interface SearchSymbolsResult { symbols: SymbolInfo[]; }
+```
 
-### ADR-001: No Source Code Transmission
+**Every type needs sync comment**:
+```typescript
+// Mirrors constellation-core/apps/client-api/src/mcp/dto/{tool}.dto.ts
+```
 
-**Decision**: Parse code locally, transmit only AST structure
-**Rationale**: Privacy, security, compliance requirements
-**Implications**: Larger network payloads (mitigated by compression), simpler CLI
+**Check sync** (see workspace CLAUDE.md Section 3).
 
-### ADR-004: Server-Side Intelligence Extraction
+## Constellation Client
 
-**Decision**: Extract symbols and relationships on the server, not in CLI
-**Rationale**: Centralized logic, easier updates, consistency across clients
-**Implications**: Server processing load, but better scalability and maintainability
+**HTTP Client to Core**:
+```typescript
+// src/client/constellation-client.ts
+export class ConstellationClient {
+  private baseURL: string;
+  private accessKey: string;
 
-### ADR-002: Neo4j for Graph Storage
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    const response = await axios.post(`${this.baseURL}${endpoint}`, data, {
+      headers: {
+        'Authorization': `Bearer ${this.accessKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  }
+}
+```
 
-**Decision**: Use Neo4j as primary database
-**Rationale**: Optimized for relationship queries
-**Implications**: Graph query complexity, operational overhead
+**Error Mapping**:
+```typescript
+// src/client/error-mapper.ts
+export function mapCoreError(error: CoreError): McpError {
+  switch (error.code) {
+    case 'AUTH_ERROR': return new McpAuthError(error.message);
+    case 'VALIDATION_ERROR': return new McpValidationError(error.message);
+    case 'NETWORK_ERROR': return new McpNetworkError(error.message);
+    default: return new McpError(error.message);
+  }
+}
+```
 
-### ADR-003: Branch-Based Namespacing
+## Configuration
 
-**Decision**: Separate graph per branch
-**Rationale**: Feature branch isolation
-**Implications**: Storage multiplication, cleanup requirements
-
-## Troubleshooting Guide
-
-### Common Issues
-
-1. **Parse Failures**: Check Tree-sitter grammar compatibility
-2. **API Timeouts**: Verify Redis cache status
-3. **Graph Queries**: Optimize Neo4j indexes
-4. **MCP Disconnects**: Check network connectivity
-
-### Debug Commands
-
+**Environment Variables** (required):
 ```bash
-# CLI debugging
-constellation index
-
-# Service health check
-curl http://localhost:3000/health
-
-# Neo4j query debugging
-MATCH (n) RETURN count(n) as total_nodes
+export CONSTELLATION_ACCESS_KEY=ak_00000000-...
+export CONSTELLATION_API_URL=http://localhost:3000
 ```
 
-## Contributing Guidelines
+**Config Manager**:
+```typescript
+// src/config/config-manager.ts
+export class ConfigManager {
+  private config: Config;
 
-### Code Style
+  load(): void {
+    this.config = {
+      apiUrl: process.env.CONSTELLATION_API_URL || 'http://localhost:3000',
+      accessKey: process.env.CONSTELLATION_ACCESS_KEY || '',
+    };
 
-- Follow existing TypeScript conventions
-- Use meaningful variable and function names
-- Document public APIs with JSDoc
-- Keep functions small and focused
-- **NEVER use emojis in any code, comments, or output**
-- **AVOID unnecessary decorative characters or formatting**
-- **OPTIMIZE for AI assistant consumption, not human visual appeal**
-- Tool descriptions should be clear and technical, not conversational
-- Error messages should be informative, not friendly or decorated
+    if (!this.config.accessKey) {
+      throw new Error('CONSTELLATION_ACCESS_KEY is required');
+    }
+  }
+}
+```
 
-### MCP Tool Design Principles
+## Commands
 
-This server implements the Model Context Protocol to bridge AI assistants with Constellation's code intelligence graph. When designing or modifying tools:
+**Development**:
+```bash
+npm run inspector              # MCP protocol inspector (test tools)
+npm run build                  # Build TypeScript
+npm run dev                    # Development mode
+npm start                      # Start MCP server
+```
 
-1. **Clarity over Friendliness**: Tool descriptions should be precise and technical
-2. **Structured Responses**: Return clean JSON structures, not formatted text
-3. **Minimal Noise**: No emojis, no decorative separators, no ASCII art
-4. **Parsable Output**: AI assistants need to parse responses programmatically
-5. **Consistent Patterns**: All tools should follow the same response structure
-6. **Error Precision**: Errors should indicate exactly what went wrong, not comfort the user
-7. **Performance Metrics**: Include execution time and cache status when relevant
-8. **Pagination Support**: Large result sets should be paginated with clear continuation tokens
+**Testing**:
+```bash
+npm test                       # All tests
+npm run test:watch             # Watch mode
+npm run test:coverage          # With coverage (90%+ required)
+```
 
-**Remember**: The end user is an AI assistant, not a human developer. Optimize accordingly.
+**MCP Inspector**:
+```bash
+npm run inspector
+# Opens MCP inspector UI
+# Test tool calls interactively
+# Verify request/response formats
+```
 
-### Security Review
+## MCP Protocol Integration
 
-All changes involving:
+**Tool Call Flow**:
+1. AI assistant calls MCP tool: `search-symbols({query: "foo"})`
+2. MCP server receives request via stdin (JSON-RPC)
+3. ToolRegistry looks up tool by name
+4. Tool validates input with Zod schema
+5. Tool calls ConstellationClient.post('/mcp/execute', {tool, params})
+6. Core executes tool, queries Neo4j, returns result
+7. MCP tool returns result to AI assistant via stdout
 
-- Data transmission
-- API endpoints
-- Authentication
-- File system access
+**JSON-RPC Format**:
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "search-symbols",
+    "arguments": {"query": "foo"}
+  },
+  "id": 1
+}
+```
 
-Require security review before merge.
+## Error Handling
 
-### Key Concepts
+**Error Types**:
+- `McpAuthError`: Invalid CONSTELLATION_ACCESS_KEY
+- `McpValidationError`: Invalid tool parameters
+- `McpNetworkError`: Cannot reach constellation-core
+- `McpToolError`: Tool execution failure
+- `McpError`: Generic error
 
-- **Intelligence**: Extracted AST metadata (symbols, relationships)
-- **Graph**: Neo4j representation of code structure
-- **Project**: Git repository identified by remote URL
-- **Branch**: Isolated namespace for code intelligence
+**Error Response**:
+```typescript
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32603,
+    "message": "Symbol not found",
+    "data": { "tool": "search-symbols", "query": "foo" }
+  },
+  "id": 1
+}
+```
 
-This guide serves as the primary reference for AI assistants working on Constellation. When in doubt, prioritize privacy, performance, and the core principle: parse once, benefit everywhere.
+## File Conventions
+
+**Naming**:
+```
+{Name}Tool.ts              Tool implementations
+{name}.definition.ts       Tool definitions (MCP protocol)
+{name}.spec.ts             Tests (co-located)
+```
+
+**Imports**:
+```typescript
+✓ import { BaseMcpTool } from '../lib/BaseMcpTool';
+✓ import { ConstellationClient } from '../client/constellation-client';
+✗ import { X } from 'src/lib/X';  // No absolute from src/
+```
+
+## Key Patterns
+
+**Code Style** (AI assistant optimized):
+```typescript
+✗ NEVER use emojis (❌, ✅, 🚀, etc.)
+✗ NEVER use decorative characters (═══, ───, etc.)
+✓ Clean, parsable output only
+✓ Professional, technical tone
+```
+
+**Validation**: Zod everywhere
+```typescript
+const schema = z.object({ query: z.string(), types: z.array(z.string()).optional() });
+```
+
+**Logging**: console.log/console.error (no winston in MCP)
+
+**Error Codes**: See workspace CLAUDE.md
+
+## Tool Categories
+
+**Architecture Tools**: Project structure, patterns, violations
+**Dependency Tools**: Dependencies, dependents, circular refs
+**Discovery Tools**: Search, lookup, resolution
+**Impact Tools**: Change impact, usage traces, call graphs
+
+## Extended Docs
+
+- `../CLAUDE.md` - Workspace architecture, type sync checklist
+- `../TROUBLESHOOTING.md` - Error codes: AUTH_ERROR, VALIDATION_ERROR, NETWORK_ERROR
+- `../COMMANDS.md` - Full MCP command reference, inspector usage
+- `../ADR.md` - ADR-004 (MCP for Neo4j), ADR-009 (Zod validation)
+
+## Testing Tools
+
+**MCP Inspector**:
+```bash
+npm run inspector
+# Interactive UI to test all 18 tools
+# Validates request/response formats
+# Checks protocol compliance
+```
+
+**Unit Tests**:
+```typescript
+// src/tools/discovery/SearchSymbolsTool.spec.ts
+describe('SearchSymbolsTool', () => {
+  it('should search symbols', async () => {
+    const tool = new SearchSymbolsTool(mockClient);
+    const result = await tool.execute({ query: 'foo' });
+    expect(result.symbols).toBeDefined();
+  });
+});
+```
+
+**Coverage**: 90%+ required for all tools.
