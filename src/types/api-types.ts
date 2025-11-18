@@ -287,6 +287,7 @@ export interface ImpactAnalysisResult {
 
 /**
  * Get Call Graph
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/get-call-graph.dto.ts
  */
 
 export interface GetCallGraphParams {
@@ -306,17 +307,23 @@ export interface GetCallGraphResult {
 		symbolId: string;
 		name: string;
 		filePath: string;
+		line: number;
+		column: number;
 	};
 	callers?: Array<{
 		symbolId: string;
 		name: string;
 		filePath: string;
+		line: number;
+		column: number;
 		depth: number;
 	}>;
 	callees?: Array<{
 		symbolId: string;
 		name: string;
 		filePath: string;
+		line: number;
+		column: number;
 		isAsync: boolean;
 		depth: number;
 	}>;

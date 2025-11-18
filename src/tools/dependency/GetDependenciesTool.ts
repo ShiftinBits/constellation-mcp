@@ -84,7 +84,7 @@ class GetDependenciesTool extends BaseMcpTool<
 		if (directCount > 0) {
 			output += `${section('Direct Dependencies', 2)} (${directCount})\n\n`;
 			for (const dep of directDependencies!) {
-				const depPath = dep?.filePath || 'unknown';
+				const depPath = dep?.filePath || dep?.moduleName || 'unknown';
 				const depMarkers = getFileMarkers(depPath);
 				const depDisplay = depMarkers.length > 0 ? applyMarkers(depMarkers, depPath) : depPath;
 
@@ -106,7 +106,7 @@ class GetDependenciesTool extends BaseMcpTool<
 		if (transitiveCount > 0) {
 			output += `\n${section('Transitive Dependencies', 2)} (${transitiveCount})\n\n`;
 			for (const dep of transitiveDependencies!.slice(0, 20)) {
-				const depPath = dep?.filePath || 'unknown';
+				const depPath = dep?.filePath || dep?.moduleName || 'unknown';
 				const depMarkers = getFileMarkers(depPath);
 				const depDisplay = depMarkers.length > 0 ? applyMarkers(depMarkers, depPath) : depPath;
 

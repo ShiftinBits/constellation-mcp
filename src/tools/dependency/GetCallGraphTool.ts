@@ -132,7 +132,7 @@ class GetCallGraphTool extends BaseMcpTool<
 				: root.filePath;
 
 			output += `${keyValue('Root Function', root.name)}\n`;
-			output += `${keyValue('Location', formatLocation(rootFileDisplay, 0))}\n`;
+			output += `${keyValue('Location', formatLocation(rootFileDisplay, root.line, root.column))}\n`;
 			output += `${keyValue('Symbol ID', root.symbolId)}\n\n`;
 		}
 
@@ -175,7 +175,7 @@ class GetCallGraphTool extends BaseMcpTool<
 							: callee.filePath;
 
 						output += `  → ${callee.name}${asyncMarker}\n`;
-						output += `    ${formatLocation(calleeFileDisplay, 0)}\n`;
+						output += `    ${formatLocation(calleeFileDisplay, callee.line, callee.column)}\n`;
 					}
 				}
 				output += '\n';
@@ -207,7 +207,7 @@ class GetCallGraphTool extends BaseMcpTool<
 							: caller.filePath;
 
 						output += `  ← ${caller.name}\n`;
-						output += `    ${formatLocation(callerFileDisplay, 0)}\n`;
+						output += `    ${formatLocation(callerFileDisplay, caller.line, caller.column)}\n`;
 					}
 				}
 				output += '\n';

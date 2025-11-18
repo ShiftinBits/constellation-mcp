@@ -1,16 +1,12 @@
 {
-	"namespace": "constellation-mcp",
-	"branch": "main",
-	"languages": {
-		"typescript": {
-			"fileExtensions": [
-				".ts"
-			]
-		},
-		"javascript": {
-			"fileExtensions": [
-				".js"
-			]
-		}
-	}
+  "namespace": "constellation-mcp",
+  "branch": "main",
+  "languages": {
+    "typescript": {
+      "fileExtensions": [
+        ".ts",
+        ".tsx"
+      ]
+    }
+  }
 }
