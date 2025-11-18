@@ -209,6 +209,120 @@ export interface FindCircularDependenciesResult {
 }
 
 /**
+ * Trace Symbol Usage
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/trace-symbol-usage.dto.ts (Updated: 2025-11-18)
+ */
+
+export interface TraceSymbolUsageParams {
+	/** Symbol ID if known */
+	symbolId?: string;
+
+	/** Symbol name (requires filePath) */
+	symbolName?: string;
+
+	/** File path where symbol is defined */
+	filePath?: string;
+
+	/** Filter by specific usage types */
+	filterByUsageType?: string[];
+
+	/** Filter by relationship type (CALLS, REFERENCES, IMPORTS, etc.) */
+	filterByRelationshipType?: string[];
+
+	/** Include indirect (transitive) usage */
+	includeTransitive?: boolean;
+
+	/** Include usage context (code snippets) */
+	includeContext?: boolean;
+
+	/** Exclude test files from results */
+	excludeTests?: boolean;
+
+	/** Exclude generated files from results */
+	excludeGenerated?: boolean;
+
+	/** Include importance weighting in results */
+	includeImportanceWeight?: boolean;
+
+	/** Maximum results to return */
+	limit?: number;
+
+	/** Pagination offset */
+	offset?: number;
+}
+
+export interface TracedSymbol {
+	/** Symbol being traced */
+	name: string;
+
+	/** Symbol kind */
+	kind: string;
+
+	/** File where symbol is defined */
+	filePath: string;
+}
+
+export interface DirectUsage {
+	/** File path where symbol is used */
+	filePath: string;
+
+	/** Type of usage */
+	usageType: string; // import, call, type, inherit, reference
+
+	/** Relationship type (CALLS, REFERENCES, IMPORTS, etc.) */
+	relationshipType: string;
+
+	/** Line number where usage occurs */
+	line?: number;
+
+	/** Column number where usage occurs */
+	column?: number;
+
+	/** Enclosing symbol (function/class containing this usage) */
+	enclosingSymbol?: {
+		name: string;
+		kind: string;
+	};
+
+	/** Surrounding code context (if includeContext=true) */
+	context?: string;
+
+	/** Alias if symbol was renamed on import */
+	aliasName?: string;
+
+	/** Whether this is a test file */
+	isTest?: boolean;
+
+	/** Whether this is a generated file */
+	isGenerated?: boolean;
+
+	/** Importance weight (0.0-1.0, if includeImportanceWeight=true) */
+	importanceWeight?: number;
+}
+
+export interface TransitiveUsage {
+	/** File path */
+	filePath: string;
+
+	/** Number of hops from source symbol */
+	distance: number;
+
+	/** Chain showing how it's reached */
+	chain: string[];
+}
+
+export interface TraceSymbolUsageResult {
+	/** Symbol being traced */
+	symbol: TracedSymbol;
+
+	/** Direct usages of the symbol */
+	directUsages: DirectUsage[];
+
+	/** Transitive usages (if includeTransitive=true) */
+	transitiveUsages?: TransitiveUsage[];
+}
+
+/**
  * Impact Analysis
  * Mirrors constellation-core/apps/client-api/src/mcp/dto/impact-analysis.dto.ts
  */

@@ -75,16 +75,41 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 		// Backend DTO uses orphanedFiles[] and orphanedSymbols[] directly
 		const { orphanedFiles, orphanedSymbols } = data;
 
-		const filesArray = orphanedFiles || [];
-		const symbolsArray = orphanedSymbols || [];
+		const allFiles = orphanedFiles || [];
+		const allSymbols = orphanedSymbols || [];
+
+		// Separate test files from actual orphaned files
+		const isTestFile = (filePath: string): boolean => {
+			return (
+				filePath.includes('/test/') ||
+				filePath.includes('.test.') ||
+				filePath.includes('.spec.') ||
+				filePath.includes('/__tests__/') ||
+				filePath.includes('/__mocks__/') ||
+				filePath.includes('/tests/') ||
+				filePath.endsWith('.test.ts') ||
+				filePath.endsWith('.test.js') ||
+				filePath.endsWith('.spec.ts') ||
+				filePath.endsWith('.spec.js')
+			);
+		};
+
+		const testFiles = allFiles.filter((f) => isTestFile(f?.filePath || ''));
+		const filesArray = allFiles.filter((f) => !isTestFile(f?.filePath || ''));
+
+		const testSymbols = allSymbols.filter((s) => isTestFile(s?.filePath || ''));
+		const symbolsArray = allSymbols.filter((s) => !isTestFile(s?.filePath || ''));
+
 		const totalOrphaned = filesArray.length + symbolsArray.length;
 
 		let output = `${section('Orphaned Code Analysis', 1)}\n\n`;
 
-		if (totalOrphaned === 0) {
+		if (totalOrphaned === 0 && testFiles.length === 0 && testSymbols.length === 0) {
 			output += `${MARKERS.SAFE} No orphaned code found! Your codebase is clean.`;
 		} else {
-			output += `${MARKERS.UNUSED} Found ${totalOrphaned} orphaned ${totalOrphaned === 1 ? 'item' : 'items'}\n\n`;
+			if (totalOrphaned > 0) {
+				output += `${MARKERS.UNUSED} Found ${totalOrphaned} orphaned ${totalOrphaned === 1 ? 'item' : 'items'}\n\n`;
+			}
 
 			// Orphaned files
 			if (filesArray.length > 0) {
@@ -158,13 +183,39 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 				}
 			}
 
-			const removalSteps = [
-				'Verify these items are truly unused (check dynamic imports)',
-				'Search for string-based references (e.g., configuration files)',
-				'Consider if code is used in production but not in tests',
-				'Create a feature branch to safely test removal',
-			];
-			output += `${section('Before Removing')}\n${numberedList(removalSteps)}\n`;
+			// Show test files in separate section
+			if (testFiles.length > 0 || testSymbols.length > 0) {
+				output += `${section('Test Files (Expected)', 2)}\n`;
+				output += `Test files typically have no production dependencies. This is normal behavior.\n\n`;
+
+				if (testFiles.length > 0) {
+					output += `Found ${testFiles.length} test ${testFiles.length === 1 ? 'file' : 'files'}:\n\n`;
+					for (const file of testFiles.slice(0, 10)) {
+						const filePath = file?.filePath || 'unknown';
+						const fileMarkers = getFileMarkers(filePath);
+						const fileDisplay = fileMarkers.length > 0 ? applyMarkers(fileMarkers, filePath) : filePath;
+						output += `  [TEST] ${fileDisplay}\n`;
+					}
+					if (testFiles.length > 10) {
+						output += `\n  ${collapsedHint(testFiles.length, 10)}\n`;
+					}
+					output += '\n';
+				}
+
+				if (testSymbols.length > 0) {
+					output += `Found ${testSymbols.length} test ${testSymbols.length === 1 ? 'symbol' : 'symbols'}\n\n`;
+				}
+			}
+
+			if (totalOrphaned > 0) {
+				const removalSteps = [
+					'Verify these items are truly unused (check dynamic imports)',
+					'Search for string-based references (e.g., configuration files)',
+					'Consider if code is used in production but not in tests',
+					'Create a feature branch to safely test removal',
+				];
+				output += `${section('Before Removing')}\n${numberedList(removalSteps)}\n`;
+			}
 		}
 
 		if (metadata.cached) {
