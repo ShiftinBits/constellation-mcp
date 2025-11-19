@@ -9,6 +9,18 @@ import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
 import { formatLocation, section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
 
+// Helper to properly convert string booleans to actual booleans
+// MCP framework sends "true"/"false" strings instead of boolean values
+const booleanSchema = z.preprocess(
+	(val) => {
+		if (typeof val === 'string') {
+			return val.toLowerCase() === 'true';
+		}
+		return val;
+	},
+	z.boolean()
+);
+
 interface TraceSymbolUsageParams {
 	symbolId?: string;
 	symbolName?: string;
@@ -79,23 +91,23 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 				'Filter by relationship type (e.g., ["REFERENCES", "CALLS", "INHERITS"])',
 		},
 		includeTransitive: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include transitive (indirect) usages (default: false)',
 		},
 		includeContext: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Include enclosing symbol context (default: true)',
 		},
 		excludeTests: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Exclude test files from results (default: false)',
 		},
 		excludeGenerated: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Exclude generated files from results (default: false)',
 		},
 		includeImportanceWeight: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include importance weighting in results (default: false)',
 		},
 		limit: {

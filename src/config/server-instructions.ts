@@ -195,8 +195,8 @@ The \`depth\` parameter grows EXPONENTIALLY:
 ### **MISTAKE:** Using \`trace_symbol_usage\` when basic references suffice
 **CORRECT:** \`trace_symbol_usage\` shows code context; use \`get_symbol_details\` (includeReferences) for just locations
 
-### **MISTAKE:** Not filtering tests (excludeTests=false) when analyzing production impact
-**CORRECT:** Set excludeTests=true to see real production impact
+### **MISTAKE:** Using excludeTests=true when user wants to see ALL usages (including tests)
+**CORRECT:** Use excludeTests=false (default) to include all code, or excludeTests=true only when specifically analyzing production impact
 
 ### **MISTAKE:** Chaining tools sequentially when parallel would work
 **CORRECT:** If you need symbol details for multiple symbols, call \`get_symbol_details\` in parallel

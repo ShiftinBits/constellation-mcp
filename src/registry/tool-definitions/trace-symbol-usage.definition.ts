@@ -193,7 +193,7 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 
 	commonMistakes: [
 		'MISTAKE: Using filterByUsageType to filter how symbols are used → DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.)',
-		'MISTAKE: Including test and generated files in results, creating noise → DO: Set excludeTests=true and excludeGenerated=true for production code only',
+		'MISTAKE: Always setting excludeTests=true when user wants to see ALL usages → DO: Use excludeTests=false (default) to include all code; only use excludeTests=true when specifically analyzing production impact',
 		'MISTAKE: Setting includeContext=false to reduce data → DO: Keep includeContext=true (default) - context is the primary value of this tool',
 		'MISTAKE: Using includeTransitive=true for simple usage checks → DO: Use includeTransitive=false (default) unless you need ripple effect analysis',
 	],
