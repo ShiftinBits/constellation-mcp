@@ -64,48 +64,35 @@ class GetCallGraphTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with default of 25. Use for functions with many callers/callees. Pagination applies separately to callers and callees lists. ' +
 		'Increase limit (50-100) for central orchestrator functions with extensive call relationships.';
 
-	schema = {
-		symbolId: {
-			type: z.string().optional(),
-			description: 'Unique symbol ID (alternative to functionName)',
-		},
-		functionName: {
-			type: z.string().optional(),
-			description:
-				'Function name to analyze (omit to get full project call graph)',
-		},
-		filePath: {
-			type: z.string().optional(),
-			description: 'File path to narrow down search',
-		},
-		direction: {
-			type: z.enum(['callers', 'callees', 'both']).optional().default('both'),
-			description:
-				'Direction: "callers" (who calls this), "callees" (what this calls), or "both" (default: both)',
-		},
-		depth: {
-			type: z.coerce.number().int().min(1).max(10).optional().default(3),
-			description:
-				'How many levels deep to traverse (default: 3, max: 10)',
-		},
-		excludeExternal: {
-			type: booleanSchema.optional().default(false),
-			description: 'Exclude external/library calls (default: false)',
-		},
-		includeGraph: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include graph visualization data (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(100).optional().default(25),
-			description:
-				'Maximum number of call relationships to return per page (default: 25, max: 100). Applies to both callers and callees. Use 50-100 for complex call graphs of central functions.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Increments apply to both callers and callees lists. Example: limit=25, offset=25 gets relationships 26-50.',
-		},
-	};
+	schema = z.object({
+		symbolId: z.string().optional().describe(
+			'Unique symbol ID (alternative to functionName)'
+		),
+		functionName: z.string().optional().describe(
+			'Function name to analyze (omit to get full project call graph)'
+		),
+		filePath: z.string().optional().describe(
+			'File path to narrow down search'
+		),
+		direction: z.enum(['callers', 'callees', 'both']).optional().default('both').describe(
+			'Direction: "callers" (who calls this), "callees" (what this calls), or "both" (default: both)'
+		),
+		depth: z.coerce.number().int().min(1).max(10).optional().default(3).describe(
+			'How many levels deep to traverse (default: 3, max: 10)'
+		),
+		excludeExternal: booleanSchema.optional().default(false).describe(
+			'Exclude external/library calls (default: false)'
+		),
+		includeGraph: booleanSchema.optional().default(false).describe(
+			'Include graph visualization data (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(25).describe(
+			'Maximum number of call relationships to return per page (default: 25, max: 100). Applies to both callers and callees. Use 50-100 for complex call graphs of central functions.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Increments apply to both callers and callees lists. Example: limit=25, offset=25 gets relationships 26-50.'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

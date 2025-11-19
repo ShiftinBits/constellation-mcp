@@ -30,37 +30,26 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 	description =
 		'Get detailed information about a specific symbol (function, class, variable, etc.) including its signature, documentation, dependencies, dependents, and all usage locations.';
 
-	schema = {
-		symbolId: {
-			type: z.string().optional(),
-			description:
-				'Unique symbol identifier (from search results). If not provided, both symbolName and filePath are required.',
-		},
-		symbolName: {
-			type: z.string().optional(),
-			description: 'Symbol name to look up (required if symbolId not provided)',
-		},
-		filePath: {
-			type: z.string().optional(),
-			description:
-				'File path containing the symbol (required if symbolId not provided)',
-		},
-		includeReferences: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include all references to this symbol (default: false)',
-		},
-		includeRelationships: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include relationships (calls, extends, implements) (default: false)',
-		},
-		includeImpactScore: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include impact/importance score (default: false)',
-		},
-	};
+	schema = z.object({
+		symbolId: z.string().optional().describe(
+			'Unique symbol identifier (from search results). If not provided, both symbolName and filePath are required.'
+		),
+		symbolName: z.string().optional().describe(
+			'Symbol name to look up (required if symbolId not provided)'
+		),
+		filePath: z.string().optional().describe(
+			'File path containing the symbol (required if symbolId not provided)'
+		),
+		includeReferences: booleanSchema.optional().default(false).describe(
+			'Include all references to this symbol (default: false)'
+		),
+		includeRelationships: booleanSchema.optional().default(false).describe(
+			'Include relationships (calls, extends, implements) (default: false)'
+		),
+		includeImpactScore: booleanSchema.optional().default(false).describe(
+			'Include impact/importance score (default: false)'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

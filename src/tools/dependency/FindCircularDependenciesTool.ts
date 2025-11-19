@@ -24,35 +24,26 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with default of 50. Use for codebases with many circular dependencies. ' +
 		'Increase limit (75-100) for comprehensive circular dependency analysis across large projects.';
 
-	schema = {
-		filePath: {
-			type: z.string().optional(),
-			description:
-				'Optional: Start search from a specific file to find cycles involving it',
-		},
-		minCycleLength: {
-			type: z.coerce.number().int().min(2).max(10).optional().default(2),
-			description:
-				'Minimum cycle length to detect (default: 2, max: 10)',
-		},
-		includeDetails: {
-			type: booleanSchema.optional().default(true),
-			description: 'Include detailed cycle information (default: true)',
-		},
-		includeConfidence: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include confidence scores (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(100).optional().default(50),
-			description:
-				'Maximum number of cycles to return per page (default: 50, max: 100). Use 75-100 for large projects to see comprehensive cycle detection in fewer requests.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=50, offset=50 gets cycles 51-100.',
-		},
-	};
+	schema = z.object({
+		filePath: z.string().optional().describe(
+			'Optional: Start search from a specific file to find cycles involving it'
+		),
+		minCycleLength: z.coerce.number().int().min(2).max(10).optional().default(2).describe(
+			'Minimum cycle length to detect (default: 2, max: 10)'
+		),
+		includeDetails: booleanSchema.optional().default(true).describe(
+			'Include detailed cycle information (default: true)'
+		),
+		includeConfidence: booleanSchema.optional().default(false).describe(
+			'Include confidence scores (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(50).describe(
+			'Maximum number of cycles to return per page (default: 50, max: 100). Use 75-100 for large projects to see comprehensive cycle detection in fewer requests.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=50, offset=50 gets cycles 51-100.'
+		),
+	});
 
 	/**
 	 * Format the circular dependencies for AI-friendly output

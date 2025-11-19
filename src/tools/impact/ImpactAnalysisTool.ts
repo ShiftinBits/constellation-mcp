@@ -23,49 +23,38 @@ class ImpactAnalysisTool extends BaseMcpTool<
 	description =
 		'Comprehensive impact analysis combining change impact, breaking changes, and dependencies. Provides holistic view of what changes will affect across the codebase.';
 
-	schema = {
-		symbolId: {
-			type: z.string().optional(),
-			description: 'Unique symbol identifier',
-		},
-		qualifiedName: {
-			type: z.string().optional(),
-			description: 'Qualified symbol name',
-		},
-		symbolName: {
-			type: z.string().optional(),
-			description: 'Symbol name',
-		},
-		filePath: {
-			type: z.string().optional(),
-			description:
-				'File path (required for symbol-level or for file-level analysis)',
-		},
-		includeDirectDependents: {
-			type: booleanSchema.optional().default(true),
-			description: 'Include direct dependents (default: true)',
-		},
-		includeTransitiveDependents: {
-			type: booleanSchema.optional().default(true),
-			description: 'Include transitive dependents (default: true)',
-		},
-		depth: {
-			type: z.coerce.number().int().min(1).max(5).optional().default(3),
-			description: 'Maximum dependency depth to analyze (default: 3, max: 5)',
-		},
-		excludeTests: {
-			type: booleanSchema.optional().default(true),
-			description: 'Exclude test files from analysis (default: true)',
-		},
-		excludeGenerated: {
-			type: booleanSchema.optional().default(true),
-			description: 'Exclude generated files from analysis (default: true)',
-		},
-		analyzeBreakingChanges: {
-			type: booleanSchema.optional().default(true),
-			description: 'Analyze potential breaking changes (default: true)',
-		},
-	};
+	schema = z.object({
+		symbolId: z.string().optional().describe(
+			'Unique symbol identifier'
+		),
+		qualifiedName: z.string().optional().describe(
+			'Qualified symbol name'
+		),
+		symbolName: z.string().optional().describe(
+			'Symbol name'
+		),
+		filePath: z.string().optional().describe(
+			'File path (required for symbol-level or for file-level analysis)'
+		),
+		includeDirectDependents: booleanSchema.optional().default(true).describe(
+			'Include direct dependents (default: true)'
+		),
+		includeTransitiveDependents: booleanSchema.optional().default(true).describe(
+			'Include transitive dependents (default: true)'
+		),
+		depth: z.coerce.number().int().min(1).max(5).optional().default(3).describe(
+			'Maximum dependency depth to analyze (default: 3, max: 5)'
+		),
+		excludeTests: booleanSchema.optional().default(true).describe(
+			'Exclude test files from analysis (default: true)'
+		),
+		excludeGenerated: booleanSchema.optional().default(true).describe(
+			'Exclude generated files from analysis (default: true)'
+		),
+		analyzeBreakingChanges: booleanSchema.optional().default(true).describe(
+			'Analyze potential breaking changes (default: true)'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

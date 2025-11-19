@@ -24,36 +24,26 @@ class GetDependenciesTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with default of 20. Use for files with many dependencies. Pagination is per-depth level when using transitive analysis. ' +
 		'Increase limit (50-100) for heavily-coupled files.';
 
-	schema = {
-		filePath: {
-			type: z.string().min(1),
-			description:
-				'File path to analyze dependencies for (e.g., "src/components/Button.tsx")',
-		},
-		depth: {
-			type: z.coerce.number().int().min(0).max(10).optional().default(1),
-			description:
-				'How many levels deep to traverse dependencies (default: 1, max: 10)',
-		},
-		includePackages: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include external package dependencies (default: false)',
-		},
-		includeSymbols: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include symbol-level dependency details (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(100).optional().default(20),
-			description:
-				'Maximum number of dependencies to return per page (default: 20, max: 100). Use 20-30 for typical files, 50-100 for heavily-coupled files with many imports.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Increment by limit for subsequent pages. Example: limit=20, offset=20 gets dependencies 21-40.',
-		},
-	};
+	schema = z.object({
+		filePath: z.string().min(1).describe(
+			'File path to analyze dependencies for (e.g., "src/components/Button.tsx")'
+		),
+		depth: z.coerce.number().int().min(0).max(10).optional().default(1).describe(
+			'How many levels deep to traverse dependencies (default: 1, max: 10)'
+		),
+		includePackages: booleanSchema.optional().default(false).describe(
+			'Include external package dependencies (default: false)'
+		),
+		includeSymbols: booleanSchema.optional().default(false).describe(
+			'Include symbol-level dependency details (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(20).describe(
+			'Maximum number of dependencies to return per page (default: 20, max: 100). Use 20-30 for typical files, 50-100 for heavily-coupled files with many imports.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Increment by limit for subsequent pages. Example: limit=20, offset=20 gets dependencies 21-40.'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

@@ -54,61 +54,44 @@ class TraceSymbolUsageTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with generous default of 50 (max: 500 for comprehensive tracing). Use pagination for heavily-used symbols to avoid overwhelming responses. ' +
 		'Start with default, increase limit for exhaustive analysis.';
 
-	schema = {
-		symbolId: {
-			type: z.string().optional(),
-			description: 'Unique symbol ID (alternative to symbolName)',
-		},
-		symbolName: {
-			type: z.string().optional(),
-			description:
-				'Name of the symbol to trace (e.g., "UserService", "calculateTotal")',
-		},
-		filePath: {
-			type: z.string().optional(),
-			description:
-				'File where symbol is defined (optional, improves precision when multiple symbols have same name)',
-		},
-		filterByUsageType: {
-			type: z.array(z.string()).optional(),
-			description:
-				'Filter by symbol kind (e.g., ["function", "class"])',
-		},
-		filterByRelationshipType: {
-			type: z.array(z.string()).optional(),
-			description:
-				'Filter by relationship type (e.g., ["REFERENCES", "CALLS", "INHERITS"])',
-		},
-		includeTransitive: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include transitive (indirect) usages (default: false)',
-		},
-		includeContext: {
-			type: booleanSchema.optional().default(true),
-			description: 'Include enclosing symbol context (default: true)',
-		},
-		excludeTests: {
-			type: booleanSchema.optional().default(false),
-			description: 'Exclude test files from results (default: false)',
-		},
-		excludeGenerated: {
-			type: booleanSchema.optional().default(false),
-			description: 'Exclude generated files from results (default: false)',
-		},
-		includeImportanceWeight: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include importance weighting in results (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(500).optional().default(50),
-			description:
-				'Maximum number of usages to return per page (default: 50, max: 500). Higher limit (100-500) for comprehensive usage analysis of critical symbols. Note: This tool has higher max (500) than most tools.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=100, offset=100 gets usages 101-200.',
-		},
-	};
+	schema = z.object({
+		symbolId: z.string().optional().describe(
+			'Unique symbol ID (alternative to symbolName)'
+		),
+		symbolName: z.string().optional().describe(
+			'Name of the symbol to trace (e.g., "UserService", "calculateTotal")'
+		),
+		filePath: z.string().optional().describe(
+			'File where symbol is defined (optional, improves precision when multiple symbols have same name)'
+		),
+		filterByUsageType: z.array(z.string()).optional().describe(
+			'Filter by symbol kind (e.g., ["function", "class"])'
+		),
+		filterByRelationshipType: z.array(z.string()).optional().describe(
+			'Filter by relationship type (e.g., ["REFERENCES", "CALLS", "INHERITS"])'
+		),
+		includeTransitive: booleanSchema.optional().default(false).describe(
+			'Include transitive (indirect) usages (default: false)'
+		),
+		includeContext: booleanSchema.optional().default(true).describe(
+			'Include enclosing symbol context (default: true)'
+		),
+		excludeTests: booleanSchema.optional().default(false).describe(
+			'Exclude test files from results (default: false)'
+		),
+		excludeGenerated: booleanSchema.optional().default(false).describe(
+			'Exclude generated files from results (default: false)'
+		),
+		includeImportanceWeight: booleanSchema.optional().default(false).describe(
+			'Include importance weighting in results (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(500).optional().default(50).describe(
+			'Maximum number of usages to return per page (default: 50, max: 500). Higher limit (100-500) for comprehensive usage analysis of critical symbols. Note: This tool has higher max (500) than most tools.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Increment by limit for next page. Example: limit=100, offset=100 gets usages 101-200.'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

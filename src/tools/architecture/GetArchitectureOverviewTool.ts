@@ -22,22 +22,17 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 	description =
 		'Get a high-level overview of the codebase architecture including modules, layers, dependencies, and statistics. Useful for understanding system structure.';
 
-	schema = {
-		includeMetrics: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include quality metrics (complexity, maintainability, test coverage) - default: false',
-		},
-		includeModuleGraph: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include module graph structure - default: false',
-		},
-		includePackages: {
-			type: booleanSchema.optional().default(true),
-			description:
-				'Include external package dependency details - default: true',
-		},
-	};
+	schema = z.object({
+		includeMetrics: booleanSchema.optional().default(false).describe(
+			'Include quality metrics (complexity, maintainability, test coverage) - default: false'
+		),
+		includeModuleGraph: booleanSchema.optional().default(false).describe(
+			'Include module graph structure - default: false'
+		),
+		includePackages: booleanSchema.optional().default(true).describe(
+			'Include external package dependency details - default: true'
+		),
+	});
 
 	/**
 	 * Format the architecture overview for AI-friendly output

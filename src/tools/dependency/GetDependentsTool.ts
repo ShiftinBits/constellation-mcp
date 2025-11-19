@@ -24,35 +24,26 @@ class GetDependentsTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with default of 20. Essential for widely-used utilities/components that have many dependents. ' +
 		'Use higher limit (50-100) for popular shared modules to see full impact.';
 
-	schema = {
-		filePath: {
-			type: z.string().min(1),
-			description:
-				'File path to analyze dependents for (e.g., "src/utils/helpers.ts")',
-		},
-		depth: {
-			type: z.coerce.number().int().min(0).max(10).optional().default(1),
-			description:
-				'How many levels deep to traverse dependents (default: 1, max: 10)',
-		},
-		includeSymbols: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include symbol-level dependent details (default: false)',
-		},
-		includeImpactMetrics: {
-			type: booleanSchema.optional().default(false),
-			description: 'Include detailed impact metrics (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(100).optional().default(20),
-			description:
-				'Maximum number of dependents to return per page (default: 20, max: 100). Use 20-30 for typical analysis, 50-100 for critical shared utilities with many dependents.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Useful for exploring large dependent sets. Example: limit=20, offset=20 gets dependents 21-40.',
-		},
-	};
+	schema = z.object({
+		filePath: z.string().min(1).describe(
+			'File path to analyze dependents for (e.g., "src/utils/helpers.ts")'
+		),
+		depth: z.coerce.number().int().min(0).max(10).optional().default(1).describe(
+			'How many levels deep to traverse dependents (default: 1, max: 10)'
+		),
+		includeSymbols: booleanSchema.optional().default(false).describe(
+			'Include symbol-level dependent details (default: false)'
+		),
+		includeImpactMetrics: booleanSchema.optional().default(false).describe(
+			'Include detailed impact metrics (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(20).describe(
+			'Maximum number of dependents to return per page (default: 20, max: 100). Use 20-30 for typical analysis, 50-100 for critical shared utilities with many dependents.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Useful for exploring large dependent sets. Example: limit=20, offset=20 gets dependents 21-40.'
+		),
+	});
 
 	// No parameter transformation needed - direct passthrough to API
 

@@ -24,42 +24,29 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 		'**PAGINATION**: Supports limit/offset with default of 50. Use for comprehensive dead code analysis. ' +
 		'Increase limit (75-100) for large cleanup initiatives to see full scope of orphaned code.';
 
-	schema = {
-		filePattern: {
-			type: z.string().optional(),
-			description:
-				'File path pattern to limit search (e.g., "src/components/**")',
-		},
-		filterByKind: {
-			type: z.array(z.string()).optional(),
-			description:
-				'Filter by symbol kind (e.g., ["function", "class", "variable"])',
-		},
-		exportedOnly: {
-			type: booleanSchema.optional().default(true),
-			description:
-				'Only analyze exported symbols (default: true)',
-		},
-		includeReasons: {
-			type: booleanSchema.optional().default(true),
-			description:
-				'Include reasons why code is orphaned (default: true)',
-		},
-		includeConfidence: {
-			type: booleanSchema.optional().default(false),
-			description:
-				'Include confidence scores (default: false)',
-		},
-		limit: {
-			type: z.coerce.number().int().min(1).max(100).optional().default(50),
-			description:
-				'Maximum number of orphaned items to return per page (default: 50, max: 100). Use 75-100 for comprehensive cleanup analysis to minimize pagination rounds.',
-		},
-		offset: {
-			type: z.coerce.number().int().min(0).optional().default(0),
-			description: 'Starting position for pagination (default: 0). Useful for exploring large amounts of dead code. Example: limit=50, offset=50 gets items 51-100.',
-		},
-	};
+	schema = z.object({
+		filePattern: z.string().optional().describe(
+			'File path pattern to limit search (e.g., "src/components/**")'
+		),
+		filterByKind: z.array(z.string()).optional().describe(
+			'Filter by symbol kind (e.g., ["function", "class", "variable"])'
+		),
+		exportedOnly: booleanSchema.optional().default(true).describe(
+			'Only analyze exported symbols (default: true)'
+		),
+		includeReasons: booleanSchema.optional().default(true).describe(
+			'Include reasons why code is orphaned (default: true)'
+		),
+		includeConfidence: booleanSchema.optional().default(false).describe(
+			'Include confidence scores (default: false)'
+		),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(50).describe(
+			'Maximum number of orphaned items to return per page (default: 50, max: 100). Use 75-100 for comprehensive cleanup analysis to minimize pagination rounds.'
+		),
+		offset: z.coerce.number().int().min(0).optional().default(0).describe(
+			'Starting position for pagination (default: 0). Useful for exploring large amounts of dead code. Example: limit=50, offset=50 gets items 51-100.'
+		),
+	});
 
 	/**
 	 * Format the orphaned code findings for AI-friendly output
