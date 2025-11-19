@@ -19,18 +19,21 @@ AI Assistant → MCP Client → MCP Tools → HTTP POST → constellation-core:3
 ## 18 MCP Tools
 
 **Architecture** (4):
+
 - `get-architecture-overview` - High-level project structure
 - `detect-architecture-violations` - Pattern violations
 - `get-module-overview` - Module details
 - `compare-modules` - Module comparison
 
 **Dependencies** (4):
+
 - `get-dependencies` - Symbol dependencies
 - `get-dependents` - What depends on symbol
 - `find-circular-dependencies` - Circular refs
 - `analyze-package-usage` - Package usage
 
 **Discovery** (6):
+
 - `search-symbols` - Find symbols by name/pattern
 - `search-files` - Find files
 - `get-symbol-details` - Symbol info
@@ -39,6 +42,7 @@ AI Assistant → MCP Client → MCP Tools → HTTP POST → constellation-core:3
 - `find-similar-patterns` - Pattern matching
 
 **Impact** (4):
+
 - `impact-analysis` - Change impact
 - `trace-symbol-usage` - Symbol usage traces
 - `get-call-graph` - Call relationships
@@ -72,55 +76,63 @@ src/
 ## BaseMcpTool Pattern
 
 **All tools extend BaseMcpTool**:
+
 ```typescript
 // src/lib/BaseMcpTool.ts
 export abstract class BaseMcpTool<TInput, TOutput> {
-  abstract name: string;
-  abstract description: string;
-  abstract inputSchema: z.ZodSchema<TInput>;
+	abstract name: string;
+	abstract description: string;
+	abstract inputSchema: z.ZodSchema<TInput>;
 
-  async execute(input: unknown): Promise<TOutput> {
-    const validated = this.inputSchema.parse(input);
-    return this.executeInternal(validated);
-  }
+	async execute(input: unknown): Promise<TOutput> {
+		const validated = this.inputSchema.parse(input);
+		return this.executeInternal(validated);
+	}
 
-  protected abstract executeInternal(input: TInput): Promise<TOutput>;
+	protected abstract executeInternal(input: TInput): Promise<TOutput>;
 }
 ```
 
 **Example Tool**:
+
 ```typescript
 // src/tools/discovery/SearchSymbolsTool.ts
-export class SearchSymbolsTool extends BaseMcpTool<SearchSymbolsInput, SearchSymbolsOutput> {
-  name = 'search-symbols';
-  description = 'Search for symbols by name or pattern';
-  inputSchema = searchSymbolsInputSchema;
+export class SearchSymbolsTool extends BaseMcpTool<
+	SearchSymbolsInput,
+	SearchSymbolsOutput
+> {
+	name = 'search-symbols';
+	description = 'Search for symbols by name or pattern';
+	inputSchema = searchSymbolsInputSchema;
 
-  protected async executeInternal(input: SearchSymbolsInput): Promise<SearchSymbolsOutput> {
-    const response = await this.client.post('/mcp/execute', {
-      tool: this.name,
-      params: input
-    });
-    return response.data;
-  }
+	protected async executeInternal(
+		input: SearchSymbolsInput,
+	): Promise<SearchSymbolsOutput> {
+		const response = await this.client.post('/mcp/execute', {
+			tool: this.name,
+			params: input,
+		});
+		return response.data;
+	}
 }
 ```
 
 ## Tool Registry Pattern
 
 **Registration**:
+
 ```typescript
 // src/registry/ToolRegistry.ts
 export class ToolRegistry {
-  private tools = new Map<string, BaseMcpTool<any, any>>();
+	private tools = new Map<string, BaseMcpTool<any, any>>();
 
-  register(tool: BaseMcpTool<any, any>): void {
-    this.tools.set(tool.name, tool);
-  }
+	register(tool: BaseMcpTool<any, any>): void {
+		this.tools.set(tool.name, tool);
+	}
 
-  get(name: string): BaseMcpTool<any, any> | undefined {
-    return this.tools.get(name);
-  }
+	get(name: string): BaseMcpTool<any, any> | undefined {
+		return this.tools.get(name);
+	}
 }
 
 // src/index.ts
@@ -131,37 +143,50 @@ registry.register(new GetSymbolDetailsTool());
 ```
 
 **Tool Definitions** (separate from implementation):
+
 ```typescript
 // src/registry/tool-definitions/search-symbols.definition.ts
 export const searchSymbolsDefinition = {
-  name: 'search-symbols',
-  description: 'Search for symbols by name or pattern',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      query: { type: 'string' },
-      types: { type: 'array', items: { type: 'string' } }
-    },
-    required: ['query']
-  }
+	name: 'search-symbols',
+	description: 'Search for symbols by name or pattern',
+	inputSchema: {
+		type: 'object',
+		properties: {
+			query: { type: 'string' },
+			types: { type: 'array', items: { type: 'string' } },
+		},
+		required: ['query'],
+	},
 };
 ```
 
 ## Type Sync (MANUAL - CRITICAL)
 
 **MCP types** (`src/types/api-types.ts`) must mirror Core DTOs:
+
 ```typescript
 // Core: constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
-export interface SearchSymbolsParams { query: string; types?: string[]; }
-export interface SearchSymbolsResult { symbols: SymbolInfo[]; }
+export interface SearchSymbolsParams {
+	query: string;
+	types?: string[];
+}
+export interface SearchSymbolsResult {
+	symbols: SymbolInfo[];
+}
 
 // MCP: constellation-mcp/src/types/api-types.ts (MUST MATCH)
 // Mirrors constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
-export interface SearchSymbolsParams { query: string; types?: string[]; }
-export interface SearchSymbolsResult { symbols: SymbolInfo[]; }
+export interface SearchSymbolsParams {
+	query: string;
+	types?: string[];
+}
+export interface SearchSymbolsResult {
+	symbols: SymbolInfo[];
+}
 ```
 
 **Every type needs sync comment**:
+
 ```typescript
 // Mirrors constellation-core/apps/client-api/src/mcp/dto/{tool}.dto.ts
 ```
@@ -171,67 +196,76 @@ export interface SearchSymbolsResult { symbols: SymbolInfo[]; }
 ## Constellation Client
 
 **HTTP Client to Core**:
+
 ```typescript
 // src/client/constellation-client.ts
 export class ConstellationClient {
-  private baseURL: string;
-  private accessKey: string;
+	private baseURL: string;
+	private accessKey: string;
 
-  async post<T>(endpoint: string, data: any): Promise<T> {
-    const response = await axios.post(`${this.baseURL}${endpoint}`, data, {
-      headers: {
-        'Authorization': `Bearer ${this.accessKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    return response.data;
-  }
+	async post<T>(endpoint: string, data: any): Promise<T> {
+		const response = await axios.post(`${this.baseURL}${endpoint}`, data, {
+			headers: {
+				Authorization: `Bearer ${this.accessKey}`,
+				'Content-Type': 'application/json',
+			},
+		});
+		return response.data;
+	}
 }
 ```
 
 **Error Mapping**:
+
 ```typescript
 // src/client/error-mapper.ts
 export function mapCoreError(error: CoreError): McpError {
-  switch (error.code) {
-    case 'AUTH_ERROR': return new McpAuthError(error.message);
-    case 'VALIDATION_ERROR': return new McpValidationError(error.message);
-    case 'NETWORK_ERROR': return new McpNetworkError(error.message);
-    default: return new McpError(error.message);
-  }
+	switch (error.code) {
+		case 'AUTH_ERROR':
+			return new McpAuthError(error.message);
+		case 'VALIDATION_ERROR':
+			return new McpValidationError(error.message);
+		case 'NETWORK_ERROR':
+			return new McpNetworkError(error.message);
+		default:
+			return new McpError(error.message);
+	}
 }
 ```
 
 ## Configuration
 
 **Environment Variables** (required):
+
 ```bash
 export CONSTELLATION_ACCESS_KEY=ak_00000000-...
 export CONSTELLATION_API_URL=http://localhost:3000
 ```
 
 **Config Manager**:
+
 ```typescript
 // src/config/config-manager.ts
 export class ConfigManager {
-  private config: Config;
+	private config: Config;
 
-  load(): void {
-    this.config = {
-      apiUrl: process.env.CONSTELLATION_API_URL || 'http://localhost:3000',
-      accessKey: process.env.CONSTELLATION_ACCESS_KEY || '',
-    };
+	load(): void {
+		this.config = {
+			apiUrl: process.env.CONSTELLATION_API_URL || 'http://localhost:3000',
+			accessKey: process.env.CONSTELLATION_ACCESS_KEY || '',
+		};
 
-    if (!this.config.accessKey) {
-      throw new Error('CONSTELLATION_ACCESS_KEY is required');
-    }
-  }
+		if (!this.config.accessKey) {
+			throw new Error('CONSTELLATION_ACCESS_KEY is required');
+		}
+	}
 }
 ```
 
 ## Commands
 
 **Development**:
+
 ```bash
 npm run inspector              # MCP protocol inspector (test tools)
 npm run build                  # Build TypeScript
@@ -240,6 +274,7 @@ npm start                      # Start MCP server
 ```
 
 **Testing**:
+
 ```bash
 npm test                       # All tests
 npm run test:watch             # Watch mode
@@ -247,6 +282,7 @@ npm run test:coverage          # With coverage (90%+ required)
 ```
 
 **MCP Inspector**:
+
 ```bash
 npm run inspector
 # Opens MCP inspector UI
@@ -257,6 +293,7 @@ npm run inspector
 ## MCP Protocol Integration
 
 **Tool Call Flow**:
+
 1. AI assistant calls MCP tool: `search-symbols({query: "foo"})`
 2. MCP server receives request via stdin (JSON-RPC)
 3. ToolRegistry looks up tool by name
@@ -266,21 +303,22 @@ npm run inspector
 7. MCP tool returns result to AI assistant via stdout
 
 **JSON-RPC Format**:
+
 ```json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "search-symbols",
-    "arguments": {"query": "foo"}
-  },
-  "id": 1
+	"method": "tools/call",
+	"params": {
+		"name": "search-symbols",
+		"arguments": { "query": "foo" }
+	},
+	"id": 1
 }
 ```
 
 ## Error Handling
 
 **Error Types**:
+
 - `McpAuthError`: Invalid CONSTELLATION_ACCESS_KEY
 - `McpValidationError`: Invalid tool parameters
 - `McpNetworkError`: Cannot reach constellation-core
@@ -288,9 +326,9 @@ npm run inspector
 - `McpError`: Generic error
 
 **Error Response**:
+
 ```typescript
 {
-  "jsonrpc": "2.0",
   "error": {
     "code": -32603,
     "message": "Symbol not found",
@@ -303,6 +341,7 @@ npm run inspector
 ## File Conventions
 
 **Naming**:
+
 ```
 {Name}Tool.ts              Tool implementations
 {name}.definition.ts       Tool definitions (MCP protocol)
@@ -310,6 +349,7 @@ npm run inspector
 ```
 
 **Imports**:
+
 ```typescript
 ✓ import { BaseMcpTool } from '../lib/BaseMcpTool';
 ✓ import { ConstellationClient } from '../client/constellation-client';
@@ -319,6 +359,7 @@ npm run inspector
 ## Key Patterns
 
 **Code Style** (AI assistant optimized):
+
 ```typescript
 ✗ NEVER use emojis (❌, ✅, 🚀, etc.)
 ✗ NEVER use decorative characters (═══, ───, etc.)
@@ -327,8 +368,12 @@ npm run inspector
 ```
 
 **Validation**: Zod everywhere
+
 ```typescript
-const schema = z.object({ query: z.string(), types: z.array(z.string()).optional() });
+const schema = z.object({
+	query: z.string(),
+	types: z.array(z.string()).optional(),
+});
 ```
 
 **Logging**: console.log/console.error (no winston in MCP)
@@ -352,6 +397,7 @@ const schema = z.object({ query: z.string(), types: z.array(z.string()).optional
 ## Testing Tools
 
 **MCP Inspector**:
+
 ```bash
 npm run inspector
 # Interactive UI to test all 18 tools
@@ -360,14 +406,15 @@ npm run inspector
 ```
 
 **Unit Tests**:
+
 ```typescript
 // src/tools/discovery/SearchSymbolsTool.spec.ts
 describe('SearchSymbolsTool', () => {
-  it('should search symbols', async () => {
-    const tool = new SearchSymbolsTool(mockClient);
-    const result = await tool.execute({ query: 'foo' });
-    expect(result.symbols).toBeDefined();
-  });
+	it('should search symbols', async () => {
+		const tool = new SearchSymbolsTool(mockClient);
+		const result = await tool.execute({ query: 'foo' });
+		expect(result.symbols).toBeDefined();
+	});
 });
 ```
 
