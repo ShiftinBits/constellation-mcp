@@ -12,6 +12,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, collapsedHint, numberedList } from '../../utils/format-helpers.js';
 import { MARKERS, getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class FindOrphanedCodeTool extends BaseMcpTool<
 	FindOrphanedCodeParams,
@@ -35,17 +36,17 @@ class FindOrphanedCodeTool extends BaseMcpTool<
 				'Filter by symbol kind (e.g., ["function", "class", "variable"])',
 		},
 		exportedOnly: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description:
 				'Only analyze exported symbols (default: true)',
 		},
 		includeReasons: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description:
 				'Include reasons why code is orphaned (default: true)',
 		},
 		includeConfidence: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include confidence scores (default: false)',
 		},

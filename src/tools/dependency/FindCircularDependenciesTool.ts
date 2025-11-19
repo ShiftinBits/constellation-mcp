@@ -12,6 +12,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, keyValue, collapsedHint, numberedList } from '../../utils/format-helpers.js';
 import { MARKERS } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class FindCircularDependenciesTool extends BaseMcpTool<
 	FindCircularDependenciesParams,
@@ -35,11 +36,11 @@ class FindCircularDependenciesTool extends BaseMcpTool<
 				'Minimum cycle length to detect (default: 2, max: 10)',
 		},
 		includeDetails: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Include detailed cycle information (default: true)',
 		},
 		includeConfidence: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include confidence scores (default: false)',
 		},
 		limit: {

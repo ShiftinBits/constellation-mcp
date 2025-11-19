@@ -12,6 +12,7 @@ import {
 	SearchSymbolsResult,
 } from '../../types/api-types.js';
 import { formatSymbolList, section, emphasize } from '../../utils/format-helpers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class SearchSymbolsTool extends BaseMcpTool<
 	SearchSymbolsParams,
@@ -40,7 +41,7 @@ class SearchSymbolsTool extends BaseMcpTool<
 				'Filter by access level: public, private, protected',
 		},
 		filterByExported: {
-			type: z.coerce.boolean().optional(),
+			type: booleanSchema.optional(),
 			description:
 				'Filter by export status: true (only exported), false (only non-exported)',
 		},
@@ -59,17 +60,17 @@ class SearchSymbolsTool extends BaseMcpTool<
 			description: 'Starting position for pagination (default: 0). For page 2, use offset=limit; for page 3, use offset=limit*2, etc. Example: limit=50, offset=50 gets results 51-100.',
 		},
 		includeUsageCount: {
-			type: z.coerce.boolean().optional(),
+			type: booleanSchema.optional(),
 			description:
 				'Include count of how many places use this symbol',
 		},
 		includeDocumentation: {
-			type: z.coerce.boolean().optional(),
+			type: booleanSchema.optional(),
 			description:
 				'Include full documentation/docstrings for symbols',
 		},
 		includeConfidence: {
-			type: z.coerce.boolean().optional(),
+			type: booleanSchema.optional(),
 			description:
 				'Include confidence scores for search results',
 		},

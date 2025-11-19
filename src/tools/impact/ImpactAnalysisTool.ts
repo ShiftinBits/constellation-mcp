@@ -13,6 +13,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { MARKERS, markExported } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class ImpactAnalysisTool extends BaseMcpTool<
 	ImpactAnalysisParams,
@@ -41,11 +42,11 @@ class ImpactAnalysisTool extends BaseMcpTool<
 				'File path (required for symbol-level or for file-level analysis)',
 		},
 		includeDirectDependents: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Include direct dependents (default: true)',
 		},
 		includeTransitiveDependents: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Include transitive dependents (default: true)',
 		},
 		depth: {
@@ -53,15 +54,15 @@ class ImpactAnalysisTool extends BaseMcpTool<
 			description: 'Maximum dependency depth to analyze (default: 3, max: 5)',
 		},
 		excludeTests: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Exclude test files from analysis (default: true)',
 		},
 		excludeGenerated: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Exclude generated files from analysis (default: true)',
 		},
 		analyzeBreakingChanges: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description: 'Analyze potential breaking changes (default: true)',
 		},
 	};

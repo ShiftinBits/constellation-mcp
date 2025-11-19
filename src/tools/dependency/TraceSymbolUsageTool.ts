@@ -8,18 +8,7 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
 import { formatLocation, section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
-
-// Helper to properly convert string booleans to actual booleans
-// MCP framework sends "true"/"false" strings instead of boolean values
-const booleanSchema = z.preprocess(
-	(val) => {
-		if (typeof val === 'string') {
-			return val.toLowerCase() === 'true';
-		}
-		return val;
-	},
-	z.boolean()
-);
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 interface TraceSymbolUsageParams {
 	symbolId?: string;

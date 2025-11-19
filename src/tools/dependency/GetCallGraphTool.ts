@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { BaseMcpTool } from '../../lib/BaseMcpTool.js';
 import { formatLocation, section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 interface GetCallGraphParams {
 	symbolId?: string;
@@ -88,11 +89,11 @@ class GetCallGraphTool extends BaseMcpTool<
 				'How many levels deep to traverse (default: 3, max: 10)',
 		},
 		excludeExternal: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Exclude external/library calls (default: false)',
 		},
 		includeGraph: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include graph visualization data (default: false)',
 		},
 		limit: {

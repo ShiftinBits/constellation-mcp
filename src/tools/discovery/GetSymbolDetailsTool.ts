@@ -20,6 +20,7 @@ import {
 } from '../../utils/format-helpers.js';
 import { standardErrors } from '../../utils/error-messages.js';
 import { getSymbolMarkers, applyMarkers, MARKERS } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class GetSymbolDetailsTool extends BaseMcpTool<
 	GetSymbolDetailsParams,
@@ -45,17 +46,17 @@ class GetSymbolDetailsTool extends BaseMcpTool<
 				'File path containing the symbol (required if symbolId not provided)',
 		},
 		includeReferences: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include all references to this symbol (default: false)',
 		},
 		includeRelationships: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include relationships (calls, extends, implements) (default: false)',
 		},
 		includeImpactScore: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include impact/importance score (default: false)',
 		},

@@ -12,6 +12,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { MARKERS, getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class GetDependentsTool extends BaseMcpTool<
 	GetDependentsParams,
@@ -35,11 +36,11 @@ class GetDependentsTool extends BaseMcpTool<
 				'How many levels deep to traverse dependents (default: 1, max: 10)',
 		},
 		includeSymbols: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include symbol-level dependent details (default: false)',
 		},
 		includeImpactMetrics: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include detailed impact metrics (default: false)',
 		},
 		limit: {

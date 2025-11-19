@@ -12,6 +12,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, keyValue, collapsedHint } from '../../utils/format-helpers.js';
 import { MARKERS, getFileMarkers, applyMarkers } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class GetDependenciesTool extends BaseMcpTool<
 	GetDependenciesParams,
@@ -35,12 +36,12 @@ class GetDependenciesTool extends BaseMcpTool<
 				'How many levels deep to traverse dependencies (default: 1, max: 10)',
 		},
 		includePackages: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include external package dependencies (default: false)',
 		},
 		includeSymbols: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include symbol-level dependency details (default: false)',
 		},
 		limit: {

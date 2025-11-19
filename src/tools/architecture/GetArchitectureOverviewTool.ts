@@ -12,6 +12,7 @@ import {
 } from '../../types/api-types.js';
 import { section, emphasize, collapsedHint } from '../../utils/format-helpers.js';
 import { MARKERS } from '../../utils/semantic-markers.js';
+import { booleanSchema } from '../../utils/schema-helpers.js';
 
 class GetArchitectureOverviewTool extends BaseMcpTool<
 	GetArchitectureOverviewParams,
@@ -23,16 +24,16 @@ class GetArchitectureOverviewTool extends BaseMcpTool<
 
 	schema = {
 		includeMetrics: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description:
 				'Include quality metrics (complexity, maintainability, test coverage) - default: false',
 		},
 		includeModuleGraph: {
-			type: z.coerce.boolean().optional().default(false),
+			type: booleanSchema.optional().default(false),
 			description: 'Include module graph structure - default: false',
 		},
 		includePackages: {
-			type: z.coerce.boolean().optional().default(true),
+			type: booleanSchema.optional().default(true),
 			description:
 				'Include external package dependency details - default: true',
 		},
