@@ -200,17 +200,44 @@ export interface SearchSymbolsResult {
 ```typescript
 // src/client/constellation-client.ts
 export class ConstellationClient {
-	private baseURL: string;
+	private config: ConstellationConfig;
 	private accessKey: string;
 
-	async post<T>(endpoint: string, data: any): Promise<T> {
-		const response = await axios.post(`${this.baseURL}${endpoint}`, data, {
-			headers: {
-				Authorization: `Bearer ${this.accessKey}`,
-				'Content-Type': 'application/json',
-			},
+	async executeMcpTool<TParams, TResult>(
+		toolName: string,
+		parameters: TParams,
+		context: { projectId: string; branchName: string }
+	): Promise<McpToolResult<TResult>> {
+		const response = await this.sendRequest(
+			`mcp/tools/${toolName}`,
+			{ parameters },
+			'POST',
+			{
+				'x-project-id': context.projectId,
+				'x-branch-name': context.branchName,
+			}
+		);
+		return response.json();
+	}
+
+	private async sendRequest(
+		path: string,
+		data: any,
+		method: string,
+		additionalHeaders: Record<string, string> = {}
+	): Promise<Response> {
+		const requestHeaders: Record<string, string> = {
+			...additionalHeaders,
+			'Content-Type': 'application/json; charset=utf-8',
+			'Authorization': this.accessKey, // Direct key, no "Bearer" prefix
+		};
+
+		const url = `${this.config.apiUrl}/v1/${path}`;
+		return fetch(url, {
+			method,
+			headers: requestHeaders,
+			body: data ? JSON.stringify(data) : undefined,
 		});
-		return response.data;
 	}
 }
 ```
