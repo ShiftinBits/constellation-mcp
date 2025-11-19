@@ -131,11 +131,11 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'MISTAKE: Setting depth=5 immediately → DO: Start with depth=1, check count, then increase if needed',
-		'MISTAKE: Using this when simple get_dependents suffices → DO: Use simpler tools first, escalate if needed',
-		'MISTAKE: Not excluding tests (excludeTests=false) → DO: Exclude tests for production impact',
-		'MISTAKE: Using for "where is X defined?" → DO: Use search_symbols + get_symbol_details',
-		'MISTAKE: Running depth=4-5 on core infrastructure → DO: Use depth=1-2 first, understand scope',
+		'MISTAKE: Setting depth=4-5 immediately → DO: Start with depth=1, check result count, increase incrementally (depth grows EXPONENTIALLY: depth=1=10 files, depth=2=100 files, depth=3=1000+ files)',
+		'MISTAKE: Using this when simple "what uses X?" question suffices → DO: Use get_dependents for simple queries; impact_analysis for refactoring planning',
+		'MISTAKE: Not excluding tests (excludeTests=false) → DO: Set excludeTests=true when analyzing production-only impact',
+		'MISTAKE: Using for "where is X defined?" → DO: Use search_symbols + get_symbol_details for discovery',
+		'MISTAKE: Running depth=4-5 on core infrastructure files → DO: Use depth=1-2 first to gauge scope; high depths on core files can return 10,000+ results',
 	],
 
 	sinceVersion: '0.0.1',

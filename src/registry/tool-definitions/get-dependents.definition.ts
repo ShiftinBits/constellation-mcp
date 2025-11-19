@@ -97,10 +97,11 @@ export const getDependentsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'MISTAKE: Confusing with get_dependencies → DO: Dependents=who uses X, Dependencies=what X uses',
-		'MISTAKE: Using depth=3+ on core files → DO: Start depth=1, check count, then increase',
-		'MISTAKE: Not checking before deleting → DO: Always check dependents before removing code',
-		'MISTAKE: Using for comprehensive impact → DO: Use impact_analysis for full refactoring analysis',
+		'MISTAKE: Confusing with get_dependencies → DO: get_dependents=who uses X (reverse/upstream), get_dependencies=what X uses (forward/downstream)',
+		'MISTAKE: Using depth=3+ on core files immediately → DO: Start depth=1, check result count, increase only if needed (exponential growth)',
+		'MISTAKE: Not checking before deleting code → DO: Always verify zero dependents before removing any file or symbol',
+		'MISTAKE: Using for comprehensive refactoring planning → DO: Use impact_analysis for detailed refactoring analysis with breaking change detection',
+		'MISTAKE: Chaining multiple calls sequentially → DO: If checking dependents for multiple files, make parallel tool calls',
 	],
 
 	sinceVersion: '0.0.1',

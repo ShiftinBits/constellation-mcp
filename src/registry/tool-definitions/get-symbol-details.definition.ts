@@ -135,9 +135,10 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 	commonMistakes: [
 		'MISTAKE: Using for symbol search → DO: Use search_symbols first to find symbols',
 		'MISTAKE: Providing only symbolName without filePath → DO: Provide both or use symbolId',
-		'MISTAKE: includeReferences on popular symbols (1000+ refs) → DO: Use trace_symbol_usage instead',
-		'MISTAKE: Not using symbolId from search_symbols → DO: Always use symbolId when available',
+		'MISTAKE: Setting includeReferences=true on widely-used symbols (100+ usages) → DO: Use trace_symbol_usage for detailed usage patterns with code context',
+		'MISTAKE: Not using symbolId from search_symbols → DO: Always use symbolId when available (faster and unambiguous)',
 		'MISTAKE: Enabling all options when you need basic info → DO: Start minimal, add flags as needed',
+		'MISTAKE: Using includeReferences for usage patterns → DO: includeReferences shows locations only; use trace_symbol_usage for HOW symbols are used',
 	],
 
 	sinceVersion: '0.0.1',

@@ -192,10 +192,11 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'MISTAKE: Using filterByUsageType to filter how symbols are used → DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.)',
-		'MISTAKE: Always setting excludeTests=true when user wants to see ALL usages → DO: Use excludeTests=false (default) to include all code; only use excludeTests=true when specifically analyzing production impact',
-		'MISTAKE: Setting includeContext=false to reduce data → DO: Keep includeContext=true (default) - context is the primary value of this tool',
-		'MISTAKE: Using includeTransitive=true for simple usage checks → DO: Use includeTransitive=false (default) unless you need ripple effect analysis',
+		'MISTAKE: Using filterByUsageType to filter how symbols are used → DO: Use filterByRelationshipType (["CALLS"], ["IMPORTS"], etc.) - filterByUsageType filters symbol KIND, not usage pattern',
+		'MISTAKE: Setting excludeTests=true by default → DO: Use excludeTests=false (default) to see ALL usages including tests; only use excludeTests=true when specifically analyzing production impact',
+		'MISTAKE: Setting includeContext=false to reduce response size → DO: Keep includeContext=true (default) - showing HOW symbols are used is this tool\'s unique value vs get_symbol_details',
+		'MISTAKE: Using includeTransitive=true for simple "where is X called?" → DO: Use includeTransitive=false (default) for direct usage; includeTransitive shows ripple effects (files depending on files that use X)',
+		'MISTAKE: Using when basic reference list suffices → DO: Use get_symbol_details(includeReferences=true) if you only need locations; trace_symbol_usage shows code context',
 	],
 
 	sinceVersion: '0.0.1',

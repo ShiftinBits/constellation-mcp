@@ -176,11 +176,12 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 	],
 
 	commonMistakes: [
-		'MISTAKE: Using when you already have exact file+symbol → DO: Use get_symbol_details directly',
+		'MISTAKE: Using when you already have exact file+symbol (e.g., src/services/user.ts:UserService) → DO: Use get_symbol_details directly with symbolName+filePath',
 		'MISTAKE: Using for "what uses X?" → DO: Use get_dependents or trace_symbol_usage',
 		'MISTAKE: Empty query without filters → DO: Always provide query or specific filters',
 		'MISTAKE: Setting limit=100 initially → DO: Start with limit=10-20, increase if needed',
 		'MISTAKE: Not using filePattern when you know location → DO: Use filePattern to narrow results',
+		'MISTAKE: Using for every lookup → DO: After first search, use symbolId from results in subsequent get_symbol_details calls',
 	],
 
 	sinceVersion: '0.0.1',
