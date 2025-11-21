@@ -35,6 +35,7 @@ export interface CodeModeResponse {
     sandboxed: boolean;
     validated: boolean;
   };
+  [x: string]: unknown; // Index signature for MCP SDK compatibility
 }
 
 /**

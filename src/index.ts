@@ -1,10 +1,11 @@
-import { MCPServer } from "mcp-framework";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createRequire } from 'module';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { getConfigContext, initializeConfig } from "./config/config-manager.js";
 import { getToolRegistry } from "./registry/ToolRegistry.js";
 import { allToolDefinitions } from "./registry/tool-definitions/index.js";
+import { registerExecuteCodeTool } from "./tools/execute-code-tool.js";
+import { registerConstellationGuidePrompt } from "./prompts/constellation-guide-prompt.js";
 
 const require = createRequire(import.meta.url);
 const packageJson = require('../package.json');
@@ -65,26 +66,33 @@ async function startServer() {
 		console.error(`  Project: ${context.projectId}`);
 		console.error(`  Branch: ${context.branchName}`);
 
-		// Create and configure MCP server
-		// Set basePath to the directory containing this file (dist/) so tools are found
-		// This is necessary for npm link to work correctly
-		const __filename = fileURLToPath(import.meta.url);
-		const __dirname = dirname(__filename);
-
-		const server = new MCPServer({
+		// Create and configure MCP server with official SDK
+		const server = new McpServer({
 			name: '@constellationdev/mcp',
 			version: packageJson.version,
-			basePath: __dirname,
 		});
 
-		// Tools are automatically discovered from dist/tools directory
-		// The MCP framework will scan for default exports in tools/ subdirectories
-		console.error("[CONSTELLATION] Server started successfully");
+		// Register tools manually (no auto-discovery with official SDK)
+		console.error("[CONSTELLATION] Registering tools...");
+		registerExecuteCodeTool(server);
+
+		// Register prompts
+		console.error("[CONSTELLATION] Registering prompts...");
+		registerConstellationGuidePrompt(server);
+
+		// Validate that tool registry matches registered tools
+		console.error("[CONSTELLATION] Validating tool registry...");
+		registry.validateWithMcpServer(server);
+
+		console.error("[CONSTELLATION] Server configured successfully");
 		console.error("[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations");
 		console.error("[CONSTELLATION] Write TypeScript code to access all Constellation API capabilities");
 
-		// Start the server
-		await server.start();
+		// Setup stdio transport and connect
+		const transport = new StdioServerTransport();
+		await server.connect(transport);
+
+		console.error("[CONSTELLATION] Server connected and ready");
 
 	} catch (error) {
 		console.error("\n==========================================================");

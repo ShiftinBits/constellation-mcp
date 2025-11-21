@@ -74,8 +74,7 @@ export class CodeModeSandbox {
 
       // Create and run script in sandbox
       const script = new vm.Script(wrappedCode, {
-        filename: 'code-mode-script.js',
-        timeout: this.options.timeout
+        filename: 'code-mode-script.js'
       });
 
       const context = vm.createContext(sandbox);

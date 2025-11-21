@@ -1,33 +1,17 @@
 /**
- * AI Assistant Guide Prompt
+ * Constellation Guide Prompt Registration
  *
  * Provides comprehensive guidance for AI coding assistants on how to effectively
  * use the Constellation MCP tools for code intelligence and analysis.
  */
 
-import { MCPPrompt } from 'mcp-framework';
-import { z } from 'zod';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-class AIAssistantGuide extends MCPPrompt<{}> {
-	name = 'constellation-guide';
-	description = 'Comprehensive guide for AI assistants on using Constellation MCP tools effectively';
-
-	protected schema = {};
-
-	protected async generateMessages() {
-		return [
-			{
-				role: 'user',
-				content: {
-					type: 'text',
-					text: this.getGuideContent(),
-				},
-			},
-		];
-	}
-
-	private getGuideContent(): string {
-		return `# Constellation MCP - AI Assistant Guide
+/**
+ * Get the comprehensive guide content for AI assistants
+ */
+function getGuideContent(): string {
+	return `# Constellation MCP - AI Assistant Guide
 
 ## Overview
 
@@ -254,7 +238,33 @@ Always review these suggestions - they're contextual to the specific query resul
 ---
 
 This MCP server provides **code intelligence**, not code content. Use it to understand **structure, relationships, and impact** - then use standard tools to read/modify the actual code.`;
-	}
 }
 
-export default AIAssistantGuide;
+/**
+ * Register the constellation-guide prompt with the MCP server
+ *
+ * @param server - The McpServer instance to register the prompt with
+ */
+export function registerConstellationGuidePrompt(server: McpServer): void {
+	server.registerPrompt(
+		'constellation-guide',
+		{
+			title: 'Constellation AI Assistant Guide',
+			description: 'Comprehensive guide for AI assistants on using Constellation MCP tools effectively',
+			argsSchema: {}, // No arguments needed
+		},
+		async () => ({
+			messages: [
+				{
+					role: 'user',
+					content: {
+						type: 'text',
+						text: getGuideContent(),
+					},
+				},
+			],
+		})
+	);
+
+	console.error('[constellation-guide] Prompt registered successfully');
+}

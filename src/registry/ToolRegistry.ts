@@ -327,6 +327,50 @@ export class ToolRegistry {
 	}
 
 	/**
+	 * Validate integration with McpServer
+	 *
+	 * Since the official SDK doesn't expose registered tools, this method
+	 * primarily validates that the registry is ready to provide metadata
+	 * for tools that should be registered with the server.
+	 *
+	 * Note: In Code Mode, we only have one tool (execute_code), so this
+	 * validation is mostly for consistency and logging.
+	 *
+	 * @param server - The McpServer instance (for type checking)
+	 * @returns Validation results
+	 */
+	validateWithMcpServer(server: any): {
+		valid: boolean;
+		warnings: string[];
+	} {
+		const warnings: string[] = [];
+
+		// Ensure registry is initialized
+		if (!this.initialized) {
+			warnings.push('Tool registry not marked as initialized');
+		}
+
+		// Log available tool metadata
+		const tools = this.getAllTools();
+		console.error('[ToolRegistry] Available tool metadata:');
+		for (const tool of tools) {
+			console.error(`  - ${tool.name}: ${tool.examples.length} examples, ${tool.whenToUse.length} use cases`);
+		}
+
+		// Validate that we have metadata for expected tools
+		// In Code Mode, we should have execute_code
+		const hasExecuteCode = this.tools.has('execute_code');
+		if (!hasExecuteCode) {
+			warnings.push('Missing metadata for execute_code tool');
+		}
+
+		return {
+			valid: warnings.length === 0,
+			warnings,
+		};
+	}
+
+	/**
 	 * Generate a summary report of all tools
 	 *
 	 * Useful for documentation and debugging
