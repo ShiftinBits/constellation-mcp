@@ -36,6 +36,54 @@ Your Codebase → [Constellation CLI] → Index → [MCP Server] → Your AI Ass
 4. **MCP Tools**: This server provides specialized tools for utilizing that intelligence
 5. **AI-Powered**: Your coding assistant uses these tools to understand your codebase
 
+## Code Mode: A Revolutionary Approach
+
+**This is a Code Mode-only MCP server.** Instead of providing 10+ individual tools that your AI assistant calls sequentially, we provide ONE powerful tool: `execute_code`. Your AI writes TypeScript/JavaScript code to interact with the Constellation API directly.
+
+### Why Code Mode?
+
+**Traditional MCP**: Each tool call requires a full round-trip through the AI
+```
+AI → Tool 1 → AI → Tool 2 → AI → Tool 3 → Result  (slow, 30+ seconds)
+```
+
+**Code Mode**: Write once, execute once
+```
+AI → Write Code → Execute → Result  (fast, 2-3 seconds)
+```
+
+### Quick Example
+
+Your AI assistant can write code like this to analyze your codebase:
+
+```javascript
+// Find all exported classes and check their usage
+const classes = await api.searchSymbols({
+  filterByKind: ["class"],
+  filterByExported: true,
+  limit: 50
+});
+
+// Check usage in parallel
+const usages = await Promise.all(
+  classes.symbols.map(c =>
+    api.traceSymbolUsage({
+      symbolName: c.name,
+      filePath: c.filePath
+    })
+  )
+);
+
+// Find unused exports
+return classes.symbols
+  .filter((c, i) => usages[i].totalUsages === 0)
+  .map(c => ({ name: c.name, file: c.filePath }));
+```
+
+**Performance**: 10-15x faster for multi-step operations. Code is the native language of LLMs.
+
+**📖 See [Code Mode Documentation](docs/code-mode/README.md) for comprehensive examples, patterns, and best practices.**
+
 ## Installation
 
 ### Claude Code

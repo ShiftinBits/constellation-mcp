@@ -1,24 +1,36 @@
-# Constellation Code Mode
+# Constellation MCP - Code Mode
 
-## Overview
+## A Revolutionary Approach to MCP
 
-Code Mode is a powerful feature that transforms how AI assistants interact with the Constellation MCP tools. Instead of making sequential tool calls, the AI writes TypeScript/JavaScript code that directly calls the Constellation API, enabling complex multi-step analysis with custom logic.
+This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `execute_code`. The AI writes TypeScript code to interact with the Constellation API.
 
-## Why Code Mode?
+## Why Code Mode Only?
 
-### Traditional MCP Tool Calling
+### The Problem with Traditional Tool Calling
+- LLMs have limited training data for tool-calling syntax
+- Each tool call requires a full round-trip through the LLM
+- Sequential operations are slow and inefficient
+- Complex workflows become unwieldy
+
+**Traditional MCP Flow:**
 ```
 AI → Tool 1 → Result → AI → Tool 2 → Result → AI → Tool 3 → Final Result
 ```
 Each step requires a full LLM round-trip, processing the entire context again.
 
-### Code Mode
+### The Code Mode Solution
+- LLMs have seen millions of lines of code - it's their native language
+- Write once, execute once - no round-trips
+- Natural support for loops, conditions, and complex logic
+- 10x performance improvement for multi-step operations
+
+**Code Mode Flow:**
 ```
 AI → Write Code → Execute Once → Final Result
 ```
 The AI writes a complete analysis script that runs in one go.
 
-## Benefits
+### Key Benefits
 
 1. **Performance**: 10x faster for complex workflows (single execution vs multiple LLM round-trips)
 2. **Natural for LLMs**: Code is the native language of language models
@@ -26,49 +38,54 @@ The AI writes a complete analysis script that runs in one go.
 4. **Parallel Execution**: Use `Promise.all()` to run multiple operations concurrently
 5. **Reusability**: Save and share analysis scripts
 
-## Getting Started
+## Quick Start
 
-### Basic Usage
-
-The `execute_code` tool accepts TypeScript or JavaScript code:
-
-```typescript
-// Simple example: Find all User-related classes
+```javascript
+// Execute code using the api object
 const result = await api.searchSymbols({
-  query: "User",
-  filterByKind: ["class"],
-  limit: 20
+  query: "MyClass",
+  filterByKind: ["class"]
 });
 
-return result.symbols.map(s => ({
-  name: s.name,
-  file: s.filePath
-}));
+console.log("Found:", result.symbols.length, "symbols");
+return result;
 ```
 
-### Available API Methods
+## Available API Methods
 
-All 10 Constellation tools are available as API methods:
+All 10 Constellation tools are available as API methods through the `api` object:
 
-- `searchSymbols(params)` - Search for symbols by name/pattern
-- `getSymbolDetails(params)` - Get detailed symbol information
-- `getDependencies(params)` - Find what a file depends on
-- `getDependents(params)` - Find what depends on a file
-- `findCircularDependencies(params)` - Detect circular references
-- `traceSymbolUsage(params)` - Find where symbols are used
-- `getCallGraph(params)` - Get function call relationships
-- `findOrphanedCode(params)` - Find unused code
-- `impactAnalysis(params)` - Analyze change impact
-- `getArchitectureOverview(params)` - Get codebase structure
+| Method | Use Case | Key Parameters |
+|--------|----------|----------------|
+| `searchSymbols` | Find symbols by name/pattern | `query`, `filterByKind[]` |
+| `getSymbolDetails` | Get detailed symbol info | `symbolName`, `filePath` |
+| `getDependencies` | What file depends on | `filePath`, `depth` |
+| `getDependents` | What depends on file | `filePath`, `depth` |
+| `findCircularDependencies` | Detect circular refs | `maxDepth` |
+| `traceSymbolUsage` | Find all symbol usages | `symbolName`, `filePath`, `depth` |
+| `getCallGraph` | Function call relationships | `symbolId`/`functionName`, `filePath` |
+| `impactAnalysis` | Assess change impact | `symbolName`, `filePath`, `analysisDepth` |
+| `findOrphanedCode` | Find unused code | `includeTests`, `minConfidence` |
+| `getArchitectureOverview` | Project structure | `includeMetrics`, `depth` |
 
-## Advanced Examples
+## Examples
 
-### 1. Find Unused Exports
+### Simple Query
+
+```typescript
+// Find all exported functions
+const functions = await api.searchSymbols({
+  filterByKind: ["function"],
+  filterByExported: true
+});
+return functions.symbols.map(f => f.name);
+```
+
+### Find Unused Exports
 
 ```typescript
 // Find all exported symbols
 const symbols = await api.searchSymbols({
-  query: '',
   filterByExported: true,
   limit: 100
 });
@@ -84,21 +101,16 @@ const usages = await Promise.all(
 );
 
 // Filter unused symbols
-const unused = symbols.symbols.filter((s, i) =>
-  usages[i].totalUsages === 0
-);
-
-return {
-  count: unused.length,
-  symbols: unused.map(s => ({
+return symbols.symbols
+  .filter((s, i) => usages[i].totalUsages === 0)
+  .map(s => ({
     name: s.name,
-    type: s.kind,
-    file: s.filePath
-  }))
-};
+    file: s.filePath,
+    type: s.kind
+  }));
 ```
 
-### 2. Analyze Refactoring Impact
+### Analyze Refactoring Impact
 
 ```typescript
 const targetSymbol = "UserService";
@@ -151,12 +163,11 @@ return {
 };
 ```
 
-### 3. Find Critical Path Dependencies
+### Find Critical Path Dependencies
 
 ```typescript
 // Find the most critical files (most depended upon)
 const files = await api.searchSymbols({
-  query: '',
   filterByKind: ['class', 'interface'],
   limit: 100
 });
@@ -205,6 +216,102 @@ return {
     withCircularDeps: circularChecks.filter(f => f.hasCircularDeps).length
   }
 };
+```
+
+### Complete Workflow Example
+
+```javascript
+// Comprehensive analysis workflow
+console.log("Analyzing codebase...");
+
+// Phase 1: Parallel data gathering
+const [arch, circular, orphaned] = await Promise.all([
+  api.getArchitectureOverview({includeMetrics: true, depth: 2}),
+  api.findCircularDependencies({maxDepth: 10}),
+  api.findOrphanedCode({includeTests: false, minConfidence: 0.85})
+]);
+
+console.log("Phase 1 complete");
+
+// Phase 2: Detailed analysis
+const orphanedSymbols = orphaned.orphanedSymbols || [];
+
+for (let i = 0; i < Math.min(orphanedSymbols.length, 5); i++) {
+  const sym = orphanedSymbols[i];
+
+  const usage = await api.traceSymbolUsage({
+    symbolName: sym.name,
+    filePath: sym.filePath,
+    depth: 2
+  });
+
+  if (usage.usageLocations.length === 0) {
+    console.log("Confirmed orphaned:", sym.name);
+  }
+}
+
+console.log("Analysis complete");
+
+return {
+  orphanedSymbols: orphanedSymbols.length,
+  circularDependencies: circular.circularDependencies.length
+};
+```
+
+## Common Patterns
+
+### Pattern: Parallel Execution
+
+```javascript
+const [result1, result2, result3] = await Promise.all([
+  api.searchSymbols({query: "Client", filterByKind: ["class"]}),
+  api.findOrphanedCode({minConfidence: 0.9}),
+  api.findCircularDependencies({maxDepth: 10})
+]);
+```
+
+### Pattern: Chained Analysis
+
+```javascript
+// Step 1: Find symbol
+const search = await api.searchSymbols({
+  query: "MyClass",
+  filterByKind: ["class"]
+});
+
+const symbol = search.symbols[0];
+
+// Step 2: Analyze impact
+const impact = await api.impactAnalysis({
+  symbolName: symbol.name,
+  filePath: symbol.filePath,
+  analysisDepth: 3
+});
+
+// Step 3: Check usage
+const usage = await api.traceSymbolUsage({
+  symbolName: symbol.name,
+  filePath: symbol.filePath,
+  depth: 2
+});
+```
+
+### Pattern: Defensive Coding
+
+```javascript
+const result = await api.searchSymbols({query: "foo"});
+
+// Always check for existence
+const symbols = result.symbols || [];
+const count = symbols.length;
+
+if (count === 0) {
+  console.log("No symbols found");
+  return;
+}
+
+// Safe to use symbols now
+symbols.forEach(s => console.log(s.name));
 ```
 
 ## Helper Utilities
@@ -262,58 +369,176 @@ const allSymbols = await paginator.fetchAll(
 ## Best Practices
 
 ### Do's
-- ✓ Use `await` with all API calls
-- ✓ Use `Promise.all()` for parallel operations
-- ✓ Return meaningful results
-- ✓ Handle empty results gracefully
-- ✓ Use helper utilities for complex workflows
+- Use JavaScript mode: `language: "javascript"`
+- Break down property access into separate variables
+- Use `await` with all API calls
+- Use `Promise.all()` for parallel operations when operations are independent
+- Return meaningful results
+- Handle empty results gracefully (check for null/undefined)
+- Use `console.log()` for debugging
+- Use helper utilities for complex workflows
 
 ### Don'ts
-- ✗ Don't use `require()` or `import`
-- ✗ Don't try to access the file system directly
-- ✗ Don't create infinite loops
-- ✗ Don't make sequential calls in loops (use Promise.all)
-- ✗ Don't forget to return results
+- Don't chain property access on same line (TypeScript mode)
+- Don't use empty query strings
+- Don't use `require()` or `import`
+- Don't try to access the file system directly
+- Don't create infinite loops
+- Don't make sequential calls in loops (use Promise.all)
+- Don't forget to return results
+- Don't ignore error cases or assume data exists without checking
+
+## Error Handling
+
+```javascript
+try {
+  const result = await api.getSymbolDetails({
+    symbolName: "MyClass",
+    filePath: "path/to/file.ts"
+  });
+  console.log("Found symbol");
+} catch (error) {
+  console.log("Error:", error.message);
+  // Handle gracefully
+}
+```
+
+### Common Issues
+
+**Issue: "Cannot read properties of undefined"**
+
+Solution: Always check for existence before accessing
+```javascript
+// BAD:
+const count = result.symbols.length;
+
+// GOOD:
+const symbols = result.symbols || [];
+const count = symbols.length;
+```
+
+**Issue: "Query must contain at least 1 character"**
+
+Solution: Provide non-empty query string
+```javascript
+// BAD:
+await api.searchSymbols({query: ""});
+
+// GOOD:
+await api.searchSymbols({query: "MyClass"});
+```
+
+**Issue: Slow execution**
+
+Solution: Use parallel execution
+```javascript
+// SLOW (sequential):
+const r1 = await api.searchSymbols({...});
+const r2 = await api.findOrphanedCode({...});
+
+// FAST (parallel):
+const [r1, r2] = await Promise.all([
+  api.searchSymbols({...}),
+  api.findOrphanedCode({...})
+]);
+```
+
+**Issue: "api is not defined"**
+
+Solution: The api object is automatically available, don't try to import it
+
+**Issue: "Execution timeout"**
+
+Solution:
+- Code took too long to execute
+- Optimize by using Promise.all() for parallel operations
+- Reduce data set size with limits
+- Limit depth parameters (2-3 usually sufficient)
+
+**Issue: "Cannot use import statement"**
+
+Solution: All necessary functions are pre-loaded. Use the provided api object and helpers
+
+**Issue: "Symbol not found"**
+
+Solution:
+- Check spelling and case sensitivity
+- Use broader search patterns
+- Verify the symbol exists in the indexed codebase
+
+## Debugging
+
+```javascript
+// Enable detailed logging
+console.log("Step 1: Searching...");
+const result = await api.searchSymbols({query: "foo"});
+console.log("Result:", JSON.stringify(result, null, 2));
+
+// Check data structure
+console.log("Type:", typeof result);
+console.log("Has symbols:", result.hasOwnProperty("symbols"));
+console.log("Symbols length:", result.symbols ? result.symbols.length : "undefined");
+```
+
+## Performance
+
+### Tips
+1. Use parallel execution when operations are independent
+2. Limit depth parameters (2-3 usually sufficient)
+3. Filter results early to reduce processing
+4. Batch similar operations together
+
+### Comparison
+
+| Operation | Traditional MCP | Code Mode | Improvement |
+|-----------|----------------|-----------|-------------|
+| Find unused exports (100 symbols) | 45 seconds | 3 seconds | 15x |
+| Refactoring impact analysis | 12 seconds | 1.5 seconds | 8x |
+| Dependency analysis | 20 seconds | 2 seconds | 10x |
+| Complex workflow (10 steps) | 30 seconds | 2.5 seconds | 12x |
 
 ## Security
 
-Code Mode runs in a sandboxed environment with:
+Code execution happens in a sandboxed environment:
+- No file system access
+- No network access (except through the API)
+- Timeout protection (30-60 seconds)
+- Memory limits
+- No process access (can't spawn processes or access system)
 
-- **No file system access**: Can't read or write files directly
-- **No network access**: Can't make HTTP requests
-- **No process access**: Can't spawn processes or access system
-- **Timeout protection**: Maximum 30-60 second execution time
-- **Memory limits**: Restricted memory usage
+## Setup
 
-## Troubleshooting
+1. Install dependencies:
+```bash
+npm install
+```
 
-### Common Errors
+2. Build the project:
+```bash
+npm run build
+```
 
-1. **"api is not defined"**
-   - The api object is automatically available, don't try to import it
+3. Set environment variables:
+```bash
+export CONSTELLATION_ACCESS_KEY=your_key
+export CONSTELLATION_API_URL=http://localhost:3000
+```
 
-2. **"Execution timeout"**
-   - Code took too long to execute
-   - Optimize by using Promise.all() for parallel operations
-   - Reduce data set size with limits
+4. Run the MCP server:
+```bash
+npm start
+```
 
-3. **"Cannot use import statement"**
-   - All necessary functions are pre-loaded
-   - Use the provided api object and helpers
+## Usage with Claude
 
-4. **"Symbol not found"**
-   - Check spelling and case sensitivity
-   - Use broader search patterns
-   - Verify the symbol exists in the indexed codebase
+When using this MCP server with Claude, the AI will automatically understand that it needs to write code for EVERY request. You can ask questions naturally:
 
-## Examples Repository
+- "Find all React components"
+- "Show me the dependencies of user.service.ts"
+- "What files have circular dependencies?"
+- "Analyze the impact of refactoring the AuthService"
 
-Find more Code Mode examples in `/docs/code-mode/examples/`:
-
-- `basic-queries.ts` - Simple search and lookup operations
-- `workflows.ts` - Complex multi-step workflows
-- `analysis-patterns.ts` - Common analysis patterns
-- `performance-optimizations.ts` - Tips for faster execution
+The AI will translate these into TypeScript code and execute them.
 
 ## Migration Guide
 
@@ -341,19 +566,21 @@ const details = await Promise.all(
 // Process all at once
 ```
 
-## Performance Comparison
+## Philosophy
 
-| Operation | Traditional | Code Mode | Improvement |
-|-----------|------------|-----------|-------------|
-| Find unused exports (100 symbols) | 45s | 3s | 15x |
-| Refactoring impact analysis | 12s | 1.5s | 8x |
-| Circular dependency detection | 20s | 2s | 10x |
-| Complex workflow (10 steps) | 30s | 2.5s | 12x |
+> "Code is the native language of LLMs. Let them speak it."
+
+This server embraces the insight from [Cloudflare's blog post on Code Mode](https://blog.cloudflare.com/code-mode/): LLMs are much better at writing code than using tools. By providing a single, powerful code execution environment, we get better performance, more natural interactions, and more powerful capabilities.
 
 ## Contributing
 
-To add new capabilities to Code Mode:
+This is a Code Mode-only server. Any contributions should maintain this philosophy:
+- No individual tools - everything through execute_code
+- Focus on making the API methods powerful and composable
+- Improve the sandbox and security model
+- Add more helper utilities for common patterns
 
+To add new capabilities to Code Mode:
 1. Add new tool to `src/tools/`
 2. Create tool definition in `src/registry/tool-definitions/`
 3. Run `npm run codegen` to regenerate API
@@ -362,7 +589,16 @@ To add new capabilities to Code Mode:
 ## Support
 
 For issues or questions about Code Mode:
-
 1. Check the examples in `/docs/code-mode/examples/`
 2. Review common patterns in this guide
 3. Submit issues to the constellation-mcp repository
+
+## License
+
+MIT
+
+---
+
+**Version**: 1.0
+**Last Updated**: 2025-11-21
+**Status**: Production Ready
