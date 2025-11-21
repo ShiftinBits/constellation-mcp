@@ -33,7 +33,7 @@ async function addJsExtensionsToFiles(dir: string): Promise<void> {
 }
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/tools/**/*.ts', 'src/prompts/**/*.ts', 'src/lib/**/*.ts', 'src/config/**/*.ts', 'src/client/**/*.ts', 'src/utils/**/*.ts', 'src/registry/**/*.ts'],
+  entry: ['src/index.ts', 'src/tools/**/*.ts', 'src/prompts/**/*.ts', 'src/lib/**/*.ts', 'src/config/**/*.ts', 'src/client/**/*.ts', 'src/utils/**/*.ts', 'src/registry/**/*.ts', 'src/codegen/**/*.ts', 'src/code-mode/**/*.ts'],
   format: ['esm'],
   platform: 'node',
   target: 'node18',

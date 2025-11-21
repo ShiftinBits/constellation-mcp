@@ -80,7 +80,8 @@ async function startServer() {
 		// Tools are automatically discovered from dist/tools directory
 		// The MCP framework will scan for default exports in tools/ subdirectories
 		console.error("[CONSTELLATION] Server started successfully");
-		console.error("[CONSTELLATION] 10 Available tools");
+		console.error("[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations");
+		console.error("[CONSTELLATION] Write TypeScript code to access all Constellation API capabilities");
 
 		// Start the server
 		await server.start();
