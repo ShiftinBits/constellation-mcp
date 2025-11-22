@@ -24,6 +24,21 @@ export const impactAnalysisDefinition: McpToolDefinition = {
 
 	relatedTools: ['get_dependencies', 'get_dependents', 'trace_symbol_usage', 'find_orphaned_code'],
 
+	triggerPhrases: [
+		"what will break",
+		"is it safe to change",
+		"show blast radius",
+		"what breaks if I change",
+		"how many files use this",
+		"impact of changing",
+		"breaking change risk",
+		"can I modify this safely",
+		"what depends on this",
+		"refactoring impact",
+		"change impact analysis",
+		"what's affected by this change",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

@@ -24,6 +24,17 @@ export const findOrphanedCodeDefinition: McpToolDefinition = {
 
 	relatedTools: ['impact_analysis', 'trace_symbol_usage', 'get_dependents'],
 
+	triggerPhrases: [
+		"find dead code",
+		"what can I delete",
+		"show unused exports",
+		"clean up unused code",
+		"find unused",
+		"orphaned code",
+		"unused functions",
+		"dead code cleanup",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

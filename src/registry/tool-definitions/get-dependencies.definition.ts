@@ -32,6 +32,17 @@ export const getDependenciesDefinition: McpToolDefinition = {
 		'impact_analysis',
 	],
 
+	triggerPhrases: [
+		"what does X import",
+		"show dependencies",
+		"what packages does this use",
+		"what does X depend on",
+		"show imports",
+		"dependencies of X",
+		"what does X require",
+		"imports for X",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

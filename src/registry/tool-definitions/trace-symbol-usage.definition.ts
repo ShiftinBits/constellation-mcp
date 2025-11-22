@@ -34,6 +34,19 @@ export const traceSymbolUsageDefinition: McpToolDefinition = {
 		'get_call_graph',
 	],
 
+	triggerPhrases: [
+		"how is X used",
+		"show all callers",
+		"where is this referenced",
+		"who calls X",
+		"where is X called",
+		"usage of X",
+		"show usage patterns",
+		"find all uses of X",
+		"where is this function called",
+		"show references to X",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

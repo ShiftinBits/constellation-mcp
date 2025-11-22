@@ -34,6 +34,19 @@ export const getSymbolDetailsDefinition: McpToolDefinition = {
 		'get_dependencies',
 	],
 
+	triggerPhrases: [
+		"what is X",
+		"show me X",
+		"what does X do",
+		"where is X defined",
+		"tell me about X",
+		"explain X",
+		"details about X",
+		"show function X",
+		"what are X parameters",
+		"X signature",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

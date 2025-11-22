@@ -31,6 +31,21 @@ export const searchSymbolsDefinition: McpToolDefinition = {
 		'trace_symbol_usage',
 	],
 
+	triggerPhrases: [
+		"find function X",
+		"where is X",
+		"show me all Y",
+		"locate class X",
+		"find all functions named",
+		"where is X defined",
+		"show components",
+		"find symbol",
+		"search for class",
+		"what functions do Z",
+		"find all X",
+		"where can I find",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

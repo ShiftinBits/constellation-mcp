@@ -24,6 +24,17 @@ export const getCallGraphDefinition: McpToolDefinition = {
 
 	relatedTools: ['trace_symbol_usage', 'get_symbol_details', 'get_dependencies'],
 
+	triggerPhrases: [
+		"show call graph",
+		"what calls this function",
+		"execution flow",
+		"what does X call",
+		"call hierarchy",
+		"trace call chain",
+		"visualize function calls",
+		"show callers",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

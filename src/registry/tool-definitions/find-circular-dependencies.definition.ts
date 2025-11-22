@@ -24,6 +24,19 @@ export const findCircularDependenciesDefinition: McpToolDefinition = {
 
 	relatedTools: ['get_dependencies', 'get_dependents'],
 
+	triggerPhrases: [
+		"find circular dependencies",
+		"are there import cycles",
+		"show circular refs",
+		"circular dependency",
+		"import cycle",
+		"module loading failing",
+		"check for dependency loops",
+		"circular imports",
+		"find cycles",
+		"dependency loop",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

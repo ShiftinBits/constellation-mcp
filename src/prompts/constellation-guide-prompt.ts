@@ -28,6 +28,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Discovery & Search
 **search_symbols** - First stop for finding code elements
+- TRIGGERS: "find X", "where is X", "show me all Y", "locate class X", "search for function", "find symbol"
 - Use when: Looking for functions, classes, variables by name
 - Best for: "Find all functions named 'handleAuth'", "Where is UserService defined?"
 - Tip: Supports fuzzy matching, returns qualified names and locations
@@ -35,6 +36,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Deep Dive
 **get_symbol_details** - Complete information about a specific symbol
+- TRIGGERS: "what is X", "show me X", "what does X do", "tell me about X", "explain X", "details about X"
 - Use when: Need full picture of a symbol (signature, docs, relationships)
 - Best for: "What does calculateTotal do?", "What are the parameters?"
 - Requires: symbolId OR (symbolName + filePath)
@@ -42,6 +44,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 - Tip: Enable includeRelationships to see what it calls/is called by
 
 **trace_symbol_usage** - Find everywhere a symbol is used
+- TRIGGERS: "how is X used", "show all callers", "where is this referenced", "who calls X", "usage of X", "find all uses"
 - Use when: Need to understand usage patterns across codebase
 - Best for: "Where is UserService imported?", "How is this function called?"
 - Supports: Filtering by usage type (import, call, reference)
@@ -50,12 +53,14 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Dependency Analysis
 **get_dependencies** - What does this file depend on?
+- TRIGGERS: "what does X import", "show dependencies", "what does X depend on", "show imports", "what does X require"
 - Use when: Understanding file imports and dependencies
 - Best for: "What does Button.tsx import?", "Find dependency chains"
 - Supports: Transitive analysis (depth parameter)
 - Default limit: 20, increase to 50+ for heavily-coupled files
 
 **get_dependents** - What depends on this file? (inverse)
+- TRIGGERS: "what uses X", "who imports this", "can I delete this", "is this used", "what depends on X", "who needs this"
 - Use when: Assessing change impact
 - Best for: "What will break if I change this?", "Is this file used?"
 - **Critical for refactoring** - shows blast radius
@@ -64,6 +69,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Call Graph Analysis
 **get_call_graph** - Function invocation relationships
+- TRIGGERS: "show call graph", "what calls this function", "execution flow", "what does X call", "call hierarchy", "trace call chain"
 - Use when: Understanding execution flow
 - Best for: "What calls this function?", "What does this function call?"
 - Supports: Bidirectional (callers, callees, both)
@@ -72,6 +78,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Impact & Risk Assessment
 **impact_analysis** - Comprehensive change impact analysis
+- TRIGGERS: "what will break", "is it safe to change", "show blast radius", "impact of changing", "breaking change risk", "can I modify this safely"
 - Use when: Planning significant changes
 - Best for: "What's affected if I modify this?", "Breaking change risk?"
 - Returns: Direct dependents, transitive impact, risk score, recommendations
@@ -79,6 +86,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 - Tip: Shows test vs production file breakdown
 
 **find_circular_dependencies** - Detect circular dependency cycles
+- TRIGGERS: "find circular dependencies", "are there import cycles", "circular refs", "module loading failing", "dependency loop", "find cycles"
 - Use when: Debugging module loading issues or planning refactors
 - Best for: "Why does this fail to import?", "Find circular deps"
 - Supports: Filtering by minimum cycle length
@@ -86,6 +94,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 - Tip: Fix shortest cycles first (min cycle length = 2)
 
 **find_orphaned_code** - Find unused/dead code
+- TRIGGERS: "find dead code", "what can I delete", "show unused exports", "clean up unused code", "find unused", "orphaned code"
 - Use when: Cleaning up codebase
 - Best for: "What can we delete?", "Find unused exports"
 - Filters: By file pattern, symbol kind
@@ -94,6 +103,7 @@ Constellation provides code intelligence through a shared graph database. Use th
 
 ### Architecture Overview
 **get_architecture_overview** - High-level codebase structure
+- TRIGGERS: "how is this organized", "show architecture", "overview of codebase", "project structure", "codebase structure", "show me the architecture"
 - Use when: Getting oriented in a new codebase
 - Best for: "What's the project structure?", "How big is this codebase?"
 - Returns: Module counts, dependencies, optional metrics/graphs

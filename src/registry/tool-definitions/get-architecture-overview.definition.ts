@@ -24,6 +24,17 @@ export const getArchitectureOverviewDefinition: McpToolDefinition = {
 
 	relatedTools: ['search_symbols', 'get_dependencies', 'find_circular_dependencies'],
 
+	triggerPhrases: [
+		"how is this organized",
+		"show architecture",
+		"overview of codebase",
+		"project structure",
+		"codebase structure",
+		"show me the architecture",
+		"what's the structure",
+		"architecture overview",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {

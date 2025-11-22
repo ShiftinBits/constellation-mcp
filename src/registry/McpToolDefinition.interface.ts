@@ -105,6 +105,17 @@ export interface McpToolDefinition {
 	relatedTools: string[];
 
 	/**
+	 * Common trigger phrases that indicate this tool should be used
+	 * Helps AI agents recognize user intent patterns
+	 *
+	 * Example: ["find X", "where is X", "show me all Y", "locate X"]
+	 *
+	 * Note: This is metadata only - not sent via MCP protocol, used for
+	 * documentation, internal tooling, and future intent matching
+	 */
+	triggerPhrases?: string[];
+
+	/**
 	 * JSON Schema for tool input parameters
 	 * Enhanced with detailed descriptions and examples
 	 */
@@ -179,6 +190,13 @@ export const McpToolDefinitionSchema = z.object({
 		.min(1)
 		.max(10)
 		.describe('1-10 related tool names'),
+
+	triggerPhrases: z
+		.array(z.string().min(3).max(100))
+		.min(3)
+		.max(20)
+		.optional()
+		.describe('3-20 trigger phrases for intent recognition (3-100 chars each)'),
 
 	inputSchema: z.object({
 		type: z.literal('object'),

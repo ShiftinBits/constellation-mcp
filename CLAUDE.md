@@ -157,8 +157,56 @@ export const searchSymbolsDefinition = {
 		},
 		required: ['query'],
 	},
+
+	// Optional: Trigger phrases for organic tool selection (metadata only)
+	triggerPhrases: [
+		"find function X",
+		"where is X",
+		"show me all Y",
+		"locate class X",
+		// 3-20 phrases total (3-100 chars each)
+	],
 };
 ```
+
+### Trigger Phrases (Optional Metadata)
+
+The `triggerPhrases` field helps AI assistants match user queries to appropriate tools organically:
+
+**Purpose**:
+- Improves natural language tool selection
+- Provides metadata for documentation generation
+- Enables future intent-matching capabilities
+
+**Rules**:
+- **Optional field** - not required, but recommended for all tools
+- **3-20 phrases** per tool (validated by Zod schema)
+- **3-100 characters** per phrase
+- **Not sent via MCP protocol** - metadata only, zero token cost
+- **Natural language patterns** - how users actually ask questions
+
+**Example (impact-analysis)**:
+```typescript
+triggerPhrases: [
+	"what will break",
+	"is it safe to change",
+	"show blast radius",
+	"impact of changing",
+	"breaking change risk",
+	"can I modify this safely",
+	"what depends on this",
+	"refactoring impact",
+	"change impact analysis",
+	"what's affected by this change",
+]
+```
+
+**Where Used**:
+1. Tool definitions (src/registry/tool-definitions/*.definition.ts)
+2. Constellation guide prompt (includes trigger phrases for each tool)
+3. Future: Intent-based tool selection algorithms
+
+**Note**: These phrases are embedded in the constellation-guide prompt to help AI assistants recognize when to use each tool.
 
 ## Type Sync (MANUAL - CRITICAL)
 

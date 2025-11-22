@@ -27,6 +27,18 @@ export const getDependentsDefinition: McpToolDefinition = {
 
 	relatedTools: ['get_dependencies', 'impact_analysis', 'trace_symbol_usage', 'find_orphaned_code'],
 
+	triggerPhrases: [
+		"what uses X",
+		"who imports this",
+		"can I delete this",
+		"how many use this",
+		"what depends on X",
+		"who needs this",
+		"is this used",
+		"reverse dependencies",
+		"what imports X",
+	],
+
 	inputSchema: {
 		type: 'object',
 		properties: {
