@@ -13,7 +13,6 @@ import { getConfigContext } from '../config/config-manager.js';
  */
 export interface CodeModeRequest {
   code: string;
-  language?: 'typescript' | 'javascript';
   timeout?: number;
   projectContext?: {
     projectId: string;
@@ -62,21 +61,15 @@ export class CodeModeRuntime {
         success: false,
         error: `Code validation failed:\n${validation.errors?.join('\n')}`,
         metadata: {
-          language: request.language || 'javascript',
+          language: 'javascript',
           sandboxed: false,
           validated: false
         }
       };
     }
 
-    // Preprocess TypeScript if needed
-    let processedCode = request.code;
-    if (request.language === 'typescript') {
-      processedCode = this.preprocessTypeScript(request.code);
-    }
-
-    // Execute in sandbox
-    const result = await this.sandbox.execute(processedCode);
+    // Execute in sandbox (JavaScript only)
+    const result = await this.sandbox.execute(request.code);
 
     // Format response
     return {
@@ -86,49 +79,11 @@ export class CodeModeRuntime {
       logs: result.logs,
       executionTime: result.executionTime,
       metadata: {
-        language: request.language || 'javascript',
+        language: 'javascript',
         sandboxed: true,
         validated: true
       }
     };
-  }
-
-  /**
-   * Preprocess TypeScript code (strip types for now)
-   *
-   * In a production environment, you'd use the TypeScript compiler
-   * to properly transpile to JavaScript.
-   */
-  private preprocessTypeScript(code: string): string {
-    // For now, just strip type annotations (basic implementation)
-    // In production, use typescript compiler API
-
-    let processed = code;
-
-    // Remove type annotations from function parameters and variables
-    // FIXED: Use negative lookbehind to avoid matching object literal properties
-    // Match ': type' only when NOT preceded by an identifier (to preserve {key: value})
-    processed = processed.replace(/\((.*?)\)/g, (match, params) => {
-      // Only process function parameters
-      return '(' + params.replace(/:\s*\w+(\[\])?/g, '') + ')';
-    });
-
-    // Remove variable type annotations (const x: Type = ...)
-    processed = processed.replace(/(const|let|var)\s+(\w+)\s*:\s*\w+(\[\])?/g, '$1 $2');
-
-    // Remove interface declarations
-    processed = processed.replace(/interface\s+\w+\s*{[^}]*}/g, '');
-
-    // Remove type declarations
-    processed = processed.replace(/type\s+\w+\s*=\s*[^;]+;/g, '');
-
-    // Remove generic type parameters
-    processed = processed.replace(/<[^>]+>/g, '');
-
-    // Remove 'as' type assertions
-    processed = processed.replace(/\s+as\s+\w+/g, '');
-
-    return processed;
   }
 
   /**

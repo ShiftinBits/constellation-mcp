@@ -38,7 +38,7 @@ Your Codebase → [Constellation CLI] → Index → [MCP Server] → Your AI Ass
 
 ## Code Mode: A Revolutionary Approach
 
-**This is a Code Mode-only MCP server.** Instead of providing 10+ individual tools that your AI assistant calls sequentially, we provide ONE powerful tool: `execute_code`. Your AI writes TypeScript/JavaScript code to interact with the Constellation API directly.
+**This is a Code Mode-only MCP server.** Instead of providing 10+ individual tools that your AI assistant calls sequentially, we provide ONE powerful tool: `execute_code`. Your AI writes JavaScript code to interact with the Constellation API directly.
 
 ### Why Code Mode?
 

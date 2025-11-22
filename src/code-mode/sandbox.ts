@@ -2,7 +2,7 @@
  * Code Mode Sandbox
  *
  * Provides a secure sandboxed environment for executing user-generated
- * TypeScript/JavaScript code with access to the Constellation API.
+ * JavaScript code with access to the Constellation API.
  */
 
 import vm from 'vm';
@@ -59,7 +59,7 @@ export class CodeModeSandbox {
   }
 
   /**
-   * Execute TypeScript/JavaScript code in sandboxed environment
+   * Execute JavaScript code in sandboxed environment
    */
   async execute(code: string): Promise<SandboxResult> {
     const startTime = Date.now();

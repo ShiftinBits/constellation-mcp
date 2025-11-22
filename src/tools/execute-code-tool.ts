@@ -3,7 +3,7 @@
  *
  * Registers the execute_code tool with the MCP server.
  * This is the only tool in Code Mode, providing access to all Constellation API capabilities
- * through TypeScript/JavaScript code execution.
+ * through JavaScript code execution.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -21,24 +21,19 @@ export function registerExecuteCodeTool(server: McpServer): void {
 	server.registerTool(
 		'execute_code',
 		{
-			title: 'Execute TypeScript Code',
+			title: 'Execute JavaScript Code',
 			description:
-				'THE ONLY AVAILABLE TOOL. Execute TypeScript/JavaScript code to interact with Constellation. ' +
+				'THE ONLY AVAILABLE TOOL. Execute JavaScript code to interact with Constellation. ' +
 				'You MUST use this tool for ALL operations - searching, analyzing dependencies, getting details, etc. ' +
-				'Write TypeScript code using the api object: api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
-				'This is a Code Mode-only server. There are NO other tools. Always write TypeScript code.',
+				'Write JavaScript code using the api object: api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
+				'This is a Code Mode-only server. There are NO other tools. Always write JavaScript code.',
 			inputSchema: {
 				code: z.string().min(1).describe(
-					'TypeScript or JavaScript code to execute. Can use top-level await. ' +
+					'JavaScript code to execute. Can use top-level await. ' +
 					'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
 					'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
 					'findOrphanedCode, impactAnalysis, getArchitectureOverview'
 				),
-				language: z
-					.enum(['typescript', 'javascript'])
-					.optional()
-					.default('typescript')
-					.describe('Programming language of the code (default: typescript)'),
 				timeout: z
 					.number()
 					.min(1000)
@@ -55,7 +50,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				error: z.string().optional(),
 			},
 		},
-		async ({ code, language, timeout }) => {
+		async ({ code, timeout }) => {
 			console.error('[execute_code] Executing code mode script');
 
 			try {
@@ -89,7 +84,6 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				// Execute the code
 				const response = await runtime.execute({
 					code,
-					language: language || 'typescript',
 					timeout,
 				});
 

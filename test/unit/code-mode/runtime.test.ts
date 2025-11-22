@@ -69,7 +69,7 @@ describe('CodeModeRuntime', () => {
 				executionTime: 10,
 			});
 
-			const result = await runtime.execute({ code, language: 'javascript' });
+			const result = await runtime.execute({ code });
 
 			expect(result.success).toBe(true);
 			expect(result.result).toBe(42);
@@ -79,27 +79,6 @@ describe('CodeModeRuntime', () => {
 				sandboxed: true,
 				validated: true,
 			});
-		});
-
-		it('should execute valid TypeScript code with preprocessing', async () => {
-			const code = 'const x: number = 42; return x;';
-
-			mockSandbox.validateCode.mockReturnValue({ valid: true });
-			mockSandbox.execute.mockResolvedValue({
-				success: true,
-				result: 42,
-				logs: [],
-				executionTime: 15,
-			});
-
-			const result = await runtime.execute({ code, language: 'typescript' });
-
-			expect(result.success).toBe(true);
-			expect(result.result).toBe(42);
-			expect(mockSandbox.execute).toHaveBeenCalled();
-			// Verify TypeScript was preprocessed (type annotation removed)
-			const processedCode = mockSandbox.execute.mock.calls[0][0];
-			expect(processedCode).not.toContain(': number');
 		});
 
 		it('should return validation error when code is invalid', async () => {
@@ -159,7 +138,7 @@ describe('CodeModeRuntime', () => {
 			expect(result.logs).toEqual(['test']);
 		});
 
-		it('should default to javascript when language not specified', async () => {
+		it('should always use javascript language', async () => {
 			mockSandbox.validateCode.mockReturnValue({ valid: true });
 			mockSandbox.execute.mockResolvedValue({
 				success: true,
@@ -171,89 +150,6 @@ describe('CodeModeRuntime', () => {
 			const result = await runtime.execute({ code: 'return null;' });
 
 			expect(result.metadata?.language).toBe('javascript');
-		});
-	});
-
-	describe('TypeScript preprocessing', () => {
-		beforeEach(() => {
-			mockSandbox.validateCode.mockReturnValue({ valid: true });
-			mockSandbox.execute.mockResolvedValue({
-				success: true,
-				result: null,
-				logs: [],
-				executionTime: 1,
-			});
-		});
-
-		it('should remove function parameter type annotations', async () => {
-			const code = 'function test(x: number, y: string): void {}';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			expect(processed).not.toContain(': number');
-			expect(processed).not.toContain(': string');
-			// Note: Current implementation doesn't remove return type annotations
-			// This is a known limitation of the basic regex preprocessing
-		});
-
-		it('should remove variable type annotations', async () => {
-			const code = 'const x: number = 42; let y: string = "test";';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			expect(processed).toContain('const x');
-			expect(processed).toContain('let y');
-			expect(processed).not.toContain(': number');
-			expect(processed).not.toContain(': string');
-		});
-
-		it('should remove interface declarations', async () => {
-			const code = 'interface Foo { x: number; } const obj = { x: 1 };';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			expect(processed).not.toContain('interface Foo');
-			expect(processed).toContain('const obj');
-		});
-
-		it('should remove type declarations', async () => {
-			const code = 'type MyType = string | number; const x = 1;';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			expect(processed).not.toContain('type MyType');
-			expect(processed).toContain('const x');
-		});
-
-		it('should remove generic type parameters', async () => {
-			const code = 'const arr: Array<string> = [];';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			// Note: Current implementation removes the entire generic expression including type name
-			// This is a known limitation - should be 'Array' but becomes empty
-			expect(processed).not.toContain('<string>');
-			expect(processed).toContain('const arr');
-		});
-
-		it('should remove type assertions', async () => {
-			const code = 'const x = value as string;';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			expect(processed).not.toContain(' as string');
-			expect(processed).toContain('const x = value');
-		});
-
-		it('should preserve object literal values', async () => {
-			// This tests the known preprocessing bug workaround
-			const code = 'const obj = { query: "test", limit: 2 };';
-			await runtime.execute({ code, language: 'typescript' });
-
-			const processed = mockSandbox.execute.mock.calls[0][0];
-			// The current implementation has a bug where it might remove ': 2'
-			// This test documents current behavior
-			expect(processed).toContain('obj');
 		});
 	});
 

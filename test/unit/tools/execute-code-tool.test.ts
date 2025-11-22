@@ -52,7 +52,7 @@ describe('registerExecuteCodeTool', () => {
 			expect(mockServer.registerTool).toHaveBeenCalledWith(
 				'execute_code',
 				expect.objectContaining({
-					title: expect.stringContaining('Execute TypeScript Code'),
+					title: expect.stringContaining('Execute JavaScript Code'),
 					description: expect.stringContaining('THE ONLY AVAILABLE TOOL'),
 				}),
 				expect.any(Function)
@@ -64,7 +64,6 @@ describe('registerExecuteCodeTool', () => {
 			const config = call[1];
 
 			expect(config.inputSchema.code).toBeDefined();
-			expect(config.inputSchema.language).toBeDefined();
 			expect(config.inputSchema.timeout).toBeDefined();
 		});
 
@@ -81,7 +80,7 @@ describe('registerExecuteCodeTool', () => {
 	});
 
 	describe('tool handler', () => {
-		it('should execute TypeScript code successfully', async () => {
+		it('should execute JavaScript code successfully', async () => {
 			const mockResponse = {
 				success: true,
 				result: 42,
@@ -94,7 +93,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'return 42;',
-				language: 'typescript',
 				timeout: 5000,
 			});
 
@@ -114,7 +112,6 @@ describe('registerExecuteCodeTool', () => {
 
 			await registeredHandler({
 				code: 'return 1;',
-				language: 'typescript',
 				timeout: 10000,
 			});
 
@@ -134,7 +131,6 @@ describe('registerExecuteCodeTool', () => {
 
 			await registeredHandler({
 				code: 'return 1;',
-				language: 'typescript',
 			});
 
 			expect(MockedCodeModeRuntime).toHaveBeenCalledWith(
@@ -154,52 +150,13 @@ describe('registerExecuteCodeTool', () => {
 			const code = 'const x = 42; return x;';
 			await registeredHandler({
 				code,
-				language: 'typescript',
 				timeout: 5000,
 			});
 
 			expect(mockRuntime.execute).toHaveBeenCalledWith({
 				code,
-				language: 'typescript',
 				timeout: 5000,
 			});
-		});
-
-		it('should handle JavaScript language', async () => {
-			mockRuntime.execute.mockResolvedValue({
-				success: true,
-				result: null,
-			});
-			mockRuntime.formatResult.mockReturnValue('{}');
-
-			await registeredHandler({
-				code: 'return 1;',
-				language: 'javascript',
-			});
-
-			expect(mockRuntime.execute).toHaveBeenCalledWith(
-				expect.objectContaining({
-					language: 'javascript',
-				})
-			);
-		});
-
-		it('should default to typescript when language not specified', async () => {
-			mockRuntime.execute.mockResolvedValue({
-				success: true,
-				result: null,
-			});
-			mockRuntime.formatResult.mockReturnValue('{}');
-
-			await registeredHandler({
-				code: 'return 1;',
-			});
-
-			expect(mockRuntime.execute).toHaveBeenCalledWith(
-				expect.objectContaining({
-					language: 'typescript',
-				})
-			);
 		});
 
 		it('should handle execution errors', async () => {
@@ -208,7 +165,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'throw new Error("test");',
-				language: 'typescript',
 			});
 
 			expect(result.content[0].type).toBe('text');
@@ -222,7 +178,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'throw "error";',
-				language: 'typescript',
 			});
 
 			expect(result.content[0].text).toContain('"success": false');
@@ -242,7 +197,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'console.log("test"); return 1;',
-				language: 'typescript',
 			});
 
 			expect(result.structuredContent.logs).toEqual(['log1', 'log2', 'log3']);
@@ -260,7 +214,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'return 42;',
-				language: 'typescript',
 			});
 
 			expect(result.structuredContent.executionTime).toBe(250);
@@ -289,7 +242,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'return 42;',
-				language: 'typescript',
 			});
 
 			expect(result.isError).toBe(true);
@@ -317,7 +269,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'return "test";',
-				language: 'typescript',
 			});
 
 			expect(result.content).toBeInstanceOf(Array);
@@ -337,7 +288,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'return { data: "value" };',
-				language: 'typescript',
 			});
 
 			expect(result.structuredContent).toBeDefined();
@@ -349,7 +299,6 @@ describe('registerExecuteCodeTool', () => {
 
 			const result = await registeredHandler({
 				code: 'throw new Error();',
-				language: 'typescript',
 			});
 
 			expect(result.structuredContent).toBeUndefined();
