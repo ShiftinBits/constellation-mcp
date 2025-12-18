@@ -21,7 +21,8 @@
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:coverage": "jest --coverage",
-		"test:ci": "jest --ci --coverage --maxWorkers=2"
+		"test:ci": "jest --ci --coverage --maxWorkers=2",
+		"prepare": "husky"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.22.0",
@@ -35,7 +36,9 @@
 		"eslint": "^9.38.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
+		"husky": "^9.1.7",
 		"jest": "^30.2.0",
+		"lint-staged": "^16.2.7",
 		"prettier": "^3.6.2",
 		"rimraf": "^6.0.1",
 		"ts-jest": "^29.4.4",
@@ -44,5 +47,18 @@
 	},
 	"engines": {
 		"node": ">=18.19.0"
+	},
+	"lint-staged": {
+		"*.{ts,tsx}": [
+			"eslint --fix --quiet",
+			"prettier --write"
+		],
+		"*.{js,jsx,mjs}": [
+			"eslint --fix --quiet",
+			"prettier --write"
+		],
+		"*.{json,md,css}": [
+			"prettier --write"
+		]
 	}
 }
