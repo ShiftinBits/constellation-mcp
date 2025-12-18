@@ -7,7 +7,8 @@ module.exports = {
 	collectCoverageFrom: [
 		'src/**/*.ts',
 		'!src/**/*.d.ts',
-		'!src/index.ts', // MCP server entry point
+		'!src/index.ts', // MCP server entry point (uses import.meta.url)
+		'!src/codegen/api-generator.ts', // CLI utility (uses import.meta.url)
 		'!src/types/**', // Type definitions
 		'!src/tools/ConfigInfoTool.ts', // Example tool
 		'!src/tools/ExampleTool.ts', // Example tool

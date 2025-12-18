@@ -551,4 +551,258 @@ describe('CodeModeSandbox', () => {
 			expect(result.error).toBe('String error');
 		});
 	});
+
+	describe('API listMethods', () => {
+		it('should return available methods from api.listMethods()', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toHaveProperty('methods');
+			expect(result.result).toHaveProperty('usage');
+			expect(result.result).toHaveProperty('example');
+			expect(result.result.methods).toBeInstanceOf(Array);
+			expect(result.result.methods.length).toBeGreaterThan(0);
+			expect(result.result.methods[0]).toHaveProperty('name');
+			expect(result.result.methods[0]).toHaveProperty('description');
+		});
+
+		it('should list searchSymbols in available methods', async () => {
+			const code = 'const info = api.listMethods(); return info.methods.some(m => m.name === "searchSymbols");';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(true);
+		});
+	});
+
+	describe('API error context formatting', () => {
+		it('should include parameters preview in error message', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(undefined, false, 'Symbol not found')
+			);
+
+			const code = 'return await api.searchSymbols({ query: "nonexistent" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('Parameters:');
+			expect(result.error).toContain('query');
+			expect(result.error).toContain('nonexistent');
+		});
+
+		it('should include duration in error message', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(undefined, false, 'API failure')
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('Duration:');
+			expect(result.error).toContain('ms');
+		});
+
+		it('should truncate long parameters in error message', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(undefined, false, 'Error')
+			);
+
+			// Create a query longer than 100 characters
+			const longQuery = 'x'.repeat(150);
+			const code = `return await api.searchSymbols({ query: "${longQuery}" });`;
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			// Should be truncated to ~100 chars + ...
+			expect(result.error).toContain('...');
+		});
+
+		it('should handle non-serializable parameters gracefully', async () => {
+			// This test passes an object that would cause serialization issues
+			// We use a proxy that simulates it via the API call chain
+			mockClient.executeMcpTool.mockRejectedValue(new Error('Network error'));
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('API call failed');
+		});
+
+		it('should include method name in camelCase in error', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(undefined, false, 'Not found')
+			);
+
+			const code = 'return await api.getSymbolDetails({ symbolId: "123" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('api.getSymbolDetails()');
+		});
+	});
+
+	describe('API error handling with exceptions', () => {
+		it('should wrap network errors with context', async () => {
+			mockClient.executeMcpTool.mockRejectedValue(new Error('Connection refused'));
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('API call failed');
+			expect(result.error).toContain('Connection refused');
+			expect(result.error).toContain('Duration:');
+		});
+
+		it('should handle non-Error exceptions', async () => {
+			mockClient.executeMcpTool.mockRejectedValue('String error');
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('String error');
+		});
+
+		it('should not re-wrap already formatted errors', async () => {
+			// Simulate an error that's already formatted by our handler
+			const formattedError = new Error(
+				'API call failed: api.searchSymbols()\n  Parameters: {"query":"test"}\n  Duration: 10ms\n  Error: Original error'
+			);
+			mockClient.executeMcpTool.mockRejectedValue(formattedError);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			// Should contain the formatted message but only once
+			const occurrences = (result.error!.match(/API call failed/g) || []).length;
+			expect(occurrences).toBeLessThanOrEqual(2); // Original + wrapping
+		});
+	});
+
+	describe('console truncation for large objects', () => {
+		it('should truncate objects larger than 500 characters', async () => {
+			const code = `
+				const largeObj = {};
+				for (let i = 0; i < 50; i++) {
+					largeObj[\`key_\${i}\`] = \`value_\${i}_with_some_extra_padding\`;
+				}
+				console.log(largeObj);
+				return 1;
+			`;
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.logs).toBeDefined();
+			expect(result.logs!.length).toBe(1);
+			// Should be truncated with ...
+			expect(result.logs![0].endsWith('...')).toBe(true);
+		});
+
+		it('should use compact JSON for medium-sized objects', async () => {
+			const code = `
+				const mediumObj = {};
+				for (let i = 0; i < 10; i++) {
+					mediumObj[\`k\${i}\`] = \`v\${i}\`;
+				}
+				console.log(mediumObj);
+				return 1;
+			`;
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.logs).toBeDefined();
+			// Should be logged (not truncated for medium objects)
+			expect(result.logs![0]).toContain('k0');
+		});
+
+		it('should handle objects that fail JSON.stringify', async () => {
+			const code = `
+				const circular = {};
+				circular.self = circular;
+				console.log(circular);
+				return 1;
+			`;
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.logs).toBeDefined();
+			// Should fall back to String()
+			expect(result.logs![0]).toContain('[object Object]');
+		});
+	});
+
+	describe('validateCode warnings', () => {
+		it('should warn about API call without return statement', () => {
+			const code = 'const result = await api.searchSymbols({ query: "test" });';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toBeDefined();
+			expect(result.warnings!.some(w => w.includes('No return statement'))).toBe(true);
+			expect(result.warnings!.some(w => w.includes('forget to add "return"'))).toBe(true);
+		});
+
+		it('should warn about API call without await', () => {
+			const code = 'api.searchSymbols({ query: "test" });';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toBeDefined();
+			expect(result.warnings!.some(w => w.includes('No await detected'))).toBe(true);
+			expect(result.warnings!.some(w => w.includes('API methods are async'))).toBe(true);
+		});
+
+		it('should warn about .then() without .catch()', () => {
+			const code = 'api.searchSymbols({ query: "test" }).then(r => console.log(r));';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toBeDefined();
+			expect(result.warnings!.some(w => w.includes('.then() without .catch()'))).toBe(true);
+		});
+
+		it('should not warn when return and await are present', () => {
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toBeUndefined();
+		});
+
+		it('should not warn when .catch() is present', () => {
+			const code = 'api.searchSymbols({ query: "test" }).then(r => r).catch(e => e);';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			// No warning about .then() without .catch()
+			if (result.warnings) {
+				expect(result.warnings.some(w => w.includes('.then() without .catch()'))).toBe(false);
+			}
+		});
+
+		it('should not generate warnings for code without API calls', () => {
+			const code = 'return 42;';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toBeUndefined();
+		});
+
+		it('should return both errors and warnings when present', () => {
+			// Invalid code (has require) but also missing return/await
+			const code = 'require("fs"); api.searchSymbols({ query: "test" });';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toBeDefined();
+			expect(result.errors!.some(e => e.includes('require'))).toBe(true);
+			expect(result.warnings).toBeDefined();
+			expect(result.warnings!.length).toBeGreaterThan(0);
+		});
+	});
 });

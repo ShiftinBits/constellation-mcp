@@ -317,4 +317,215 @@ describe('ConstellationClient', () => {
 			).rejects.toThrow();
 		});
 	});
+
+	describe('getToolCatalog', () => {
+		it('should fetch tool catalog successfully', async () => {
+			const mockCatalog = {
+				tools: [{ name: 'search_symbols' }, { name: 'get_dependencies' }],
+			};
+
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, mockCatalog));
+
+			const result = await client.getToolCatalog();
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/catalog',
+				expect.objectContaining({
+					method: 'GET',
+				})
+			);
+			expect(result).toEqual(mockCatalog);
+		});
+
+		it('should include category filter in query', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
+
+			await client.getToolCatalog({ category: 'discovery' });
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/catalog?category=discovery',
+				expect.any(Object)
+			);
+		});
+
+		it('should include search filter in query', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
+
+			await client.getToolCatalog({ search: 'symbol' });
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/catalog?search=symbol',
+				expect.any(Object)
+			);
+		});
+
+		it('should include tags filter in query', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
+
+			await client.getToolCatalog({ tags: ['core', 'analysis'] });
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/catalog?tags=core%2Canalysis',
+				expect.any(Object)
+			);
+		});
+
+		it('should include includeDeprecated filter in query', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
+
+			await client.getToolCatalog({ includeDeprecated: true });
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/catalog?includeDeprecated=true',
+				expect.any(Object)
+			);
+		});
+
+		it('should combine multiple query parameters', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
+
+			await client.getToolCatalog({
+				category: 'discovery',
+				search: 'symbol',
+			});
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('category=discovery'),
+				expect.any(Object)
+			);
+			expect(mockFetch).toHaveBeenCalledWith(
+				expect.stringContaining('search=symbol'),
+				expect.any(Object)
+			);
+		});
+
+		it('should throw error on non-ok response', async () => {
+			// Use 400 (non-retryable) instead of 500 to avoid retry delays
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(400, false));
+
+			await expect(client.getToolCatalog()).rejects.toThrow(
+				'Failed to fetch tool catalog'
+			);
+		});
+	});
+
+	describe('getToolMetadata', () => {
+		it('should fetch tool metadata successfully', async () => {
+			const mockMetadata = {
+				name: 'search_symbols',
+				description: 'Search for symbols',
+				inputSchema: { type: 'object' },
+			};
+
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(200, true, mockMetadata));
+
+			const result = await client.getToolMetadata('search_symbols');
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'https://api.constellation.test/v1/mcp/tools/search_symbols',
+				expect.objectContaining({
+					method: 'GET',
+				})
+			);
+			expect(result).toEqual(mockMetadata);
+		});
+
+		it('should throw ToolNotFoundError on 404', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(404, false));
+
+			await expect(client.getToolMetadata('nonexistent_tool')).rejects.toThrow(
+				ToolNotFoundError
+			);
+		});
+
+		it('should throw error on non-ok response', async () => {
+			// Use 400 (non-retryable) instead of 500 to avoid retry delays
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(400, false));
+
+			await expect(client.getToolMetadata('search_symbols')).rejects.toThrow(
+				'Failed to fetch tool metadata'
+			);
+		});
+	});
+
+	describe('retry behavior edge cases', () => {
+		const mockContext = { projectId: 'test', branchName: 'main' };
+
+		it('should retry on 503 Service Unavailable', async () => {
+			mockFetch
+				// @ts-expect-error - Mock response type compatibility
+				.mockResolvedValueOnce(createMockResponse(503, false))
+				// @ts-expect-error - Mock response type compatibility
+				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+
+			const promise = client.executeMcpTool('test', {}, mockContext);
+			await jest.runAllTimersAsync();
+			const result = await promise;
+
+			expect(mockFetch).toHaveBeenCalledTimes(2);
+			expect(result.success).toBe(true);
+		});
+
+		it('should retry on 504 Gateway Timeout', async () => {
+			mockFetch
+				// @ts-expect-error - Mock response type compatibility
+				.mockResolvedValueOnce(createMockResponse(504, false))
+				// @ts-expect-error - Mock response type compatibility
+				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+
+			const promise = client.executeMcpTool('test', {}, mockContext);
+			await jest.runAllTimersAsync();
+			const result = await promise;
+
+			expect(mockFetch).toHaveBeenCalledTimes(2);
+			expect(result.success).toBe(true);
+		});
+
+		it('should not retry on non-retryable error status (400)', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(400, false));
+
+			await expect(
+				client.executeMcpTool('test', {}, mockContext)
+			).rejects.toThrow();
+
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		});
+
+		it('should not retry on non-retryable error status (403)', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(403, false));
+
+			await expect(
+				client.executeMcpTool('test', {}, mockContext)
+			).rejects.toThrow();
+
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe('executeMcpTool error response parsing', () => {
+		const mockContext = { projectId: 'test', branchName: 'main' };
+
+		it('should include error text in failure message', async () => {
+			const mockResponse = createMockResponse(422, false);
+			(mockResponse as any).text = () => Promise.resolve('Validation error: invalid query');
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(mockResponse);
+
+			await expect(
+				client.executeMcpTool('search_symbols', {}, mockContext)
+			).rejects.toThrow('Validation error: invalid query');
+		});
+	});
 });

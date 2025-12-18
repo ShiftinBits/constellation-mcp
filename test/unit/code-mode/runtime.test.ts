@@ -151,6 +151,149 @@ describe('CodeModeRuntime', () => {
 
 			expect(result.metadata?.language).toBe('javascript');
 		});
+
+		it('should log validation warnings to console and include in logs', async () => {
+			const code = 'return 42;';
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				warnings: ['API call without return statement', 'Consider using await'],
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 42,
+				logs: ['execution log'],
+				executionTime: 10,
+			});
+
+			const result = await runtime.execute({ code });
+
+			expect(result.success).toBe(true);
+			// Warnings should be logged to console.error
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Warning: API call without return statement')
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Warning: Consider using await')
+			);
+			// Warnings should be included in logs with [WARN] prefix
+			expect(result.logs).toContain('[WARN] API call without return statement');
+			expect(result.logs).toContain('[WARN] Consider using await');
+			// Original execution logs should also be present
+			expect(result.logs).toContain('execution log');
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should combine warning logs with execution logs', async () => {
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				warnings: ['warning1'],
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'test',
+				logs: ['log1', 'log2'],
+				executionTime: 5,
+			});
+
+			const result = await runtime.execute({ code: 'return "test";' });
+
+			expect(result.logs).toEqual([
+				'[WARN] warning1',
+				'log1',
+				'log2',
+			]);
+		});
+
+		it('should warn when result size exceeds 100KB', async () => {
+			const largeData = 'x'.repeat(150 * 1024); // 150KB string
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: largeData,
+				logs: [],
+				executionTime: 50,
+			});
+
+			const result = await runtime.execute({ code: 'return largeData;' });
+
+			expect(result.success).toBe(true);
+			// Should log warning about large result
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Large result size')
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('KB')
+			);
+			// Should include warning in logs
+			expect(result.logs?.some(log => log.includes('[WARN]') && log.includes('Large result size'))).toBe(true);
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should not warn when result size is under 100KB', async () => {
+			const smallData = 'x'.repeat(50 * 1024); // 50KB string
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: smallData,
+				logs: [],
+				executionTime: 30,
+			});
+
+			const result = await runtime.execute({ code: 'return smallData;' });
+
+			expect(result.success).toBe(true);
+			// Should NOT log warning about large result
+			const largeSizeWarnings = consoleErrorSpy.mock.calls.filter(
+				call => (call[0] as string).includes('Large result size')
+			);
+			expect(largeSizeWarnings.length).toBe(0);
+			// Logs should be undefined (empty array gets filtered)
+			expect(result.logs).toBeUndefined();
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should handle non-serializable results gracefully for size check', async () => {
+			const circularRef: any = { a: 1 };
+			circularRef.self = circularRef; // Create circular reference
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: circularRef,
+				logs: [],
+				executionTime: 10,
+			});
+
+			// Should not throw when result can't be serialized for size check
+			const result = await runtime.execute({ code: 'return circular;' });
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(circularRef);
+		});
+
+		it('should skip size check when result is undefined', async () => {
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: undefined,
+				logs: [],
+				executionTime: 5,
+			});
+
+			const result = await runtime.execute({ code: 'return;' });
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBeUndefined();
+		});
 	});
 
 	describe('formatResult', () => {
