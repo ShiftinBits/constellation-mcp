@@ -2,7 +2,7 @@
  * Constellation Guide Prompt Registration
  *
  * Provides comprehensive guidance for AI coding assistants on how to effectively
- * use the Constellation MCP tools for code intelligence and analysis.
+ * use the Constellation MCP Code Mode for code intelligence and analysis.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -11,243 +11,262 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
  * Get the comprehensive guide content for AI assistants
  */
 function getGuideContent(): string {
-	return `# Constellation MCP - AI Assistant Guide
+	return `# Constellation MCP - Code Mode Guide
 
-## Overview
+## How It Works
 
-Constellation provides code intelligence through a shared graph database. Use these tools to understand code structure, dependencies, impact, and relationships without analyzing source code directly.
+Constellation uses **Code Mode**: one tool (\`execute_code\`) that runs JavaScript code with access to the \`api\` object. Write code to call API methods, chain operations, and return results.
 
-## Core Principles
-
-1. **Server-Side Intelligence**: All analysis is pre-computed. Tools return instant results from a graph database.
-2. **No Source Code**: You receive metadata, relationships, and intelligence - never raw source code.
-3. **Pagination Aware**: Most tools support limit/offset for large result sets. Start with defaults, increase as needed.
-4. **Semantic Markers**: Tool outputs include markers like [EXPORTED], [TEST], [HIGH_IMPACT] to highlight important characteristics.
-
-## Tool Selection Guide
-
-### Discovery & Search
-**search_symbols** - First stop for finding code elements
-- TRIGGERS: "find X", "where is X", "show me all Y", "locate class X", "search for function", "find symbol"
-- Use when: Looking for functions, classes, variables by name
-- Best for: "Find all functions named 'handleAuth'", "Where is UserService defined?"
-- Tip: Supports fuzzy matching, returns qualified names and locations
-- Default limit: 50, increase to 100 for broad searches
-
-### Deep Dive
-**get_symbol_details** - Complete information about a specific symbol
-- TRIGGERS: "what is X", "show me X", "what does X do", "tell me about X", "explain X", "details about X"
-- Use when: Need full picture of a symbol (signature, docs, relationships)
-- Best for: "What does calculateTotal do?", "What are the parameters?"
-- Requires: symbolId OR (symbolName + filePath)
-- Tip: Enable includeReferences to see all usage locations
-- Tip: Enable includeRelationships to see what it calls/is called by
-
-**trace_symbol_usage** - Find everywhere a symbol is used
-- TRIGGERS: "how is X used", "show all callers", "where is this referenced", "who calls X", "usage of X", "find all uses"
-- Use when: Need to understand usage patterns across codebase
-- Best for: "Where is UserService imported?", "How is this function called?"
-- Supports: Filtering by usage type (import, call, reference)
-- Default limit: 50, max: 500 for heavily-used symbols
-- Tip: Group results by file for better understanding
-
-### Dependency Analysis
-**get_dependencies** - What does this file depend on?
-- TRIGGERS: "what does X import", "show dependencies", "what does X depend on", "show imports", "what does X require"
-- Use when: Understanding file imports and dependencies
-- Best for: "What does Button.tsx import?", "Find dependency chains"
-- Supports: Transitive analysis (depth parameter)
-- Default limit: 20, increase to 50+ for heavily-coupled files
-
-**get_dependents** - What depends on this file? (inverse)
-- TRIGGERS: "what uses X", "who imports this", "can I delete this", "is this used", "what depends on X", "who needs this"
-- Use when: Assessing change impact
-- Best for: "What will break if I change this?", "Is this file used?"
-- **Critical for refactoring** - shows blast radius
-- Default limit: 20, increase to 100 for critical shared modules
-- Tip: Check "Suggested Next Steps" for risk-appropriate actions
-
-### Call Graph Analysis
-**get_call_graph** - Function invocation relationships
-- TRIGGERS: "show call graph", "what calls this function", "execution flow", "what does X call", "call hierarchy", "trace call chain"
-- Use when: Understanding execution flow
-- Best for: "What calls this function?", "What does this function call?"
-- Supports: Bidirectional (callers, callees, both)
-- Depth control: 1-10 levels deep (default: 3)
-- Default limit: 25 per direction, increase to 100 for orchestrator functions
-
-### Impact & Risk Assessment
-**impact_analysis** - Comprehensive change impact analysis
-- TRIGGERS: "what will break", "is it safe to change", "show blast radius", "impact of changing", "breaking change risk", "can I modify this safely"
-- Use when: Planning significant changes
-- Best for: "What's affected if I modify this?", "Breaking change risk?"
-- Returns: Direct dependents, transitive impact, risk score, recommendations
-- **Use before refactoring** - provides action plan based on risk level
-- Tip: Shows test vs production file breakdown
-
-**find_circular_dependencies** - Detect circular dependency cycles
-- TRIGGERS: "find circular dependencies", "are there import cycles", "circular refs", "module loading failing", "dependency loop", "find cycles"
-- Use when: Debugging module loading issues or planning refactors
-- Best for: "Why does this fail to import?", "Find circular deps"
-- Supports: Filtering by minimum cycle length
-- Default limit: 50, increase to 100 for comprehensive cycle detection
-- Tip: Fix shortest cycles first (min cycle length = 2)
-
-**find_orphaned_code** - Find unused/dead code
-- TRIGGERS: "find dead code", "what can I delete", "show unused exports", "clean up unused code", "find unused", "orphaned code"
-- Use when: Cleaning up codebase
-- Best for: "What can we delete?", "Find unused exports"
-- Filters: By file pattern, symbol kind
-- Default limit: 50, increase to 100 for major cleanup initiatives
-- Tip: Verify before deletion (check dynamic imports, config references)
-
-### Architecture Overview
-**get_architecture_overview** - High-level codebase structure
-- TRIGGERS: "how is this organized", "show architecture", "overview of codebase", "project structure", "codebase structure", "show me the architecture"
-- Use when: Getting oriented in a new codebase
-- Best for: "What's the project structure?", "How big is this codebase?"
-- Returns: Module counts, dependencies, optional metrics/graphs
-- Tip: Start here for new projects
-
-## Semantic Markers
-
-Tool outputs include markers to highlight important characteristics:
-
-- **[EXPORTED]** - Publicly exported symbol (breaking changes affect consumers)
-- **[INTERNAL]** - Not exported (safe to change within module)
-- **[DEPRECATED]** - Marked for removal (plan migration)
-- **[ABSTRACT]** - Abstract class/method (has implementations to update)
-- **[TEST]** - Test file (changes have lower production risk)
-- **[CONFIG]** - Configuration file (changes affect runtime behavior)
-- **[GENERATED]** - Auto-generated (don't edit manually)
-- **[EXTERNAL]** - From node_modules/vendor (not project code)
-- **[UNUSED]** - Never used/imported (candidate for deletion)
-- **[HEAVILY_USED]** - 20+ usages (high-impact changes)
-- **[HIGH_IMPACT]** - Critical to many dependents (extreme caution)
-- **[BREAKING]** - Breaking change risk (critical risk level)
-- **[SAFE]** - Safe to modify/delete (low/no risk)
-- **[RISKY]** - Moderate to high change risk
-
-## Pagination Best Practices
-
-### Start with Defaults
-Most tools have sensible defaults. Only increase when:
-- Results truncated and you need complete picture
-- "... and X more" appears in output
-- Working with known high-traffic symbols/files
-
-### Progressive Refinement
-1. **First query**: Use default limit
-2. **Assess**: Check returned count vs total
-3. **Refine**: Increase limit or add filters
-4. **Iterate**: Use offset for pagination if needed
-
-### Tool-Specific Limits
-
-| Tool | Default | Max | When to Increase |
-|------|---------|-----|------------------|
-| search_symbols | 50 | 100 | Broad searches, pattern matching |
-| get_dependencies | 20 | 100 | Heavily-coupled files |
-| get_dependents | 20 | 100 | Popular shared utilities |
-| get_call_graph | 25 | 100 | Central orchestrator functions |
-| trace_symbol_usage | 50 | 500 | Widely-used symbols (500 max!) |
-| find_circular_dependencies | 50 | 100 | Comprehensive cycle detection |
-| find_orphaned_code | 50 | 100 | Major cleanup initiatives |
-
-## Common Workflows
-
-### 1. Understanding a New Function
-\`\`\`
-search_symbols (query="functionName")
-  → get_symbol_details (symbolId from search)
-    → get_call_graph (symbolId, direction="both")
+\`\`\`javascript
+// Basic example - find a function and get its details
+const search = await api.searchSymbols({ query: "handleAuth" });
+const details = await api.getSymbolDetails({ symbolId: search.symbols[0].id });
+return { search, details };
 \`\`\`
 
-### 2. Assessing Refactoring Impact
-\`\`\`
-get_dependents (filePath="src/utils/helpers.ts")
-  → Check dependent count and risk level
-  → impact_analysis (filePath) for comprehensive view
-    → Review breaking change risk and recommendations
-\`\`\`
+## Key Principles
 
-### 3. Tracing a Bug
-\`\`\`
-search_symbols (query="buggyFunction")
-  → trace_symbol_usage (symbolId)
-    → Group by usage type (call, import, reference)
-    → get_call_graph for execution flow context
-\`\`\`
-
-### 4. Cleaning Up Code
-\`\`\`
-find_orphaned_code (filePattern="src/legacy/**")
-  → Review confidence scores
-  → get_dependents for each candidate (verify truly unused)
-  → Delete with confidence
-\`\`\`
-
-### 5. Resolving Circular Dependencies
-\`\`\`
-find_circular_dependencies (minCycleLength=2)
-  → get_dependencies for files in cycle
-  → Plan extraction/refactoring
-  → Verify with impact_analysis
-\`\`\`
-
-### 6. Planning Breaking Changes
-\`\`\`
-impact_analysis (symbolName="MyClass", filePath="src/models/MyClass.ts")
-  → Review risk level (low/medium/high/critical)
-  → Check direct vs transitive dependents
-  → Follow recommended action plan
-  → trace_symbol_usage to understand usage patterns
-\`\`\`
-
-## Performance Tips
-
-1. **Cache Awareness**: Results are cached. Repeated queries are instant.
-2. **Filter Early**: Use filePattern, filterByKind to narrow results
-3. **Depth Control**: Start with depth=1, increase only if needed
-4. **Exclude Options**: Use excludeTests, excludeGenerated to focus on production code
-5. **Limit Appropriately**: Don't request limit=100 when 20 would suffice
-
-## Error Handling
-
-If a tool returns an error:
-1. **Check configuration**: Is CONSTELLATION_ACCESS_KEY set?
-2. **Verify parameters**: Required params provided? (filePath, symbolId, etc.)
-3. **Check project state**: Is the project indexed in Constellation?
-4. **Read error message**: May contain setup instructions if misconfigured
-
-## Suggested Next Steps
-
-Many tools include a "Suggested Next Steps" section based on results:
-- **Low impact**: Basic verification steps
-- **Moderate impact**: Comprehensive testing recommendations
-- **High impact**: Multi-step action plan with tool suggestions
-
-Always review these suggestions - they're contextual to the specific query results.
-
-## When NOT to Use These Tools
-
-- **Reading source code**: Use your standard file reading tools
-- **Editing code**: These are read-only analysis tools
-- **Real-time parsing**: Results reflect last index time, not live edits
-- **Language-specific analysis**: Generic symbol/relationship analysis only
-
-## Best Practices
-
-1. **Start broad, then narrow**: search → details → trace
-2. **Assess before changing**: Use get_dependents/impact_analysis before refactoring
-3. **Trust the markers**: [HIGH_IMPACT] and [BREAKING] are serious warnings
-4. **Follow suggestions**: "Suggested Next Steps" are contextual and helpful
-5. **Paginate thoughtfully**: Only increase limits when you need comprehensive results
-6. **Combine tools**: Multi-tool workflows provide richer context
+1. **Always use \`await\`** - All API methods are async
+2. **Always \`return\` results** - Otherwise output is undefined
+3. **Use \`Promise.all()\`** - For parallel operations (much faster)
+4. **Use \`api.listMethods()\`** - To see available methods
 
 ---
 
-This MCP server provides **code intelligence**, not code content. Use it to understand **structure, relationships, and impact** - then use standard tools to read/modify the actual code.`;
+## API Reference
+
+| Method | Parameters | Returns | Use When |
+|--------|------------|---------|----------|
+| \`api.searchSymbols()\` | query, filterByKind?, limit? | { symbols[], pagination? } | Finding functions, classes, variables |
+| \`api.getSymbolDetails()\` | symbolId OR symbolName+filePath | { symbol, references?, relationships? } | Getting full symbol info |
+| \`api.getDependencies()\` | filePath, depth? | { directDependencies[], transitiveDependencies? } | What does this file import? |
+| \`api.getDependents()\` | filePath, depth? | { directDependents[], transitiveDependents? } | What imports this file? |
+| \`api.traceSymbolUsage()\` | symbolId OR symbolName+filePath | { directUsages[] } | Where is this symbol used? |
+| \`api.getCallGraph()\` | symbolId OR functionName+filePath, direction? | { root, callers?, callees? } | Function call relationships |
+| \`api.impactAnalysis()\` | symbolId OR symbolName+filePath | { impactedFiles[], summary, breakingChangeRisk? } | Change impact assessment |
+| \`api.findCircularDependencies()\` | filePath?, maxDepth? | { cycles[] } | Find import cycles |
+| \`api.findOrphanedCode()\` | filePattern?, filterByKind? | { orphanedSymbols[], orphanedFiles[] } | Find unused/dead code |
+| \`api.getArchitectureOverview()\` | includeMetrics? | { metadata, structure, dependencies } | High-level project structure |
+
+---
+
+## Common Patterns
+
+### Pattern 1: Basic Search
+\`\`\`javascript
+const result = await api.searchSymbols({
+  query: "UserService",
+  filterByKind: ["class"],
+  limit: 10
+});
+return result.symbols.map(s => ({ name: s.name, file: s.filePath, line: s.line }));
+\`\`\`
+
+### Pattern 2: Parallel Queries (Fast)
+\`\`\`javascript
+// Run multiple queries at once - 3x faster than sequential
+const [symbols, architecture, orphaned] = await Promise.all([
+  api.searchSymbols({ query: "Controller", limit: 20 }),
+  api.getArchitectureOverview({ includeMetrics: true }),
+  api.findOrphanedCode({ limit: 10 })
+]);
+return {
+  controllers: symbols.symbols.length,
+  totalFiles: architecture.structure.files.total,
+  deadCode: orphaned.orphanedSymbols.length
+};
+\`\`\`
+
+### Pattern 3: Chained Analysis
+\`\`\`javascript
+// Find symbol, then analyze its impact
+const search = await api.searchSymbols({ query: "calculateTotal", limit: 1 });
+if (search.symbols.length === 0) return { error: "Not found" };
+
+const symbol = search.symbols[0];
+const [details, usage, impact] = await Promise.all([
+  api.getSymbolDetails({ symbolId: symbol.id }),
+  api.traceSymbolUsage({ symbolId: symbol.id }),
+  api.impactAnalysis({ symbolId: symbol.id })
+]);
+
+return {
+  name: symbol.name,
+  file: symbol.filePath,
+  usageCount: usage.directUsages?.length || 0,
+  riskLevel: impact.breakingChangeRisk?.riskLevel || "unknown"
+};
+\`\`\`
+
+### Pattern 4: Error Handling
+\`\`\`javascript
+try {
+  const result = await api.getSymbolDetails({ symbolName: "MissingClass", filePath: "src/missing.ts" });
+  return result;
+} catch (error) {
+  return { error: error.message, suggestion: "Check if symbol exists with searchSymbols first" };
+}
+\`\`\`
+
+---
+
+## Complete Workflow Examples
+
+### Workflow 1: Understanding a Function
+\`\`\`javascript
+const functionName = "processOrder";
+
+// Find the function
+const search = await api.searchSymbols({ query: functionName, filterByKind: ["function"], limit: 1 });
+if (search.symbols.length === 0) return { error: "Function not found: " + functionName };
+
+const symbol = search.symbols[0];
+
+// Get comprehensive info in parallel
+const [details, callGraph, usage] = await Promise.all([
+  api.getSymbolDetails({ symbolId: symbol.id, includeRelationships: true }),
+  api.getCallGraph({ symbolId: symbol.id, direction: "both", depth: 2 }),
+  api.traceSymbolUsage({ symbolId: symbol.id, limit: 20 })
+]);
+
+return {
+  function: {
+    name: symbol.name,
+    file: symbol.filePath,
+    line: symbol.line,
+    signature: details.symbol?.signature
+  },
+  calls: callGraph.callees?.map(c => c.name) || [],
+  calledBy: callGraph.callers?.map(c => c.name) || [],
+  usedIn: usage.directUsages?.map(u => u.filePath) || []
+};
+\`\`\`
+
+### Workflow 2: Refactoring Impact Analysis
+\`\`\`javascript
+const filePath = "src/utils/helpers.ts";
+
+// Get dependents and impact in parallel
+const [dependents, impact] = await Promise.all([
+  api.getDependents({ filePath, depth: 2 }),
+  api.impactAnalysis({ filePath })
+]);
+
+// Calculate risk
+const directCount = dependents.directDependents?.length || 0;
+const transitiveCount = dependents.transitiveDependents?.length || 0;
+const riskLevel = impact.breakingChangeRisk?.riskLevel || "unknown";
+
+return {
+  file: filePath,
+  directDependents: directCount,
+  transitiveDependents: transitiveCount,
+  totalImpactedFiles: impact.impactedFiles?.length || 0,
+  riskLevel,
+  recommendations: impact.breakingChangeRisk?.recommendations || [],
+  safeToRefactor: riskLevel === "low" && directCount < 5
+};
+\`\`\`
+
+### Workflow 3: Find and Analyze Dead Code
+\`\`\`javascript
+// Find orphaned code
+const orphaned = await api.findOrphanedCode({
+  filePattern: "src/**",
+  exportedOnly: true,
+  limit: 20
+});
+
+// Verify each is truly unused by checking dependents
+const verifiedOrphans = [];
+for (const symbol of orphaned.orphanedSymbols.slice(0, 5)) {
+  const deps = await api.getDependents({ filePath: symbol.filePath });
+  if (deps.directDependents.length === 0) {
+    verifiedOrphans.push({
+      name: symbol.name,
+      file: symbol.filePath,
+      kind: symbol.kind,
+      confidence: symbol.confidence
+    });
+  }
+}
+
+return {
+  totalOrphaned: orphaned.orphanedSymbols.length,
+  verified: verifiedOrphans,
+  safeToDelete: verifiedOrphans.filter(o => o.confidence > 0.8)
+};
+\`\`\`
+
+### Workflow 4: Resolve Circular Dependencies
+\`\`\`javascript
+// Find circular dependencies
+const cycles = await api.findCircularDependencies({ maxDepth: 5 });
+
+if (cycles.cycles.length === 0) {
+  return { message: "No circular dependencies found" };
+}
+
+// Analyze the shortest cycle for easier resolution
+const shortestCycle = cycles.cycles.sort((a, b) => a.length - b.length)[0];
+
+// Get dependencies for each file in cycle
+const fileAnalysis = await Promise.all(
+  shortestCycle.cycle.map(async (filePath) => {
+    const deps = await api.getDependencies({ filePath });
+    return {
+      file: filePath,
+      imports: deps.directDependencies.map(d => d.filePath)
+    };
+  })
+);
+
+return {
+  totalCycles: cycles.cycles.length,
+  shortestCycle: shortestCycle.cycle,
+  analysis: fileAnalysis,
+  suggestion: "Extract shared code to break the cycle"
+};
+\`\`\`
+
+---
+
+## Semantic Markers
+
+API results include markers to highlight characteristics:
+
+| Marker | Meaning |
+|--------|---------|
+| [EXPORTED] | Public symbol - changes affect consumers |
+| [INTERNAL] | Private - safe to change within module |
+| [TEST] | Test file - lower production risk |
+| [UNUSED] | Never imported - deletion candidate |
+| [HEAVILY_USED] | 20+ usages - high impact |
+| [HIGH_IMPACT] | Critical to many dependents |
+| [BREAKING] | Breaking change risk |
+| [SAFE] | Safe to modify/delete |
+
+---
+
+## Best Practices
+
+1. **Use \`Promise.all()\` for parallel calls** - 3-10x faster than sequential
+2. **Check array lengths before accessing** - Avoid undefined errors
+3. **Start with small limits** - Increase only if needed
+4. **Chain from search to details** - Search first, then get specifics
+5. **Use \`console.log()\` for debugging** - Logs appear in response
+
+## Error Handling
+
+If you get an error:
+1. Check if symbol/file exists with \`searchSymbols\` first
+2. Verify required parameters (symbolId OR symbolName+filePath)
+3. Check CONSTELLATION_ACCESS_KEY is set
+4. Read error message for guidance
+
+---
+
+This is a **Code Mode** MCP server. Write JavaScript code to interact with all capabilities.`;
 }
 
 /**
@@ -259,8 +278,8 @@ export function registerConstellationGuidePrompt(server: McpServer): void {
 	server.registerPrompt(
 		'constellation-guide',
 		{
-			title: 'Constellation AI Assistant Guide',
-			description: 'Comprehensive guide for AI assistants on using Constellation MCP tools effectively',
+			title: 'Constellation Code Mode Guide',
+			description: 'Guide for AI assistants on using Constellation MCP Code Mode - write JavaScript to access all API capabilities',
 			argsSchema: {}, // No arguments needed
 		},
 		async () => ({

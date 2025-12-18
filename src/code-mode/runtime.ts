@@ -68,15 +68,47 @@ export class CodeModeRuntime {
       };
     }
 
+    // Log warnings to both console and prepare for response
+    const warningLogs: string[] = [];
+    if (validation.warnings && validation.warnings.length > 0) {
+      for (const warning of validation.warnings) {
+        console.error(`[CodeModeRuntime] Warning: ${warning}`);
+        warningLogs.push(`[WARN] ${warning}`);
+      }
+    }
+
     // Execute in sandbox (JavaScript only)
     const result = await this.sandbox.execute(request.code);
+
+    // Combine warning logs with execution logs
+    const allLogs = [...warningLogs, ...(result.logs || [])];
+
+    // Check result size and warn if large
+    const RESULT_SIZE_WARNING_THRESHOLD = 100 * 1024; // 100KB
+    if (result.result !== undefined) {
+      try {
+        const resultSize = JSON.stringify(result.result).length;
+        if (resultSize > RESULT_SIZE_WARNING_THRESHOLD) {
+          const sizeKB = Math.round(resultSize / 1024);
+          console.error(
+            `[CodeModeRuntime] Warning: Large result size (${sizeKB}KB). ` +
+            'Consider using pagination or filtering to reduce response size.'
+          );
+          allLogs.push(
+            `[WARN] Large result size (${sizeKB}KB). Consider using limit parameter or filtering.`
+          );
+        }
+      } catch {
+        // Ignore serialization errors for size check
+      }
+    }
 
     // Format response
     return {
       success: result.success,
       result: result.result,
       error: result.error,
-      logs: result.logs,
+      logs: allLogs.length > 0 ? allLogs : undefined,
       executionTime: result.executionTime,
       metadata: {
         language: 'javascript',

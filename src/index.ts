@@ -86,7 +86,7 @@ async function startServer() {
 
 		console.error("[CONSTELLATION] Server configured successfully");
 		console.error("[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations");
-		console.error("[CONSTELLATION] Write TypeScript code to access all Constellation API capabilities");
+		console.error("[CONSTELLATION] Write JavaScript code to access all Constellation API capabilities");
 
 		// Setup stdio transport and connect
 		const transport = new StdioServerTransport();

@@ -34,5 +34,5 @@ export const toolDefinitionsByCategory = {
  */
 export const toolDefinitionsCount = {
 	total: 1,
-	description: 'Code Mode Only - Write TypeScript to access all Constellation API capabilities',
+	description: 'Code Mode Only - Write JavaScript to access all Constellation API capabilities',
 };

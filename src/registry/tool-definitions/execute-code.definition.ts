@@ -12,13 +12,13 @@ export const executeCodeDefinition: McpToolDefinition = {
   category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
 
   description:
-    'THE ONLY TOOL AVAILABLE. Execute TypeScript code to interact with the Constellation API. ' +
-    'You MUST use this tool for ALL operations. Write TypeScript code that calls api methods like searchSymbols(), ' +
-    'getDependencies(), etc. Supports async/await, Promise.all(), and full TypeScript capabilities. ' +
-    'This is a Code Mode-only server - always write TypeScript code instead of trying to call individual tools.',
+    'THE ONLY TOOL AVAILABLE. Execute JavaScript code to interact with the Constellation API. ' +
+    'You MUST use this tool for ALL operations. Write JavaScript code that calls api methods like searchSymbols(), ' +
+    'getDependencies(), etc. Supports async/await, Promise.all(), and full JavaScript capabilities. ' +
+    'This is a Code Mode-only server - always write JavaScript code instead of trying to call individual tools.',
 
   shortDescription:
-    'Code Mode - Write TypeScript to access all Constellation capabilities',
+    'Code Mode - Write JavaScript to access all Constellation capabilities',
 
   whenToUse: [
     '**ALWAYS** - This is the only tool available',
@@ -39,11 +39,11 @@ export const executeCodeDefinition: McpToolDefinition = {
         type: 'string',
         minLength: 1,
         description:
-          'TypeScript code to execute. Has access to api object with methods: ' +
+          'JavaScript code to execute. Has access to api object with methods: ' +
           'searchSymbols, getSymbolDetails, getDependencies, getDependents, ' +
           'findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
           'findOrphanedCode, impactAnalysis, getArchitectureOverview. ' +
-          'Supports async/await, Promise.all(), and standard TypeScript features.',
+          'Supports async/await, Promise.all(), and standard JavaScript features.',
       },
       timeout: {
         type: 'number',
@@ -56,6 +56,34 @@ export const executeCodeDefinition: McpToolDefinition = {
     },
     required: ['code'],
   },
+
+  // Condensed API type reference for AI assistants
+  apiReference: `
+## Available API Methods
+
+### Discovery
+api.searchSymbols({ query, filterByKind?, limit? }) → { symbols[], pagination? }
+api.getSymbolDetails({ symbolId | symbolName+filePath, includeReferences? }) → { symbol, references?, relationships? }
+
+### Dependencies
+api.getDependencies({ filePath, depth?, includePackages? }) → { directDependencies[], transitiveDependencies? }
+api.getDependents({ filePath, depth? }) → { directDependents[], transitiveDependents? }
+api.findCircularDependencies({ filePath?, maxDepth? }) → { cycles[], totalCycles }
+
+### Tracing
+api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType? }) → { symbol, directUsages[] }
+api.getCallGraph({ symbolId | functionName+filePath, direction?, depth? }) → { root, callers?, callees? }
+
+### Impact
+api.impactAnalysis({ symbolId | symbolName+filePath, depth? }) → { symbol, impactedFiles[], summary, breakingChangeRisk? }
+api.findOrphanedCode({ filePattern?, filterByKind? }) → { orphanedSymbols[], orphanedFiles[] }
+
+### Architecture
+api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { metadata, structure, dependencies }
+
+### Discovery
+api.listMethods() → { methods[], usage, example }
+`,
 
   examples: [
     {
