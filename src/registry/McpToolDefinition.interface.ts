@@ -143,6 +143,12 @@ export interface McpToolDefinition {
 	commonMistakes?: string[];
 
 	/**
+	 * Optional: API reference documentation
+	 * Used primarily for Code Mode tools to document available API methods
+	 */
+	apiReference?: string;
+
+	/**
 	 * Optional: Version when tool was introduced
 	 * Useful for compatibility checking
 	 */
@@ -174,7 +180,7 @@ export const McpToolDefinitionSchema = z.object({
 		.max(500)
 		.refine(
 			(desc) => desc.split('.').length >= 2,
-			'Description should be 2-3 sentences'
+			'Description should be 2-3 sentences',
 		),
 
 	shortDescription: z.string().max(200).optional(),
@@ -212,23 +218,25 @@ export const McpToolDefinitionSchema = z.object({
 				description: z.string().min(10).max(300),
 				parameters: z.record(z.any()),
 				expectedOutcome: z.string().optional(),
-			})
+			}),
 		)
 		.min(2)
 		.max(5)
 		.describe('2-5 concrete examples'),
 
 	commonMistakes: z.array(z.string()).optional(),
+	apiReference: z.string().optional(),
 	performanceNotes: z.array(z.string()).optional(),
-	sinceVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
+	sinceVersion: z
+		.string()
+		.regex(/^\d+\.\d+\.\d+$/)
+		.optional(),
 });
 
 /**
  * Type guard to check if object is a valid McpToolDefinition
  */
-export function isValidToolDefinition(
-	obj: any
-): obj is McpToolDefinition {
+export function isValidToolDefinition(obj: any): obj is McpToolDefinition {
 	const result = McpToolDefinitionSchema.safeParse(obj);
 	return result.success;
 }
@@ -236,16 +244,17 @@ export function isValidToolDefinition(
 /**
  * Validate and return detailed errors for invalid definitions
  */
-export function validateToolDefinition(
-	obj: any
-): { valid: boolean; errors?: string[] } {
+export function validateToolDefinition(obj: any): {
+	valid: boolean;
+	errors?: string[];
+} {
 	const result = McpToolDefinitionSchema.safeParse(obj);
 	if (result.success) {
 		return { valid: true };
 	}
 
 	const errors = result.error.errors.map(
-		(err) => `${err.path.join('.')}: ${err.message}`
+		(err) => `${err.path.join('.')}: ${err.message}`,
 	);
 	return { valid: false, errors };
 }
