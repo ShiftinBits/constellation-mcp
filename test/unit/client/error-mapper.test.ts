@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { AuthenticationError, NotFoundError, ToolNotFoundError } from '../../../src/client/constellation-client.js';
+import {
+	AuthenticationError,
+	AuthorizationError,
+	NotFoundError,
+	ToolNotFoundError,
+} from '../../../src/client/constellation-client.js';
 import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
 // Mock config manager
@@ -24,6 +29,33 @@ describe('mapErrorToMessage', () => {
 
 			expect(result).toContain('Authentication Failed');
 			expect(result).toContain('constellation auth');
+		});
+	});
+
+	describe('AuthorizationError', () => {
+		it('should handle authorization errors as generic errors', () => {
+			const error = new AuthorizationError('Insufficient permissions');
+			const result = mapErrorToMessage(error, 'impact_analysis');
+
+			// AuthorizationError is handled as a generic error in error-mapper
+			// (structured error handling is done in error-factory instead)
+			expect(result).toContain('Failed');
+			expect(result).toContain('Insufficient permissions');
+		});
+
+		it('should include tool name for authorization errors', () => {
+			const error = new AuthorizationError('Access denied');
+			const result = mapErrorToMessage(error, 'get_call_graph');
+
+			expect(result.toLowerCase()).toContain('get_call_graph');
+		});
+
+		it('should include context for authorization errors', () => {
+			const error = new AuthorizationError('Permission denied');
+			const result = mapErrorToMessage(error, 'search_symbols');
+
+			expect(result).toContain('Project ID:');
+			expect(result).toContain('Branch:');
 		});
 	});
 
@@ -188,7 +220,9 @@ describe('mapErrorToMessage', () => {
 });
 
 describe('extractApiErrorMessage', () => {
-	const { extractApiErrorMessage } = require('../../../src/client/error-mapper.js');
+	const {
+		extractApiErrorMessage,
+	} = require('../../../src/client/error-mapper.js');
 
 	function createMockHeaders(contentType: string | null) {
 		return {
@@ -223,10 +257,11 @@ describe('extractApiErrorMessage', () => {
 	it('should prefer error over message in JSON response', async () => {
 		const mockResponse = {
 			headers: createMockHeaders('application/json'),
-			json: () => Promise.resolve({
-				error: 'Primary error',
-				message: 'Secondary message',
-			}),
+			json: () =>
+				Promise.resolve({
+					error: 'Primary error',
+					message: 'Secondary message',
+				}),
 			statusText: 'Error',
 		} as unknown as Response;
 

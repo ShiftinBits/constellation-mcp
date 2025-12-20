@@ -11,6 +11,9 @@ import { z } from 'zod';
 import { CodeModeRuntime } from '../code-mode/runtime.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { standardErrors } from '../utils/error-messages.js';
+import { createStructuredError } from '../client/error-factory.js';
+import { ConfigurationError } from '../client/constellation-client.js';
+import { ErrorCode } from '../types/mcp-errors.js';
 
 /**
  * Register the execute_code tool with the MCP server
@@ -28,19 +31,24 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				'Write JavaScript code using the api object: api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
 				'This is a Code Mode-only server. There are NO other tools. Always write JavaScript code.',
 			inputSchema: {
-				code: z.string().min(1).describe(
-					'JavaScript code to execute. Can use top-level await. ' +
-					'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
-					'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-					'findOrphanedCode, impactAnalysis, getArchitectureOverview'
-				),
+				code: z
+					.string()
+					.min(1)
+					.describe(
+						'JavaScript code to execute. Can use top-level await. ' +
+							'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
+							'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
+							'findOrphanedCode, impactAnalysis, getArchitectureOverview',
+					),
 				timeout: z
 					.number()
 					.min(1000)
 					.max(60000)
 					.optional()
 					.default(30000)
-					.describe('Maximum execution time in milliseconds (default: 30000, max: 60000)'),
+					.describe(
+						'Maximum execution time in milliseconds (default: 30000, max: 60000)',
+					),
 			},
 			outputSchema: {
 				success: z.boolean(),
@@ -57,17 +65,21 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				// Check for configuration errors first
 				const configContext = getConfigContext();
 				if (configContext.initializationError) {
-					console.error('[execute_code] Configuration error detected, returning setup instructions');
-					const errorMessage = standardErrors.configurationError(
-						configContext.initializationError,
-						process.cwd()
+					console.error(
+						'[execute_code] Configuration error detected, returning setup instructions',
+					);
+
+					// Create structured error for configuration issues
+					const structuredError = createStructuredError(
+						new ConfigurationError(configContext.initializationError),
+						'execute_code',
 					);
 
 					return {
 						content: [
 							{
 								type: 'text',
-								text: errorMessage,
+								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
 						isError: true,
@@ -87,7 +99,22 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					timeout,
 				});
 
-				// Format the result
+				// Check if response contains a structured error (from API/sandbox)
+				if (response.structuredError) {
+					console.error('[execute_code] Execution returned structured error');
+
+					return {
+						content: [
+							{
+								type: 'text',
+								text: JSON.stringify(response.structuredError, null, 2),
+							},
+						],
+						isError: true,
+					};
+				}
+
+				// Format the result for successful execution
 				const formatted = runtime.formatResult(response);
 
 				console.error('[execute_code] Execution successful');
@@ -105,26 +132,20 @@ export function registerExecuteCodeTool(server: McpServer): void {
 			} catch (error) {
 				console.error('[execute_code] Execution error:', error);
 
-				const errorMessage = JSON.stringify(
-					{
-						success: false,
-						error: error instanceof Error ? error.message : String(error),
-					},
-					null,
-					2
-				);
+				// Create structured error for unexpected errors
+				const structuredError = createStructuredError(error, 'execute_code');
 
 				return {
 					content: [
 						{
 							type: 'text',
-							text: errorMessage,
+							text: JSON.stringify(structuredError, null, 2),
 						},
 					],
 					isError: true,
 				};
 			}
-		}
+		},
 	);
 
 	console.error('[execute_code] Tool registered successfully');

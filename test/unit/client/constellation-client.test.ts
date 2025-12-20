@@ -1,5 +1,21 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { ConstellationClient, AuthenticationError, NotFoundError, RetryableError, ToolNotFoundError } from '../../../src/client/constellation-client.js';
+import {
+	describe,
+	it,
+	expect,
+	jest,
+	beforeEach,
+	afterEach,
+} from '@jest/globals';
+import {
+	ConstellationClient,
+	AuthenticationError,
+	AuthorizationError,
+	NotFoundError,
+	RetryableError,
+	ToolNotFoundError,
+	ConfigurationError,
+	TimeoutError,
+} from '../../../src/client/constellation-client.js';
 import { createMockResponse } from '../../helpers/test-utils.js';
 
 // Mock global fetch
@@ -50,7 +66,7 @@ describe('ConstellationClient', () => {
 			const result = await client.executeMcpTool(
 				'search_symbols',
 				{ query: 'test' },
-				mockContext
+				mockContext,
 			);
 
 			expect(mockFetch).toHaveBeenCalledWith(
@@ -59,12 +75,12 @@ describe('ConstellationClient', () => {
 					method: 'POST',
 					headers: expect.objectContaining({
 						'Content-Type': 'application/json; charset=utf-8',
-						'Authorization': mockApiKey,
+						Authorization: mockApiKey,
 						'x-project-id': 'test-project',
 						'x-branch-name': 'main',
 					}),
 					body: JSON.stringify({ parameters: { query: 'test' } }),
-				})
+				}),
 			);
 			expect(result).toEqual(mockResult);
 		});
@@ -74,8 +90,17 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(401, false));
 
 			await expect(
-				client.executeMcpTool('search_symbols', {}, mockContext)
+				client.executeMcpTool('search_symbols', {}, mockContext),
 			).rejects.toThrow(AuthenticationError);
+		});
+
+		it('should throw AuthorizationError on 403', async () => {
+			// @ts-expect-error - Mock response type compatibility
+			mockFetch.mockResolvedValue(createMockResponse(403, false));
+
+			await expect(
+				client.executeMcpTool('search_symbols', {}, mockContext),
+			).rejects.toThrow(AuthorizationError);
 		});
 
 		it('should throw ToolNotFoundError on 404', async () => {
@@ -83,7 +108,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(404, false));
 
 			await expect(
-				client.executeMcpTool('nonexistent_tool', {}, mockContext)
+				client.executeMcpTool('nonexistent_tool', {}, mockContext),
 			).rejects.toThrow(ToolNotFoundError);
 		});
 
@@ -110,7 +135,9 @@ describe('ConstellationClient', () => {
 				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(502, false))
 				// @ts-expect-error - Mock response type compatibility
-				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+				.mockResolvedValueOnce(
+					createMockResponse(200, true, { success: true, data: {} }),
+				);
 
 			const promise = client.executeMcpTool('search_symbols', {}, mockContext);
 			await jest.runAllTimersAsync();
@@ -125,7 +152,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(
-				client.executeMcpTool('search_symbols', {}, mockContext)
+				client.executeMcpTool('search_symbols', {}, mockContext),
 			).rejects.toThrow();
 
 			expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -136,7 +163,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockRejectedValue(new Error('Network error'));
 
 			await expect(
-				client.executeMcpTool('search_symbols', {}, mockContext)
+				client.executeMcpTool('search_symbols', {}, mockContext),
 			).rejects.toThrow('Network error');
 		});
 
@@ -167,7 +194,9 @@ describe('ConstellationClient', () => {
 
 		it('should include correct headers', async () => {
 			// @ts-expect-error - Mock response type compatibility
-			mockFetch.mockResolvedValue(createMockResponse(200, true, { success: true, data: {} }));
+			mockFetch.mockResolvedValue(
+				createMockResponse(200, true, { success: true, data: {} }),
+			);
 
 			await client.executeMcpTool('test_tool', { param: 'value' }, mockContext);
 
@@ -176,17 +205,19 @@ describe('ConstellationClient', () => {
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						'Content-Type': 'application/json; charset=utf-8',
-						'Authorization': mockApiKey,
+						Authorization: mockApiKey,
 						'x-project-id': 'test-project',
 						'x-branch-name': 'main',
 					}),
-				})
+				}),
 			);
 		});
 
 		it('should handle empty parameters', async () => {
 			// @ts-expect-error - Mock response type compatibility
-			mockFetch.mockResolvedValue(createMockResponse(200, true, { success: true, data: {} }));
+			mockFetch.mockResolvedValue(
+				createMockResponse(200, true, { success: true, data: {} }),
+			);
 
 			await client.executeMcpTool('test_tool', {}, mockContext);
 
@@ -194,7 +225,7 @@ describe('ConstellationClient', () => {
 				expect.any(String),
 				expect.objectContaining({
 					body: JSON.stringify({ parameters: {} }),
-				})
+				}),
 			);
 		});
 	});
@@ -209,7 +240,9 @@ describe('ConstellationClient', () => {
 				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
 				// @ts-expect-error - Mock response type compatibility
-				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+				.mockResolvedValueOnce(
+					createMockResponse(200, true, { success: true, data: {} }),
+				);
 
 			const promise = client.executeMcpTool('test', {}, mockContext);
 			await jest.runAllTimersAsync();
@@ -228,7 +261,9 @@ describe('ConstellationClient', () => {
 				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
 				// @ts-expect-error - Mock response type compatibility
-				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+				.mockResolvedValueOnce(
+					createMockResponse(200, true, { success: true, data: {} }),
+				);
 
 			const promise = client.executeMcpTool('test', {}, mockContext);
 			await jest.runAllTimersAsync();
@@ -284,6 +319,27 @@ describe('ConstellationClient', () => {
 			expect(error.name).toBe('ToolNotFoundError');
 			expect(error.message).toBe('Tool not found');
 		});
+
+		it('should create AuthorizationError', () => {
+			const error = new AuthorizationError('Insufficient permissions');
+			expect(error).toBeInstanceOf(Error);
+			expect(error.name).toBe('AuthorizationError');
+			expect(error.message).toBe('Insufficient permissions');
+		});
+
+		it('should create ConfigurationError', () => {
+			const error = new ConfigurationError('constellation.json not found');
+			expect(error).toBeInstanceOf(Error);
+			expect(error.name).toBe('ConfigurationError');
+			expect(error.message).toBe('constellation.json not found');
+		});
+
+		it('should create TimeoutError', () => {
+			const error = new TimeoutError('Operation timed out after 30s');
+			expect(error).toBeInstanceOf(Error);
+			expect(error.name).toBe('TimeoutError');
+			expect(error.message).toBe('Operation timed out after 30s');
+		});
 	});
 
 	describe('response parsing', () => {
@@ -307,13 +363,15 @@ describe('ConstellationClient', () => {
 		it('should handle malformed JSON', async () => {
 			const mockResponse = createMockResponse(200, true);
 			// @ts-expect-error - Mock error type compatibility
-			mockResponse.json = jest.fn().mockRejectedValue(new Error('Invalid JSON'));
+			mockResponse.json = jest
+				.fn()
+				.mockRejectedValue(new Error('Invalid JSON'));
 
 			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(mockResponse);
 
 			await expect(
-				client.executeMcpTool('test', {}, mockContext)
+				client.executeMcpTool('test', {}, mockContext),
 			).rejects.toThrow();
 		});
 	});
@@ -333,7 +391,7 @@ describe('ConstellationClient', () => {
 				'https://api.constellation.test/v1/mcp/catalog',
 				expect.objectContaining({
 					method: 'GET',
-				})
+				}),
 			);
 			expect(result).toEqual(mockCatalog);
 		});
@@ -346,7 +404,7 @@ describe('ConstellationClient', () => {
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				'https://api.constellation.test/v1/mcp/catalog?category=discovery',
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
@@ -358,7 +416,7 @@ describe('ConstellationClient', () => {
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				'https://api.constellation.test/v1/mcp/catalog?search=symbol',
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
@@ -370,7 +428,7 @@ describe('ConstellationClient', () => {
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				'https://api.constellation.test/v1/mcp/catalog?tags=core%2Canalysis',
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
@@ -382,7 +440,7 @@ describe('ConstellationClient', () => {
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				'https://api.constellation.test/v1/mcp/catalog?includeDeprecated=true',
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
@@ -397,11 +455,11 @@ describe('ConstellationClient', () => {
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				expect.stringContaining('category=discovery'),
-				expect.any(Object)
+				expect.any(Object),
 			);
 			expect(mockFetch).toHaveBeenCalledWith(
 				expect.stringContaining('search=symbol'),
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
@@ -411,7 +469,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(client.getToolCatalog()).rejects.toThrow(
-				'Failed to fetch tool catalog'
+				'Failed to fetch tool catalog',
 			);
 		});
 	});
@@ -433,7 +491,7 @@ describe('ConstellationClient', () => {
 				'https://api.constellation.test/v1/mcp/tools/search_symbols',
 				expect.objectContaining({
 					method: 'GET',
-				})
+				}),
 			);
 			expect(result).toEqual(mockMetadata);
 		});
@@ -443,7 +501,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(404, false));
 
 			await expect(client.getToolMetadata('nonexistent_tool')).rejects.toThrow(
-				ToolNotFoundError
+				ToolNotFoundError,
 			);
 		});
 
@@ -453,7 +511,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(client.getToolMetadata('search_symbols')).rejects.toThrow(
-				'Failed to fetch tool metadata'
+				'Failed to fetch tool metadata',
 			);
 		});
 	});
@@ -466,7 +524,9 @@ describe('ConstellationClient', () => {
 				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(503, false))
 				// @ts-expect-error - Mock response type compatibility
-				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+				.mockResolvedValueOnce(
+					createMockResponse(200, true, { success: true, data: {} }),
+				);
 
 			const promise = client.executeMcpTool('test', {}, mockContext);
 			await jest.runAllTimersAsync();
@@ -481,7 +541,9 @@ describe('ConstellationClient', () => {
 				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(504, false))
 				// @ts-expect-error - Mock response type compatibility
-				.mockResolvedValueOnce(createMockResponse(200, true, { success: true, data: {} }));
+				.mockResolvedValueOnce(
+					createMockResponse(200, true, { success: true, data: {} }),
+				);
 
 			const promise = client.executeMcpTool('test', {}, mockContext);
 			await jest.runAllTimersAsync();
@@ -496,7 +558,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(
-				client.executeMcpTool('test', {}, mockContext)
+				client.executeMcpTool('test', {}, mockContext),
 			).rejects.toThrow();
 
 			expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -507,7 +569,7 @@ describe('ConstellationClient', () => {
 			mockFetch.mockResolvedValue(createMockResponse(403, false));
 
 			await expect(
-				client.executeMcpTool('test', {}, mockContext)
+				client.executeMcpTool('test', {}, mockContext),
 			).rejects.toThrow();
 
 			expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -519,12 +581,13 @@ describe('ConstellationClient', () => {
 
 		it('should include error text in failure message', async () => {
 			const mockResponse = createMockResponse(422, false);
-			(mockResponse as any).text = () => Promise.resolve('Validation error: invalid query');
+			(mockResponse as any).text = () =>
+				Promise.resolve('Validation error: invalid query');
 			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(mockResponse);
 
 			await expect(
-				client.executeMcpTool('search_symbols', {}, mockContext)
+				client.executeMcpTool('search_symbols', {}, mockContext),
 			).rejects.toThrow('Validation error: invalid query');
 		});
 	});

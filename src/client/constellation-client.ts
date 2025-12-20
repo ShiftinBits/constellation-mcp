@@ -1,4 +1,4 @@
-import { ConstellationConfig } from "../config/config.js";
+import { ConstellationConfig } from '../config/config.js';
 
 /**
  * MCP Tool Result interface matching client-api response format
@@ -40,7 +40,7 @@ export class ConstellationClient {
 	 */
 	constructor(
 		private config: ConstellationConfig,
-		private accessKey: string
+		private accessKey: string,
 	) {}
 
 	/**
@@ -55,7 +55,7 @@ export class ConstellationClient {
 	async executeMcpTool<TParams = any, TResult = any>(
 		toolName: string,
 		parameters: TParams,
-		context: { projectId: string; branchName: string }
+		context: { projectId: string; branchName: string },
 	): Promise<McpToolResult<TResult>> {
 		try {
 			const response = await this.sendRequest(
@@ -65,13 +65,13 @@ export class ConstellationClient {
 				{
 					'x-project-id': context.projectId,
 					'x-branch-name': context.branchName,
-				}
+				},
 			);
 
 			// Handle 404 - tool not found
 			if (response?.status === 404) {
 				throw new ToolNotFoundError(
-					`Tool "${toolName}" not found. Check API catalog for available tools.`
+					`Tool "${toolName}" not found. Check API catalog for available tools.`,
 				);
 			}
 
@@ -79,7 +79,7 @@ export class ConstellationClient {
 			if (!response?.ok) {
 				const errorText = await response.text();
 				throw new Error(
-					`MCP tool "${toolName}" failed: ${response.statusText} (${response.status})\n${errorText}`
+					`MCP tool "${toolName}" failed: ${response.statusText} (${response.status})\n${errorText}`,
 				);
 			}
 
@@ -90,6 +90,7 @@ export class ConstellationClient {
 			if (
 				error instanceof ToolNotFoundError ||
 				error instanceof AuthenticationError ||
+				error instanceof AuthorizationError ||
 				error instanceof NotFoundError
 			) {
 				throw error;
@@ -98,7 +99,7 @@ export class ConstellationClient {
 			// Wrap unexpected errors
 			throw new Error(
 				`Failed to execute MCP tool "${toolName}": ${error.message}`,
-				{ cause: error }
+				{ cause: error },
 			);
 		}
 	}
@@ -144,7 +145,7 @@ export class ConstellationClient {
 		const response = await this.sendRequest(
 			`mcp/tools/${toolName}`,
 			undefined,
-			'GET'
+			'GET',
 		);
 
 		if (response?.status === 404) {
@@ -152,9 +153,7 @@ export class ConstellationClient {
 		}
 
 		if (!response?.ok) {
-			throw new Error(
-				`Failed to fetch tool metadata: ${response?.statusText}`
-			);
+			throw new Error(`Failed to fetch tool metadata: ${response?.statusText}`);
 		}
 
 		return response.json();
@@ -182,7 +181,7 @@ export class ConstellationClient {
 		timeout = 30000, // 30 second default timeout
 		retries = 3,
 		delay = 1000,
-		jitter = 250
+		jitter = 250,
 	): Promise<Response> {
 		for (let i = 1; i <= retries; i++) {
 			try {
@@ -196,8 +195,8 @@ export class ConstellationClient {
 				const requestHeaders: Record<string, string> = {
 					...additionalHeaders,
 					'Content-Type': 'application/json; charset=utf-8',
-					'Accept': 'application/json; charset=utf-8',
-					'Authorization': this.accessKey,
+					Accept: 'application/json; charset=utf-8',
+					Authorization: this.accessKey,
 				};
 
 				const url = `${this.config.apiUrl}/${this.apiVersion}/${path}`;
@@ -213,17 +212,27 @@ export class ConstellationClient {
 					clearTimeout(timeoutTimer);
 				}
 
-				// Handle authentication errors
+				// Handle authentication errors (401)
 				if (response.status === 401) {
 					throw new AuthenticationError(
-						'Authentication failed. Check your CONSTELLATION_ACCESS_KEY environment variable.'
+						'Authentication failed. Check your CONSTELLATION_ACCESS_KEY environment variable.',
+					);
+				}
+
+				// Handle authorization errors (403)
+				if (response.status === 403) {
+					throw new AuthorizationError(
+						'Authorization failed. Your access key does not have permission for this operation.',
 					);
 				}
 
 				// Check if we should retry
-				if (!response.ok && this.retryableStatusCodes.includes(response.status)) {
+				if (
+					!response.ok &&
+					this.retryableStatusCodes.includes(response.status)
+				) {
 					throw new RetryableError(
-						`${response.statusText} (${response.status})`
+						`${response.statusText} (${response.status})`,
 					);
 				}
 
@@ -237,7 +246,7 @@ export class ConstellationClient {
 				// Log retry attempts (only in debug mode)
 				if (process.env.DEBUG) {
 					console.error(
-						`HTTP request attempt ${i}/${retries} failed: ${errorDetails}`
+						`HTTP request attempt ${i}/${retries} failed: ${errorDetails}`,
 					);
 				}
 
@@ -294,5 +303,36 @@ export class ToolNotFoundError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = 'ToolNotFoundError';
+	}
+}
+
+/**
+ * Error thrown when authorization fails (403 status code).
+ * Indicates valid credentials but insufficient permissions.
+ */
+export class AuthorizationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'AuthorizationError';
+	}
+}
+
+/**
+ * Error thrown when configuration is missing or invalid.
+ */
+export class ConfigurationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ConfigurationError';
+	}
+}
+
+/**
+ * Error thrown when a timeout occurs.
+ */
+export class TimeoutError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'TimeoutError';
 	}
 }

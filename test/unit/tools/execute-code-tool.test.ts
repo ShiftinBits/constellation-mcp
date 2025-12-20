@@ -18,7 +18,9 @@ jest.mock('../../../src/config/config-manager.js', () => ({
 	})),
 }));
 
-const MockedCodeModeRuntime = CodeModeRuntime as jest.MockedClass<typeof CodeModeRuntime>;
+const MockedCodeModeRuntime = CodeModeRuntime as jest.MockedClass<
+	typeof CodeModeRuntime
+>;
 
 describe('registerExecuteCodeTool', () => {
 	let mockServer: any;
@@ -55,7 +57,7 @@ describe('registerExecuteCodeTool', () => {
 					title: expect.stringContaining('Execute JavaScript Code'),
 					description: expect.stringContaining('THE ONLY AVAILABLE TOOL'),
 				}),
-				expect.any(Function)
+				expect.any(Function),
 			);
 		});
 
@@ -89,7 +91,9 @@ describe('registerExecuteCodeTool', () => {
 			};
 
 			mockRuntime.execute.mockResolvedValue(mockResponse);
-			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse, null, 2));
+			mockRuntime.formatResult.mockReturnValue(
+				JSON.stringify(mockResponse, null, 2),
+			);
 
 			const result = await registeredHandler({
 				code: 'return 42;',
@@ -136,7 +140,7 @@ describe('registerExecuteCodeTool', () => {
 			expect(MockedCodeModeRuntime).toHaveBeenCalledWith(
 				expect.objectContaining({
 					timeout: 30000,
-				})
+				}),
 			);
 		});
 
@@ -223,7 +227,9 @@ describe('registerExecuteCodeTool', () => {
 	describe('configuration error handling', () => {
 		it('should return setup instructions when config has initialization error', async () => {
 			// Re-mock getConfigContext to return error
-			const { getConfigContext } = await import('../../../src/config/config-manager.js');
+			const { getConfigContext } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			(getConfigContext as jest.Mock).mockReturnValue({
 				projectId: '',
 				branchName: '',
@@ -265,7 +271,9 @@ describe('registerExecuteCodeTool', () => {
 				success: true,
 				result: 'test',
 			});
-			mockRuntime.formatResult.mockReturnValue('{"success":true,"result":"test"}');
+			mockRuntime.formatResult.mockReturnValue(
+				'{"success":true,"result":"test"}',
+			);
 
 			const result = await registeredHandler({
 				code: 'return "test";',
@@ -303,6 +311,284 @@ describe('registerExecuteCodeTool', () => {
 
 			expect(result.structuredContent).toBeUndefined();
 			expect(result.isError).toBe(true);
+		});
+	});
+
+	describe('structured error responses', () => {
+		it('should return structured JSON for runtime structuredError', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'AUTH_ERROR' as const,
+					type: 'AuthenticationError',
+					message: 'Invalid API key',
+					recoverable: true,
+					guidance: ['Run: constellation auth'],
+				},
+				formattedMessage: 'Authentication failed',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Authentication failed',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({});',
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content).toHaveLength(1);
+			expect(result.content[0].type).toBe('text');
+
+			// Parse the JSON response
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBe('AUTH_ERROR');
+			expect(parsed.error.type).toBe('AuthenticationError');
+		});
+
+		it('should include error.code in structured JSON response', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'PROJECT_NOT_INDEXED' as const,
+					type: 'NotFoundError',
+					message: 'Project not found',
+					recoverable: true,
+					guidance: ['Run: constellation index'],
+				},
+				formattedMessage: 'Project not indexed',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Project not indexed',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({});',
+			});
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.code).toBe('PROJECT_NOT_INDEXED');
+		});
+
+		it('should include guidance array in structured JSON response', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'NOT_CONFIGURED' as const,
+					type: 'ConfigurationError',
+					message: 'constellation.json not found',
+					recoverable: true,
+					guidance: [
+						'Run: constellation init',
+						'Run: constellation auth',
+						'Run: constellation index',
+					],
+				},
+				formattedMessage: 'Configuration error',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Configuration error',
+				structuredError,
+				executionTime: 5,
+			});
+
+			const result = await registeredHandler({
+				code: 'return 42;',
+			});
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.guidance).toHaveLength(3);
+			expect(parsed.error.guidance).toContain('Run: constellation init');
+		});
+
+		it('should include context in structured JSON response when present', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'AUTH_ERROR' as const,
+					type: 'AuthenticationError',
+					message: 'Invalid API key',
+					recoverable: true,
+					guidance: ['Run: constellation auth'],
+					context: {
+						tool: 'search_symbols',
+						projectId: 'test-project',
+						branchName: 'main',
+						apiMethod: 'searchSymbols',
+					},
+				},
+				formattedMessage: 'Authentication failed',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Authentication failed',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({});',
+			});
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.context).toBeDefined();
+			expect(parsed.error.context.projectId).toBe('test-project');
+		});
+
+		it('should set isError: true for structuredError responses', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'EXECUTION_ERROR' as const,
+					type: 'Error',
+					message: 'Execution failed',
+					recoverable: false,
+					guidance: [],
+				},
+				formattedMessage: 'Execution error',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Execution failed',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'throw new Error("test");',
+			});
+
+			expect(result.isError).toBe(true);
+		});
+
+		it('should include formattedMessage in structured JSON response', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'API_UNREACHABLE' as const,
+					type: 'Error',
+					message: 'ECONNREFUSED',
+					recoverable: true,
+					guidance: ['Check if the API server is running'],
+				},
+				formattedMessage:
+					'API server is unreachable. Check if constellation-core is running.',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'ECONNREFUSED',
+				structuredError,
+				executionTime: 50,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({});',
+			});
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.formattedMessage).toContain('API server is unreachable');
+		});
+
+		it('should include recoverable flag in structured JSON response', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'TOOL_NOT_FOUND' as const,
+					type: 'ToolNotFoundError',
+					message: 'Tool not found',
+					recoverable: false,
+					guidance: ['Check tool name spelling'],
+				},
+				formattedMessage: 'Tool not found',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Tool not found',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.nonExistentTool({});',
+			});
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.recoverable).toBe(false);
+		});
+
+		it('should return structured JSON for config initialization error', async () => {
+			// Re-mock getConfigContext to return error
+			const { getConfigContext } = await import(
+				'../../../src/config/config-manager.js'
+			);
+			(getConfigContext as jest.Mock).mockReturnValue({
+				projectId: '',
+				branchName: '',
+				namespace: '',
+				accessKey: '',
+				initializationError: 'constellation.json not found',
+			});
+
+			// Re-register tool with error config
+			const newServer = {
+				registerTool: jest.fn((name, config, handler) => {
+					registeredHandler = handler;
+				}),
+			} as any;
+			registerExecuteCodeTool(newServer);
+
+			const result = await registeredHandler({
+				code: 'return 42;',
+			});
+
+			expect(result.isError).toBe(true);
+
+			// Parse the JSON response
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBe('NOT_CONFIGURED');
+			expect(parsed.error.type).toBe('ConfigurationError');
+			expect(parsed.error.recoverable).toBe(true);
+
+			// Restore original mock
+			(getConfigContext as jest.Mock).mockReturnValue({
+				projectId: 'test-project',
+				branchName: 'test-branch',
+				namespace: 'test-namespace',
+				accessKey: 'test-key',
+				initializationError: null,
+			});
+		});
+
+		it('should return structured JSON for caught exceptions', async () => {
+			mockRuntime.execute.mockRejectedValue(new Error('Unexpected error'));
+
+			const result = await registeredHandler({
+				code: 'throw new Error("test");',
+			});
+
+			expect(result.isError).toBe(true);
+
+			// Parse the JSON response
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBeDefined();
+			expect(parsed.error.type).toBe('ExecutionError');
+			expect(parsed.error.message).toContain('Unexpected error');
 		});
 	});
 });

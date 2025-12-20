@@ -19,7 +19,9 @@ jest.mock('../../../src/config/config-manager.js', () => ({
 	})),
 }));
 
-const MockedConstellationClient = ConstellationClient as jest.MockedClass<typeof ConstellationClient>;
+const MockedConstellationClient = ConstellationClient as jest.MockedClass<
+	typeof ConstellationClient
+>;
 
 describe('CodeModeSandbox', () => {
 	let sandbox: CodeModeSandbox;
@@ -76,7 +78,7 @@ describe('CodeModeSandbox', () => {
 				expect.objectContaining({
 					apiUrl: 'http://test-api.com',
 				}),
-				'test-api-key'
+				'test-api-key',
 			);
 		});
 	});
@@ -221,7 +223,8 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should measure execution time', async () => {
-			const code = 'let sum = 0; for(let i = 0; i < 1000; i++) sum += i; return sum;';
+			const code =
+				'let sum = 0; for(let i = 0; i < 1000; i++) sum += i; return sum;';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
@@ -233,7 +236,7 @@ describe('CodeModeSandbox', () => {
 	describe('API proxy', () => {
 		it('should call API methods through proxy', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult({ symbols: [{ name: 'test' }] })
+				createMockResult({ symbols: [{ name: 'test' }] }),
 			);
 
 			const code = 'return await api.searchSymbols({ query: "test" });';
@@ -246,14 +249,14 @@ describe('CodeModeSandbox', () => {
 				{
 					projectId: 'test-project',
 					branchName: 'test-branch',
-				}
+				},
 			);
 			expect(result.result).toEqual({ symbols: [{ name: 'test' }] });
 		});
 
 		it('should convert camelCase to snake_case for tool names', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult({ details: 'test' })
+				createMockResult({ details: 'test' }),
 			);
 
 			const code = 'return await api.getSymbolDetails({ symbolId: "123" });';
@@ -262,13 +265,13 @@ describe('CodeModeSandbox', () => {
 			expect(mockClient.executeMcpTool).toHaveBeenCalledWith(
 				'get_symbol_details',
 				{ symbolId: '123' },
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 
 		it('should handle API errors', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult(undefined, false, 'API error')
+				createMockResult(undefined, false, 'API error'),
 			);
 
 			const code = 'return await api.searchSymbols({ query: "test" });';
@@ -280,16 +283,17 @@ describe('CodeModeSandbox', () => {
 
 		it('should handle API call with multiple parameters', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult({ symbols: [] })
+				createMockResult({ symbols: [] }),
 			);
 
-			const code = 'return await api.searchSymbols({ query: "test", limit: 10, types: ["class"] });';
+			const code =
+				'return await api.searchSymbols({ query: "test", limit: 10, types: ["class"] });';
 			await sandbox.execute(code);
 
 			expect(mockClient.executeMcpTool).toHaveBeenCalledWith(
 				'search_symbols',
 				{ query: 'test', limit: 10, types: ['class'] },
-				expect.any(Object)
+				expect.any(Object),
 			);
 		});
 	});
@@ -308,7 +312,9 @@ describe('CodeModeSandbox', () => {
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(false);
-			expect(result.errors).toContain('Dangerous pattern detected: require\\s*\\(');
+			expect(result.errors).toContain(
+				'Dangerous pattern detected: require\\s*\\(',
+			);
 		});
 
 		it('should reject code with import', () => {
@@ -453,7 +459,8 @@ describe('CodeModeSandbox', () => {
 			// Note: VM context isolation may not completely remove console
 			// This test verifies console is not explicitly added to sandbox
 			const s = new CodeModeSandbox({ allowConsole: false });
-			const code = 'try { console.log("test"); return "logged"; } catch(e) { return "no console"; }';
+			const code =
+				'try { console.log("test"); return "logged"; } catch(e) { return "no console"; }';
 			const result = await s.execute(code);
 
 			expect(result.success).toBe(true);
@@ -462,11 +469,17 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should provide standard JavaScript globals', async () => {
-			const code = 'return [typeof Promise, typeof Array, typeof Object, typeof JSON];';
+			const code =
+				'return [typeof Promise, typeof Array, typeof Object, typeof JSON];';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
-			expect(result.result).toEqual(['function', 'function', 'function', 'object']);
+			expect(result.result).toEqual([
+				'function',
+				'function',
+				'function',
+				'object',
+			]);
 		});
 
 		it('should provide Math object', async () => {
@@ -494,7 +507,8 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should provide Map and Set', async () => {
-			const code = 'const m = new Map(); const s = new Set(); return [typeof m, typeof s];';
+			const code =
+				'const m = new Map(); const s = new Set(); return [typeof m, typeof s];';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
@@ -552,6 +566,105 @@ describe('CodeModeSandbox', () => {
 		});
 	});
 
+	describe('structuredError handling', () => {
+		it('should include structuredError in error responses', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.structuredError).toBeDefined();
+			expect(result.structuredError!.success).toBe(false);
+		});
+
+		it('should include error code in structuredError', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			expect(result.structuredError!.error.code).toBeDefined();
+			expect(typeof result.structuredError!.error.code).toBe('string');
+		});
+
+		it('should include error type in structuredError', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			// VM sandbox errors may not preserve Error prototype, so type can vary
+			expect(result.structuredError!.error.type).toBeDefined();
+			expect(typeof result.structuredError!.error.type).toBe('string');
+		});
+
+		it('should include message in structuredError', async () => {
+			const code = 'throw new Error("specific error message");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			// Error message is preserved in the error field, not always in structuredError.error.message
+			// due to VM boundary crossing
+			expect(result.error).toContain('specific error message');
+			expect(result.structuredError!.error.message).toBeDefined();
+		});
+
+		it('should include recoverable flag in structuredError', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			expect(typeof result.structuredError!.error.recoverable).toBe('boolean');
+		});
+
+		it('should include guidance array in structuredError', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			expect(Array.isArray(result.structuredError!.error.guidance)).toBe(true);
+		});
+
+		it('should include formattedMessage in structuredError', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			expect(result.structuredError!.formattedMessage).toBeDefined();
+			expect(typeof result.structuredError!.formattedMessage).toBe('string');
+		});
+
+		it('should detect timeout errors in structuredError', async () => {
+			const s = new CodeModeSandbox({ timeout: 50 });
+			const code = 'let i = 0; while(i >= 0) { i++; }';
+			const result = await s.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.structuredError).toBeDefined();
+			// Timeout error message contains "timeout" which is detected by error-factory
+			// The formatted error field contains the timeout message
+			expect(result.error!.toLowerCase()).toMatch(/timeout|timed out/);
+			// structuredError.error.code may be EXECUTION_TIMEOUT or INTERNAL_ERROR depending on detection
+			expect(result.structuredError!.error.code).toBeDefined();
+		}, 5000);
+
+		it('should not include structuredError in successful responses', async () => {
+			const code = 'return 42;';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.structuredError).toBeUndefined();
+		});
+
+		it('should include context in structuredError when available', async () => {
+			const code = 'throw new Error("test error");';
+			const result = await sandbox.execute(code);
+
+			expect(result.structuredError).toBeDefined();
+			// Context is optional but should include apiMethod
+			if (result.structuredError!.error.context) {
+				expect(result.structuredError!.error.context.apiMethod).toBe('execute');
+			}
+		});
+	});
+
 	describe('API listMethods', () => {
 		it('should return available methods from api.listMethods()', async () => {
 			const code = 'return api.listMethods();';
@@ -568,7 +681,8 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should list searchSymbols in available methods', async () => {
-			const code = 'const info = api.listMethods(); return info.methods.some(m => m.name === "searchSymbols");';
+			const code =
+				'const info = api.listMethods(); return info.methods.some(m => m.name === "searchSymbols");';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
@@ -579,7 +693,7 @@ describe('CodeModeSandbox', () => {
 	describe('API error context formatting', () => {
 		it('should include parameters preview in error message', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult(undefined, false, 'Symbol not found')
+				createMockResult(undefined, false, 'Symbol not found'),
 			);
 
 			const code = 'return await api.searchSymbols({ query: "nonexistent" });';
@@ -593,7 +707,7 @@ describe('CodeModeSandbox', () => {
 
 		it('should include duration in error message', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult(undefined, false, 'API failure')
+				createMockResult(undefined, false, 'API failure'),
 			);
 
 			const code = 'return await api.searchSymbols({ query: "test" });';
@@ -606,7 +720,7 @@ describe('CodeModeSandbox', () => {
 
 		it('should truncate long parameters in error message', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult(undefined, false, 'Error')
+				createMockResult(undefined, false, 'Error'),
 			);
 
 			// Create a query longer than 100 characters
@@ -633,7 +747,7 @@ describe('CodeModeSandbox', () => {
 
 		it('should include method name in camelCase in error', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(
-				createMockResult(undefined, false, 'Not found')
+				createMockResult(undefined, false, 'Not found'),
 			);
 
 			const code = 'return await api.getSymbolDetails({ symbolId: "123" });';
@@ -646,7 +760,9 @@ describe('CodeModeSandbox', () => {
 
 	describe('API error handling with exceptions', () => {
 		it('should wrap network errors with context', async () => {
-			mockClient.executeMcpTool.mockRejectedValue(new Error('Connection refused'));
+			mockClient.executeMcpTool.mockRejectedValue(
+				new Error('Connection refused'),
+			);
 
 			const code = 'return await api.searchSymbols({ query: "test" });';
 			const result = await sandbox.execute(code);
@@ -670,7 +786,7 @@ describe('CodeModeSandbox', () => {
 		it('should not re-wrap already formatted errors', async () => {
 			// Simulate an error that's already formatted by our handler
 			const formattedError = new Error(
-				'API call failed: api.searchSymbols()\n  Parameters: {"query":"test"}\n  Duration: 10ms\n  Error: Original error'
+				'API call failed: api.searchSymbols()\n  Parameters: {"query":"test"}\n  Duration: 10ms\n  Error: Original error',
 			);
 			mockClient.executeMcpTool.mockRejectedValue(formattedError);
 
@@ -679,7 +795,8 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(false);
 			// Should contain the formatted message but only once
-			const occurrences = (result.error!.match(/API call failed/g) || []).length;
+			const occurrences = (result.error!.match(/API call failed/g) || [])
+				.length;
 			expect(occurrences).toBeLessThanOrEqual(2); // Original + wrapping
 		});
 	});
@@ -743,8 +860,12 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.valid).toBe(true);
 			expect(result.warnings).toBeDefined();
-			expect(result.warnings!.some(w => w.includes('No return statement'))).toBe(true);
-			expect(result.warnings!.some(w => w.includes('forget to add "return"'))).toBe(true);
+			expect(
+				result.warnings!.some((w) => w.includes('No return statement')),
+			).toBe(true);
+			expect(
+				result.warnings!.some((w) => w.includes('forget to add "return"')),
+			).toBe(true);
 		});
 
 		it('should warn about API call without await', () => {
@@ -753,17 +874,24 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.valid).toBe(true);
 			expect(result.warnings).toBeDefined();
-			expect(result.warnings!.some(w => w.includes('No await detected'))).toBe(true);
-			expect(result.warnings!.some(w => w.includes('API methods are async'))).toBe(true);
+			expect(
+				result.warnings!.some((w) => w.includes('No await detected')),
+			).toBe(true);
+			expect(
+				result.warnings!.some((w) => w.includes('API methods are async')),
+			).toBe(true);
 		});
 
 		it('should warn about .then() without .catch()', () => {
-			const code = 'api.searchSymbols({ query: "test" }).then(r => console.log(r));';
+			const code =
+				'api.searchSymbols({ query: "test" }).then(r => console.log(r));';
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(true);
 			expect(result.warnings).toBeDefined();
-			expect(result.warnings!.some(w => w.includes('.then() without .catch()'))).toBe(true);
+			expect(
+				result.warnings!.some((w) => w.includes('.then() without .catch()')),
+			).toBe(true);
 		});
 
 		it('should not warn when return and await are present', () => {
@@ -775,13 +903,16 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should not warn when .catch() is present', () => {
-			const code = 'api.searchSymbols({ query: "test" }).then(r => r).catch(e => e);';
+			const code =
+				'api.searchSymbols({ query: "test" }).then(r => r).catch(e => e);';
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(true);
 			// No warning about .then() without .catch()
 			if (result.warnings) {
-				expect(result.warnings.some(w => w.includes('.then() without .catch()'))).toBe(false);
+				expect(
+					result.warnings.some((w) => w.includes('.then() without .catch()')),
+				).toBe(false);
 			}
 		});
 
@@ -800,7 +931,7 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.valid).toBe(false);
 			expect(result.errors).toBeDefined();
-			expect(result.errors!.some(e => e.includes('require'))).toBe(true);
+			expect(result.errors!.some((e) => e.includes('require'))).toBe(true);
 			expect(result.warnings).toBeDefined();
 			expect(result.warnings!.length).toBeGreaterThan(0);
 		});

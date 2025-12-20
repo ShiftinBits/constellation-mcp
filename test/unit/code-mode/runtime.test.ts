@@ -3,7 +3,10 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { CodeModeRuntime, createCodeModeRuntime } from '../../../src/code-mode/runtime.js';
+import {
+	CodeModeRuntime,
+	createCodeModeRuntime,
+} from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
 
 // Mock the sandbox module
@@ -18,7 +21,9 @@ jest.mock('../../../src/config/config-manager.js', () => ({
 	})),
 }));
 
-const MockedCodeModeSandbox = CodeModeSandbox as jest.MockedClass<typeof CodeModeSandbox>;
+const MockedCodeModeSandbox = CodeModeSandbox as jest.MockedClass<
+	typeof CodeModeSandbox
+>;
 
 describe('CodeModeRuntime', () => {
 	let runtime: CodeModeRuntime;
@@ -172,10 +177,10 @@ describe('CodeModeRuntime', () => {
 			expect(result.success).toBe(true);
 			// Warnings should be logged to console.error
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Warning: API call without return statement')
+				expect.stringContaining('Warning: API call without return statement'),
 			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Warning: Consider using await')
+				expect.stringContaining('Warning: Consider using await'),
 			);
 			// Warnings should be included in logs with [WARN] prefix
 			expect(result.logs).toContain('[WARN] API call without return statement');
@@ -200,11 +205,7 @@ describe('CodeModeRuntime', () => {
 
 			const result = await runtime.execute({ code: 'return "test";' });
 
-			expect(result.logs).toEqual([
-				'[WARN] warning1',
-				'log1',
-				'log2',
-			]);
+			expect(result.logs).toEqual(['[WARN] warning1', 'log1', 'log2']);
 		});
 
 		it('should warn when result size exceeds 100KB', async () => {
@@ -224,13 +225,17 @@ describe('CodeModeRuntime', () => {
 			expect(result.success).toBe(true);
 			// Should log warning about large result
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Large result size')
+				expect.stringContaining('Large result size'),
 			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('KB')
+				expect.stringContaining('KB'),
 			);
 			// Should include warning in logs
-			expect(result.logs?.some(log => log.includes('[WARN]') && log.includes('Large result size'))).toBe(true);
+			expect(
+				result.logs?.some(
+					(log) => log.includes('[WARN]') && log.includes('Large result size'),
+				),
+			).toBe(true);
 
 			consoleErrorSpy.mockRestore();
 		});
@@ -251,8 +256,8 @@ describe('CodeModeRuntime', () => {
 
 			expect(result.success).toBe(true);
 			// Should NOT log warning about large result
-			const largeSizeWarnings = consoleErrorSpy.mock.calls.filter(
-				call => (call[0] as string).includes('Large result size')
+			const largeSizeWarnings = consoleErrorSpy.mock.calls.filter((call) =>
+				(call[0] as string).includes('Large result size'),
 			);
 			expect(largeSizeWarnings.length).toBe(0);
 			// Logs should be undefined (empty array gets filtered)
@@ -411,6 +416,188 @@ describe('CodeModeRuntime', () => {
 					branchName: 'test-branch',
 				},
 			});
+		});
+	});
+
+	describe('structuredError passthrough', () => {
+		it('should pass structuredError from sandbox to response', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'AUTH_ERROR' as const,
+					type: 'AuthenticationError',
+					message: 'Invalid API key',
+					recoverable: true,
+					guidance: ['Run: constellation auth'],
+				},
+				formattedMessage: 'Authentication failed',
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'Authentication failed',
+				structuredError,
+				logs: [],
+				executionTime: 10,
+			});
+
+			const result = await runtime.execute({
+				code: 'return await api.searchSymbols({})',
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.structuredError).toBeDefined();
+			expect(result.structuredError).toEqual(structuredError);
+		});
+
+		it('should include structuredError in CodeModeResponse', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'NOT_CONFIGURED' as const,
+					type: 'ConfigurationError',
+					message: 'constellation.json not found',
+					recoverable: true,
+					guidance: ['Run: constellation init'],
+				},
+				formattedMessage: 'Configuration error',
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'Configuration error',
+				structuredError,
+				logs: [],
+				executionTime: 5,
+			});
+
+			const result = await runtime.execute({ code: 'return 42' });
+
+			expect(result.structuredError?.error.code).toBe('NOT_CONFIGURED');
+			expect(result.structuredError?.error.type).toBe('ConfigurationError');
+			expect(result.structuredError?.error.recoverable).toBe(true);
+		});
+
+		it('should not include structuredError for successful execution', async () => {
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 42,
+				logs: [],
+				executionTime: 10,
+			});
+
+			const result = await runtime.execute({ code: 'return 42' });
+
+			expect(result.success).toBe(true);
+			expect(result.structuredError).toBeUndefined();
+		});
+
+		it('should preserve error.code in structuredError passthrough', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'EXECUTION_TIMEOUT' as const,
+					type: 'TimeoutError',
+					message: 'Execution timed out',
+					recoverable: true,
+					guidance: ['Reduce the scope of your query'],
+				},
+				formattedMessage: 'Timeout error',
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'Timeout error',
+				structuredError,
+				logs: [],
+				executionTime: 30000,
+			});
+
+			const result = await runtime.execute({
+				code: 'return await api.getCallGraph({})',
+			});
+
+			expect(result.structuredError?.error.code).toBe('EXECUTION_TIMEOUT');
+		});
+
+		it('should include guidance array in structuredError passthrough', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'PROJECT_NOT_INDEXED' as const,
+					type: 'NotFoundError',
+					message: 'Project not indexed',
+					recoverable: true,
+					guidance: [
+						'Run: constellation index',
+						'Verify project configuration',
+					],
+				},
+				formattedMessage: 'Project not found',
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'Project not indexed',
+				structuredError,
+				logs: [],
+				executionTime: 15,
+			});
+
+			const result = await runtime.execute({
+				code: 'return await api.searchSymbols({})',
+			});
+
+			expect(result.structuredError?.error.guidance).toHaveLength(2);
+			expect(result.structuredError?.error.guidance).toContain(
+				'Run: constellation index',
+			);
+		});
+
+		it('should include context in structuredError when present', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'AUTH_ERROR' as const,
+					type: 'AuthenticationError',
+					message: 'Invalid API key',
+					recoverable: true,
+					guidance: ['Run: constellation auth'],
+					context: {
+						tool: 'search_symbols',
+						projectId: 'test-project',
+						branchName: 'main',
+						apiMethod: 'searchSymbols',
+					},
+				},
+				formattedMessage: 'Authentication failed',
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'Authentication failed',
+				structuredError,
+				logs: [],
+				executionTime: 10,
+			});
+
+			const result = await runtime.execute({
+				code: 'return await api.searchSymbols({})',
+			});
+
+			expect(result.structuredError?.error.context).toBeDefined();
+			expect(result.structuredError?.error.context?.projectId).toBe(
+				'test-project',
+			);
+			expect(result.structuredError?.error.context?.apiMethod).toBe(
+				'searchSymbols',
+			);
 		});
 	});
 });
