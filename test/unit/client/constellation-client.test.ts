@@ -19,8 +19,8 @@ import {
 import { createMockResponse } from '../../helpers/test-utils.js';
 
 // Mock global fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch as any;
+const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+global.fetch = mockFetch;
 
 describe('ConstellationClient', () => {
 	let client: ConstellationClient;
@@ -60,7 +60,6 @@ describe('ConstellationClient', () => {
 				metadata: { executionTime: 100, cached: false },
 			};
 
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, mockResult));
 
 			const result = await client.executeMcpTool(
@@ -86,7 +85,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should throw AuthenticationError on 401', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(401, false));
 
 			await expect(
@@ -95,7 +93,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should throw AuthorizationError on 403', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(403, false));
 
 			await expect(
@@ -104,7 +101,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should throw ToolNotFoundError on 404', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(404, false));
 
 			await expect(
@@ -113,7 +109,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should throw Error on 500 (wraps RetryableError)', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(500, false));
 
 			const promise = client.executeMcpTool('search_symbols', {}, mockContext);
@@ -130,11 +125,8 @@ describe('ConstellationClient', () => {
 
 		it('should retry on retryable errors', async () => {
 			mockFetch
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(502, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(
 					createMockResponse(200, true, { success: true, data: {} }),
 				);
@@ -148,7 +140,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should not retry on 4xx errors', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(
@@ -159,7 +150,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should handle network errors', async () => {
-			// @ts-expect-error - Mock error type compatibility
 			mockFetch.mockRejectedValue(new Error('Network error'));
 
 			await expect(
@@ -170,19 +160,20 @@ describe('ConstellationClient', () => {
 		it('should apply timeout', async () => {
 			// Mock fetch to reject when aborted
 			let abortHandler: (() => void) | null = null;
-			// @ts-expect-error - Mock implementation type compatibility
-			mockFetch.mockImplementation((url: string, options: any) => {
-				return new Promise((resolve, reject) => {
-					if (options?.signal) {
-						abortHandler = () => {
-							const abortError: any = new Error('The operation was aborted');
-							abortError.name = 'AbortError';
-							reject(abortError);
-						};
-						options.signal.addEventListener('abort', abortHandler);
-					}
-				});
-			});
+			mockFetch.mockImplementation(
+				(url: RequestInfo | URL, options?: RequestInit) => {
+					return new Promise((resolve, reject) => {
+						if (options?.signal) {
+							abortHandler = () => {
+								const abortError: any = new Error('The operation was aborted');
+								abortError.name = 'AbortError';
+								reject(abortError);
+							};
+							options.signal.addEventListener('abort', abortHandler);
+						}
+					});
+				},
+			);
 
 			const promise = client.executeMcpTool('search_symbols', {}, mockContext);
 
@@ -193,7 +184,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should include correct headers', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(
 				createMockResponse(200, true, { success: true, data: {} }),
 			);
@@ -214,7 +204,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should handle empty parameters', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(
 				createMockResponse(200, true, { success: true, data: {} }),
 			);
@@ -235,11 +224,8 @@ describe('ConstellationClient', () => {
 
 		it('should apply exponential backoff', async () => {
 			mockFetch
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(
 					createMockResponse(200, true, { success: true, data: {} }),
 				);
@@ -254,13 +240,10 @@ describe('ConstellationClient', () => {
 
 		it('should add jitter to retry delays', async () => {
 			const originalRandom = Math.random;
-			// @ts-expect-error - Mock Math.random type compatibility
-			Math.random = jest.fn().mockReturnValue(0.5);
+			Math.random = jest.fn().mockReturnValue(0.5) as unknown as () => number;
 
 			mockFetch
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(500, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(
 					createMockResponse(200, true, { success: true, data: {} }),
 				);
@@ -274,7 +257,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should exhaust retries and throw final error', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(500, false));
 
 			const promise = client.executeMcpTool('test', {}, mockContext);
@@ -352,7 +334,6 @@ describe('ConstellationClient', () => {
 				metadata: { executionTime: 100, cached: false },
 			};
 
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, mockData));
 
 			const result = await client.executeMcpTool('test', {}, mockContext);
@@ -362,12 +343,10 @@ describe('ConstellationClient', () => {
 
 		it('should handle malformed JSON', async () => {
 			const mockResponse = createMockResponse(200, true);
-			// @ts-expect-error - Mock error type compatibility
 			mockResponse.json = jest
-				.fn()
+				.fn<() => Promise<unknown>>()
 				.mockRejectedValue(new Error('Invalid JSON'));
 
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(mockResponse);
 
 			await expect(
@@ -382,7 +361,6 @@ describe('ConstellationClient', () => {
 				tools: [{ name: 'search_symbols' }, { name: 'get_dependencies' }],
 			};
 
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, mockCatalog));
 
 			const result = await client.getToolCatalog();
@@ -397,7 +375,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should include category filter in query', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
 
 			await client.getToolCatalog({ category: 'discovery' });
@@ -409,7 +386,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should include search filter in query', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
 
 			await client.getToolCatalog({ search: 'symbol' });
@@ -421,7 +397,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should include tags filter in query', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
 
 			await client.getToolCatalog({ tags: ['core', 'analysis'] });
@@ -433,7 +408,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should include includeDeprecated filter in query', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
 
 			await client.getToolCatalog({ includeDeprecated: true });
@@ -445,7 +419,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should combine multiple query parameters', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, { tools: [] }));
 
 			await client.getToolCatalog({
@@ -465,7 +438,6 @@ describe('ConstellationClient', () => {
 
 		it('should throw error on non-ok response', async () => {
 			// Use 400 (non-retryable) instead of 500 to avoid retry delays
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(client.getToolCatalog()).rejects.toThrow(
@@ -482,7 +454,6 @@ describe('ConstellationClient', () => {
 				inputSchema: { type: 'object' },
 			};
 
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(200, true, mockMetadata));
 
 			const result = await client.getToolMetadata('search_symbols');
@@ -497,7 +468,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should throw ToolNotFoundError on 404', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(404, false));
 
 			await expect(client.getToolMetadata('nonexistent_tool')).rejects.toThrow(
@@ -507,7 +477,6 @@ describe('ConstellationClient', () => {
 
 		it('should throw error on non-ok response', async () => {
 			// Use 400 (non-retryable) instead of 500 to avoid retry delays
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(client.getToolMetadata('search_symbols')).rejects.toThrow(
@@ -521,9 +490,7 @@ describe('ConstellationClient', () => {
 
 		it('should retry on 503 Service Unavailable', async () => {
 			mockFetch
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(503, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(
 					createMockResponse(200, true, { success: true, data: {} }),
 				);
@@ -538,9 +505,7 @@ describe('ConstellationClient', () => {
 
 		it('should retry on 504 Gateway Timeout', async () => {
 			mockFetch
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(createMockResponse(504, false))
-				// @ts-expect-error - Mock response type compatibility
 				.mockResolvedValueOnce(
 					createMockResponse(200, true, { success: true, data: {} }),
 				);
@@ -554,7 +519,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should not retry on non-retryable error status (400)', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(400, false));
 
 			await expect(
@@ -565,7 +529,6 @@ describe('ConstellationClient', () => {
 		});
 
 		it('should not retry on non-retryable error status (403)', async () => {
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(createMockResponse(403, false));
 
 			await expect(
@@ -583,7 +546,6 @@ describe('ConstellationClient', () => {
 			const mockResponse = createMockResponse(422, false);
 			(mockResponse as any).text = () =>
 				Promise.resolve('Validation error: invalid query');
-			// @ts-expect-error - Mock response type compatibility
 			mockFetch.mockResolvedValue(mockResponse);
 
 			await expect(
