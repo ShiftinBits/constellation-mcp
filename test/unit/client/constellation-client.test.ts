@@ -74,7 +74,7 @@ describe('ConstellationClient', () => {
 					method: 'POST',
 					headers: expect.objectContaining({
 						'Content-Type': 'application/json; charset=utf-8',
-						Authorization: mockApiKey,
+						Authorization: `Bearer ${mockApiKey}`,
 						'x-project-id': 'test-project',
 						'x-branch-name': 'main',
 					}),
@@ -195,7 +195,7 @@ describe('ConstellationClient', () => {
 				expect.objectContaining({
 					headers: expect.objectContaining({
 						'Content-Type': 'application/json; charset=utf-8',
-						Authorization: mockApiKey,
+						Authorization: `Bearer ${mockApiKey}`,
 						'x-project-id': 'test-project',
 						'x-branch-name': 'main',
 					}),

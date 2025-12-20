@@ -196,7 +196,7 @@ export class ConstellationClient {
 					...additionalHeaders,
 					'Content-Type': 'application/json; charset=utf-8',
 					Accept: 'application/json; charset=utf-8',
-					Authorization: this.accessKey,
+					Authorization: `Bearer ${this.accessKey}`,
 				};
 
 				const url = `${this.config.apiUrl}/${this.apiVersion}/${path}`;

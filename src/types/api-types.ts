@@ -406,7 +406,7 @@ export interface ImpactAnalysisResult {
 
 export interface GetCallGraphParams {
 	symbolId?: string;
-	functionName?: string;
+	symbolName?: string;
 	filePath?: string;
 	direction?: 'callers' | 'callees' | 'both';
 	depth?: number;

@@ -42,7 +42,7 @@ return { search, details };
 | \`api.getDependencies()\` | filePath, depth? | { directDependencies[], transitiveDependencies? } | What does this file import? |
 | \`api.getDependents()\` | filePath, depth? | { directDependents[], transitiveDependents? } | What imports this file? |
 | \`api.traceSymbolUsage()\` | symbolId OR symbolName+filePath | { directUsages[] } | Where is this symbol used? |
-| \`api.getCallGraph()\` | symbolId OR functionName+filePath, direction? | { root, callers?, callees? } | Function call relationships |
+| \`api.getCallGraph()\` | symbolId OR symbolName+filePath, direction? | { root, callers?, callees? } | Function call relationships |
 | \`api.impactAnalysis()\` | symbolId OR symbolName+filePath | { impactedFiles[], summary, breakingChangeRisk? } | Change impact assessment |
 | \`api.findCircularDependencies()\` | filePath?, maxDepth? | { cycles[] } | Find import cycles |
 | \`api.findOrphanedCode()\` | filePattern?, filterByKind? | { orphanedSymbols[], orphanedFiles[] } | Find unused/dead code |
@@ -279,7 +279,8 @@ export function registerConstellationGuidePrompt(server: McpServer): void {
 		'constellation-guide',
 		{
 			title: 'Constellation Code Mode Guide',
-			description: 'Guide for AI assistants on using Constellation MCP Code Mode - write JavaScript to access all API capabilities',
+			description:
+				'Guide for AI assistants on using Constellation MCP Code Mode - write JavaScript to access all API capabilities',
 			argsSchema: {}, // No arguments needed
 		},
 		async () => ({
@@ -292,7 +293,7 @@ export function registerConstellationGuidePrompt(server: McpServer): void {
 					},
 				},
 			],
-		})
+		}),
 	);
 
 	console.error('[constellation-guide] Prompt registered successfully');

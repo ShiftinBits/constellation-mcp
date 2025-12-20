@@ -11,7 +11,8 @@ export const getCallGraphDefinition: McpToolDefinition = {
 	description:
 		'Generate call graph showing function relationships. USER ASKS: "Show call graph", "What calls this?", "Visualize execution flow". depth=1 <50ms, depth=3 <200ms. direction: callers/callees/both. excludeExternal removes library calls.',
 
-	shortDescription: 'Generate call graph showing function invocation relationships',
+	shortDescription:
+		'Generate call graph showing function invocation relationships',
 
 	whenToUse: [
 		'**USER ASKS:** "Show call graph", "What calls this function?", "Visualize execution flow", "What does X call?", "Trace call chain"',
@@ -22,33 +23,39 @@ export const getCallGraphDefinition: McpToolDefinition = {
 		'Tracing code execution paths',
 	],
 
-	relatedTools: ['trace_symbol_usage', 'get_symbol_details', 'get_dependencies'],
+	relatedTools: [
+		'trace_symbol_usage',
+		'get_symbol_details',
+		'get_dependencies',
+	],
 
 	triggerPhrases: [
-		"show call graph",
-		"what calls this function",
-		"execution flow",
-		"what does X call",
-		"call hierarchy",
-		"trace call chain",
-		"visualize function calls",
-		"show callers",
+		'show call graph',
+		'what calls this function',
+		'execution flow',
+		'what does X call',
+		'call hierarchy',
+		'trace call chain',
+		'visualize function calls',
+		'show callers',
 	],
 
 	inputSchema: {
 		type: 'object',
 		properties: {
-			functionName: {
+			symbolName: {
 				type: 'string',
-				description: 'Function name to analyze. Omit to get full project call graph.',
+				description:
+					'Symbol name to analyze (function, method, class). Omit to get full project call graph.',
 			},
 			filePath: {
 				type: 'string',
-				description: 'File path to narrow down search if function name is ambiguous.',
+				description:
+					'File path to narrow down search if symbol name is ambiguous.',
 			},
 			symbolId: {
 				type: 'string',
-				description: 'Unique symbol ID (alternative to functionName).',
+				description: 'Unique symbol ID (alternative to symbolName).',
 			},
 			direction: {
 				type: 'string',
@@ -77,7 +84,7 @@ export const getCallGraphDefinition: McpToolDefinition = {
 				description:
 					'Exclude external/library calls (default: false). ' +
 					'When true, shows only internal project function calls, hiding calls to npm packages, standard library, etc. ' +
-					'Useful for focusing on your code\'s execution flow without noise from framework/library internals.',
+					"Useful for focusing on your code's execution flow without noise from framework/library internals.",
 			},
 			includeGraph: {
 				type: 'boolean',
@@ -96,23 +103,25 @@ export const getCallGraphDefinition: McpToolDefinition = {
 			title: 'Find who calls a function',
 			description: 'See all callers of a specific function',
 			parameters: {
-				functionName: 'processPayment',
+				symbolName: 'processPayment',
 				filePath: 'src/services/payment.service.ts',
 				direction: 'callers',
 				depth: 2,
 			},
-			expectedOutcome: 'Returns all functions that call processPayment, 2 levels deep.',
+			expectedOutcome:
+				'Returns all functions that call processPayment, 2 levels deep.',
 		},
 		{
 			title: 'Trace function call chain',
 			description: 'See what a function calls and what calls it',
 			parameters: {
-				functionName: 'validateUser',
+				symbolName: 'validateUser',
 				direction: 'both',
 				depth: 3,
 				excludeExternal: true,
 			},
-			expectedOutcome: 'Returns full call graph showing callers and callees, excluding library calls.',
+			expectedOutcome:
+				'Returns full call graph showing callers and callees, excluding library calls.',
 		},
 		{
 			title: 'Project-wide call graph',
@@ -121,7 +130,8 @@ export const getCallGraphDefinition: McpToolDefinition = {
 				depth: 1,
 				excludeExternal: true,
 			},
-			expectedOutcome: 'Returns top-level call relationships across the entire project.',
+			expectedOutcome:
+				'Returns top-level call relationships across the entire project.',
 		},
 	],
 

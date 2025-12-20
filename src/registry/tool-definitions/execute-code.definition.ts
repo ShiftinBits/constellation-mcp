@@ -8,57 +8,57 @@
 import { McpToolDefinition } from '../McpToolDefinition.interface';
 
 export const executeCodeDefinition: McpToolDefinition = {
-  name: 'execute_code',
-  category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
+	name: 'execute_code',
+	category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
 
-  description:
-    'THE ONLY TOOL AVAILABLE. Execute JavaScript code to interact with the Constellation API. ' +
-    'You MUST use this tool for ALL operations. Write JavaScript code that calls api methods like searchSymbols(), ' +
-    'getDependencies(), etc. Supports async/await, Promise.all(), and full JavaScript capabilities. ' +
-    'This is a Code Mode-only server - always write JavaScript code instead of trying to call individual tools.',
+	description:
+		'THE ONLY TOOL AVAILABLE. Execute JavaScript code to interact with the Constellation API. ' +
+		'You MUST use this tool for ALL operations. Write JavaScript code that calls api methods like searchSymbols(), ' +
+		'getDependencies(), etc. Supports async/await, Promise.all(), and full JavaScript capabilities. ' +
+		'This is a Code Mode-only server - always write JavaScript code instead of trying to call individual tools.',
 
-  shortDescription:
-    'Code Mode - Write JavaScript to access all Constellation capabilities',
+	shortDescription:
+		'Code Mode - Write JavaScript to access all Constellation capabilities',
 
-  whenToUse: [
-    '**ALWAYS** - This is the only tool available',
-    '**ANY REQUEST** - Search, analysis, dependencies, architecture overview, etc.',
-    'Simple queries: Write code like `return await api.searchSymbols({ query: "User" })`',
-    'Complex analysis: Chain multiple API calls with custom logic',
-    'Parallel operations: Use Promise.all() for concurrent execution',
-    'All codebase exploration must be done through Code Mode',
-    'Remember: There are NO other tools - you MUST write code',
-  ],
+	whenToUse: [
+		'**ALWAYS** - This is the only tool available',
+		'**ANY REQUEST** - Search, analysis, dependencies, architecture overview, etc.',
+		'Simple queries: Write code like `return await api.searchSymbols({ query: "User" })`',
+		'Complex analysis: Chain multiple API calls with custom logic',
+		'Parallel operations: Use Promise.all() for concurrent execution',
+		'All codebase exploration must be done through Code Mode',
+		'Remember: There are NO other tools - you MUST write code',
+	],
 
-  relatedTools: ['execute_code'], // Self-reference to satisfy validation (only tool available)
+	relatedTools: ['execute_code'], // Self-reference to satisfy validation (only tool available)
 
-  inputSchema: {
-    type: 'object',
-    properties: {
-      code: {
-        type: 'string',
-        minLength: 1,
-        description:
-          'JavaScript code to execute. Has access to api object with methods: ' +
-          'searchSymbols, getSymbolDetails, getDependencies, getDependents, ' +
-          'findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-          'findOrphanedCode, impactAnalysis, getArchitectureOverview. ' +
-          'Supports async/await, Promise.all(), and standard JavaScript features.',
-      },
-      timeout: {
-        type: 'number',
-        minimum: 1000,
-        maximum: 60000,
-        default: 30000,
-        description:
-          'Maximum execution time in milliseconds. Default 30000 (30 seconds), max 60000 (1 minute).',
-      },
-    },
-    required: ['code'],
-  },
+	inputSchema: {
+		type: 'object',
+		properties: {
+			code: {
+				type: 'string',
+				minLength: 1,
+				description:
+					'JavaScript code to execute. Has access to api object with methods: ' +
+					'searchSymbols, getSymbolDetails, getDependencies, getDependents, ' +
+					'findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
+					'findOrphanedCode, impactAnalysis, getArchitectureOverview. ' +
+					'Supports async/await, Promise.all(), and standard JavaScript features.',
+			},
+			timeout: {
+				type: 'number',
+				minimum: 1000,
+				maximum: 60000,
+				default: 30000,
+				description:
+					'Maximum execution time in milliseconds. Default 30000 (30 seconds), max 60000 (1 minute).',
+			},
+		},
+		required: ['code'],
+	},
 
-  // Condensed API type reference for AI assistants
-  apiReference: `
+	// Condensed API type reference for AI assistants
+	apiReference: `
 ## Available API Methods
 
 ### Discovery
@@ -72,7 +72,7 @@ api.findCircularDependencies({ filePath?, maxDepth? }) → { cycles[], totalCycl
 
 ### Tracing
 api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType? }) → { symbol, directUsages[] }
-api.getCallGraph({ symbolId | functionName+filePath, direction?, depth? }) → { root, callers?, callees? }
+api.getCallGraph({ symbolId | symbolName+filePath, direction?, depth? }) → { root, callers?, callees? }
 
 ### Impact
 api.impactAnalysis({ symbolId | symbolName+filePath, depth? }) → { symbol, impactedFiles[], summary, breakingChangeRisk? }
@@ -85,13 +85,13 @@ api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { meta
 api.listMethods() → { methods[], usage, example }
 `,
 
-  examples: [
-    {
-      title: 'Find unused exports',
-      description:
-        'Identify all exported symbols that are never imported or used',
-      parameters: {
-        code: `
+	examples: [
+		{
+			title: 'Find unused exports',
+			description:
+				'Identify all exported symbols that are never imported or used',
+			parameters: {
+				code: `
 // Find all exported symbols
 const symbols = await api.searchSymbols({
   query: '',
@@ -122,17 +122,17 @@ return {
     type: s.kind
   }))
 };`,
-      },
-      expectedOutcome:
-        'Returns a list of exported symbols that have no usages across the codebase, ' +
-        'helping identify dead code that can be safely removed.',
-    },
-    {
-      title: 'Analyze refactoring impact',
-      description:
-        'Comprehensive analysis of how refactoring a symbol will affect the codebase',
-      parameters: {
-        code: `
+			},
+			expectedOutcome:
+				'Returns a list of exported symbols that have no usages across the codebase, ' +
+				'helping identify dead code that can be safely removed.',
+		},
+		{
+			title: 'Analyze refactoring impact',
+			description:
+				'Comprehensive analysis of how refactoring a symbol will affect the codebase',
+			parameters: {
+				code: `
 const symbolName = "UserService";
 
 // Find the symbol
@@ -194,17 +194,17 @@ return {
     ? "Consider gradual refactoring with feature flags"
     : "Safe to refactor directly"
 };`,
-      },
-      expectedOutcome:
-        'Comprehensive refactoring impact analysis with risk assessment, usage statistics, ' +
-        'and actionable recommendations based on multiple factors.',
-    },
-    {
-      title: 'Find circular dependency chains',
-      description:
-        'Identify and analyze circular dependencies with their impact',
-      parameters: {
-        code: `
+			},
+			expectedOutcome:
+				'Comprehensive refactoring impact analysis with risk assessment, usage statistics, ' +
+				'and actionable recommendations based on multiple factors.',
+		},
+		{
+			title: 'Find circular dependency chains',
+			description:
+				'Identify and analyze circular dependencies with their impact',
+			parameters: {
+				code: `
 // Find all circular dependencies
 const cycles = await api.findCircularDependencies({
   limit: 50
@@ -248,21 +248,21 @@ return {
   lowSeverity: analyzed.filter(a => a.severity === "LOW").length,
   topCycles: analyzed.slice(0, 5)
 };`,
-      },
-      expectedOutcome:
-        'Comprehensive circular dependency analysis with severity rankings based on ' +
-        'how many other files depend on the circular dependency chain.',
-    },
-  ],
+			},
+			expectedOutcome:
+				'Comprehensive circular dependency analysis with severity rankings based on ' +
+				'how many other files depend on the circular dependency chain.',
+		},
+	],
 
-  commonMistakes: [
-    'MISTAKE: Not using await with API calls → DO: Always await api.* methods or use Promise.all()',
-    'MISTAKE: Sequential API calls in a loop → DO: Use Promise.all() for parallel execution',
-    'MISTAKE: Not returning a result → DO: Always return the final analysis result',
-    'MISTAKE: Using require() or import → DO: API is already available, just use api.*',
-    'MISTAKE: Trying to access files directly → DO: Use API methods only, no fs access',
-    'MISTAKE: Infinite loops → DO: Always have exit conditions in loops',
-  ],
+	commonMistakes: [
+		'MISTAKE: Not using await with API calls → DO: Always await api.* methods or use Promise.all()',
+		'MISTAKE: Sequential API calls in a loop → DO: Use Promise.all() for parallel execution',
+		'MISTAKE: Not returning a result → DO: Always return the final analysis result',
+		'MISTAKE: Using require() or import → DO: API is already available, just use api.*',
+		'MISTAKE: Trying to access files directly → DO: Use API methods only, no fs access',
+		'MISTAKE: Infinite loops → DO: Always have exit conditions in loops',
+	],
 
-  sinceVersion: '0.1.0',
+	sinceVersion: '0.1.0',
 };
