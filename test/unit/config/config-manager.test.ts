@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from '@jest/globals';
 import { cleanupTempDir, createTempDir } from '../../helpers/test-utils.js';
 
 // Mock dependencies BEFORE importing
@@ -16,7 +23,9 @@ describe('ConfigurationManager', () => {
 		jest.clearAllMocks();
 
 		// Re-import mocked modules
-		const { ConfigLoader } = await import('../../../src/config/config.loader.js');
+		const { ConfigLoader } = await import(
+			'../../../src/config/config.loader.js'
+		);
 		const configManager = await import('../../../src/config/config-manager.js');
 
 		mockConfigLoader = ConfigLoader as any;
@@ -47,7 +56,7 @@ describe('ConfigurationManager', () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'develop',
-				namespace: 'config-project',
+				projectId: 'config-project',
 				languages: {
 					typescript: { fileExtensions: ['.ts'] },
 				},
@@ -60,13 +69,13 @@ describe('ConfigurationManager', () => {
 			const context = getConfigContext();
 
 			expect(context.config.apiUrl).toBe('http://localhost:3000');
-			expect(context.config.namespace).toBe('config-project');
-			expect(context.projectId).toBe('config-project'); // From config.namespace
+			expect(context.config.projectId).toBe('config-project');
+			expect(context.projectId).toBe('config-project'); // From config.projectId
 			expect(context.branchName).toBe('develop'); // From config.branch
 			expect(context.configLoaded).toBe(true);
 		});
 
-		it('should NOT allow environment variable overrides for namespace/branch', async () => {
+		it('should NOT allow environment variable overrides for projectId/branch', async () => {
 			// These should be ignored
 			process.env.CONSTELLATION_PROJECT_ID = 'env-project-id';
 			process.env.CONSTELLATION_BRANCH = 'env-branch';
@@ -74,7 +83,7 @@ describe('ConfigurationManager', () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'develop',
-				namespace: 'config-project',
+				projectId: 'config-project',
 				languages: {},
 				validate: jest.fn(),
 			};
@@ -98,7 +107,9 @@ describe('ConfigurationManager', () => {
 			// Should not throw but should indicate initialization error
 			expect(context.configLoaded).toBe(false);
 			expect(context.initializationError).toBeDefined();
-			expect(context.initializationError).toContain('constellation.json not found');
+			expect(context.initializationError).toContain(
+				'constellation.json not found',
+			);
 			// Should still have default values
 			expect(context.projectId).toBeDefined();
 			expect(context.branchName).toBeDefined();
@@ -115,7 +126,7 @@ describe('ConfigurationManager', () => {
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -130,12 +141,12 @@ describe('ConfigurationManager', () => {
 		});
 	});
 
-	describe('namespace and branch priority', () => {
-		it('should always use config.namespace for projectId', async () => {
+	describe('projectId and branch priority', () => {
+		it('should always use config.projectId for projectId', async () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'config-namespace',
+				projectId: 'config-projectId',
 				languages: {},
 				validate: jest.fn(),
 			};
@@ -145,15 +156,15 @@ describe('ConfigurationManager', () => {
 			await initializeConfig(tempDir);
 			const context = getConfigContext();
 
-			// projectId should always come from config.namespace
-			expect(context.projectId).toBe('config-namespace');
+			// projectId should always come from config.projectId
+			expect(context.projectId).toBe('config-projectId');
 		});
 
 		it('should always use config.branch for branchName', async () => {
 			const mockConfig = {
 				apiUrl: 'http://localhost:3000',
 				branch: 'config-branch',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			};
@@ -175,7 +186,7 @@ describe('ConfigurationManager', () => {
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -192,7 +203,7 @@ describe('ConfigurationManager', () => {
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -205,12 +216,14 @@ describe('ConfigurationManager', () => {
 
 		it('should log warning when API key not set and config loaded successfully', async () => {
 			delete process.env.CONSTELLATION_ACCESS_KEY;
-			const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+			const consoleWarnSpy = jest
+				.spyOn(console, 'warn')
+				.mockImplementation(() => {});
 
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -218,7 +231,7 @@ describe('ConfigurationManager', () => {
 			await initializeConfig(tempDir);
 
 			expect(consoleWarnSpy).toHaveBeenCalledWith(
-				expect.stringContaining('CONSTELLATION_ACCESS_KEY not set')
+				expect.stringContaining('CONSTELLATION_ACCESS_KEY not set'),
 			);
 
 			consoleWarnSpy.mockRestore();
@@ -232,7 +245,7 @@ describe('ConfigurationManager', () => {
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -250,7 +263,7 @@ describe('ConfigurationManager', () => {
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -271,7 +284,9 @@ describe('ConfigurationManager', () => {
 
 			// Should not throw but should indicate initialization error
 			expect(context.configLoaded).toBe(false);
-			expect(context.initializationError).toContain('Failed to load constellation.json');
+			expect(context.initializationError).toContain(
+				'Failed to load constellation.json',
+			);
 			expect(context.initializationError).toContain('Invalid JSON');
 		});
 
@@ -288,7 +303,9 @@ describe('ConfigurationManager', () => {
 
 	describe('ConfigurationManager methods', () => {
 		it('getConfigManager should return singleton instance', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 
 			const manager1 = getConfigManager();
 			const manager2 = getConfigManager();
@@ -297,7 +314,9 @@ describe('ConfigurationManager', () => {
 		});
 
 		it('isInitialized should return false before initialization', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			const manager = getConfigManager();
 
 			// Reset to ensure clean state
@@ -307,13 +326,15 @@ describe('ConfigurationManager', () => {
 		});
 
 		it('isInitialized should return true after initialization', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			const manager = getConfigManager();
 
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -324,13 +345,15 @@ describe('ConfigurationManager', () => {
 		});
 
 		it('reset should clear configuration state', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			const manager = getConfigManager();
 
 			mockConfigLoader.loadConfig.mockResolvedValue({
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
-				namespace: 'test',
+				projectId: 'test',
 				languages: {},
 				validate: jest.fn(),
 			} as any);
@@ -343,19 +366,25 @@ describe('ConfigurationManager', () => {
 		});
 
 		it('getContext should throw when not initialized and not using lazy init', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			const manager = getConfigManager();
 
 			manager.reset();
 
 			// getContext directly on manager should throw
-			expect(() => manager.getContext()).toThrow('Configuration not initialized');
+			expect(() => manager.getContext()).toThrow(
+				'Configuration not initialized',
+			);
 		});
 	});
 
 	describe('lazy initialization', () => {
 		it('should perform lazy initialization when getConfigContext called before initialize', async () => {
-			const { getConfigManager } = await import('../../../src/config/config-manager.js');
+			const { getConfigManager } = await import(
+				'../../../src/config/config-manager.js'
+			);
 			const manager = getConfigManager();
 
 			manager.reset();

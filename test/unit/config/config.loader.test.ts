@@ -5,7 +5,14 @@
  * of constellation.json configuration files.
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import {
+	describe,
+	it,
+	expect,
+	beforeEach,
+	afterEach,
+	jest,
+} from '@jest/globals';
 import path from 'path';
 import { ConfigLoader } from '../../../src/config/config.loader.js';
 import { FileUtils } from '../../../src/utils/file.utils.js';
@@ -30,7 +37,9 @@ jest.mock('../../../src/config/config.js', () => ({
 }));
 
 const mockFileUtils = FileUtils as jest.Mocked<typeof FileUtils>;
-const mockConstellationConfig = ConstellationConfig as jest.Mocked<typeof ConstellationConfig>;
+const mockConstellationConfig = ConstellationConfig as jest.Mocked<
+	typeof ConstellationConfig
+>;
 
 describe('ConfigLoader', () => {
 	let consoleErrorSpy: ReturnType<typeof jest.spyOn>;
@@ -55,8 +64,11 @@ describe('ConfigLoader', () => {
 			// Setup: first call finds and loads config
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			const mockConfig = { namespace: 'test', apiUrl: 'http://localhost:3000' } as unknown as ConstellationConfig;
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			const mockConfig = {
+				projectId: 'test',
+				apiUrl: 'http://localhost:3000',
+			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
 
 			// First call
@@ -74,19 +86,24 @@ describe('ConfigLoader', () => {
 		it('should search from startDir for config file', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			const mockConfig = { namespace: 'test' } as unknown as ConstellationConfig;
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			const mockConfig = {
+				projectId: 'test',
+			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
 
 			await ConfigLoader.loadConfig('/custom/start/dir');
 
 			expect(mockFileUtils.isGitRepository).toHaveBeenCalledWith(
-				expect.stringContaining('/custom/start/dir')
+				expect.stringContaining('/custom/start/dir'),
 			);
 		});
 
 		it('should parse JSON and validate config', async () => {
-			const configJson = { namespace: 'my-project', apiUrl: 'http://localhost:3000' };
+			const configJson = {
+				projectId: 'my-project',
+				apiUrl: 'http://localhost:3000',
+			};
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
 			mockFileUtils.readFile.mockResolvedValueOnce(JSON.stringify(configJson));
@@ -102,8 +119,10 @@ describe('ConfigLoader', () => {
 		it('should cache loaded configuration', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			const mockConfig = { namespace: 'test' } as unknown as ConstellationConfig;
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			const mockConfig = {
+				projectId: 'test',
+			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
 
 			await ConfigLoader.loadConfig('/project');
@@ -122,7 +141,9 @@ describe('ConfigLoader', () => {
 		});
 
 		it('should return default config when no config file found and useDefaults is true', async () => {
-			const defaultConfig = { namespace: 'default-project' } as unknown as ConstellationConfig;
+			const defaultConfig = {
+				projectId: 'default-project',
+			} as unknown as ConstellationConfig;
 			mockFileUtils.isGitRepository.mockResolvedValue(false);
 			mockFileUtils.isRootDirectory.mockReturnValue(true);
 			mockConstellationConfig.createDefault.mockReturnValue(defaultConfig);
@@ -144,20 +165,22 @@ describe('ConfigLoader', () => {
 		it('should throw error when fromJSON validation fails', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			mockConstellationConfig.fromJSON.mockImplementation(() => {
 				throw new Error('Invalid configuration: apiUrl is missing');
 			});
 
-			await expect(ConfigLoader.loadConfig('/project')).rejects.toThrow('Invalid configuration: apiUrl is missing');
+			await expect(ConfigLoader.loadConfig('/project')).rejects.toThrow(
+				'Invalid configuration: apiUrl is missing',
+			);
 		});
 
 		it('should log loading messages', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			const mockConfig = {
-				namespace: 'test',
+				projectId: 'test',
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
 			} as unknown as ConstellationConfig;
@@ -165,14 +188,20 @@ describe('ConfigLoader', () => {
 
 			await ConfigLoader.loadConfig('/project');
 
-			expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Loading configuration from'));
-			expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Configuration loaded successfully'));
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Loading configuration from'),
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Configuration loaded successfully'),
+			);
 		});
 
 		it('should throw unknown error for non-Error exceptions', async () => {
 			mockFileUtils.isGitRepository.mockRejectedValueOnce('string error');
 
-			await expect(ConfigLoader.loadConfig('/project')).rejects.toThrow('Unknown configuration error');
+			await expect(ConfigLoader.loadConfig('/project')).rejects.toThrow(
+				'Unknown configuration error',
+			);
 		});
 	});
 
@@ -181,8 +210,10 @@ describe('ConfigLoader', () => {
 			// First directory is git repo with config
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			mockConstellationConfig.fromJSON.mockReturnValueOnce({} as ConstellationConfig);
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			mockConstellationConfig.fromJSON.mockReturnValueOnce(
+				{} as ConstellationConfig,
+			);
 
 			await ConfigLoader.loadConfig('/project/src/components');
 
@@ -192,18 +223,19 @@ describe('ConfigLoader', () => {
 		it('should traverse parent directories when config not found at git root', async () => {
 			// First git root has no config
 			mockFileUtils.isGitRepository
-				.mockResolvedValueOnce(true)  // /project/src is git repo
+				.mockResolvedValueOnce(true) // /project/src is git repo
 				.mockResolvedValueOnce(true); // /project is git repo
 
 			mockFileUtils.fileIsReadable
-				.mockResolvedValueOnce(false)  // No config at /project/src
-				.mockResolvedValueOnce(true);  // Config found at /project
+				.mockResolvedValueOnce(false) // No config at /project/src
+				.mockResolvedValueOnce(true); // Config found at /project
 
-			mockFileUtils.isRootDirectory
-				.mockReturnValueOnce(false);  // /project/src is not root
+			mockFileUtils.isRootDirectory.mockReturnValueOnce(false); // /project/src is not root
 
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			mockConstellationConfig.fromJSON.mockReturnValueOnce({} as ConstellationConfig);
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			mockConstellationConfig.fromJSON.mockReturnValueOnce(
+				{} as ConstellationConfig,
+			);
 
 			await ConfigLoader.loadConfig('/project/src');
 
@@ -216,7 +248,7 @@ describe('ConfigLoader', () => {
 			mockFileUtils.isRootDirectory
 				.mockReturnValueOnce(false)
 				.mockReturnValueOnce(false)
-				.mockReturnValueOnce(true);  // Stop at root
+				.mockReturnValueOnce(true); // Stop at root
 
 			const result = await ConfigLoader.loadConfig('/deep/nested/path');
 
@@ -236,7 +268,7 @@ describe('ConfigLoader', () => {
 			await ConfigLoader.loadConfig('/project');
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('checking parent repositories')
+				expect.stringContaining('checking parent repositories'),
 			);
 		});
 	});
@@ -246,8 +278,10 @@ describe('ConfigLoader', () => {
 			// First load a config
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			mockConstellationConfig.fromJSON.mockReturnValueOnce({ namespace: 'test' } as unknown as ConstellationConfig);
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			mockConstellationConfig.fromJSON.mockReturnValueOnce({
+				projectId: 'test',
+			} as unknown as ConstellationConfig);
 
 			await ConfigLoader.loadConfig('/project');
 			expect(ConfigLoader.getCachedConfig()).not.toBeNull();
@@ -261,8 +295,10 @@ describe('ConfigLoader', () => {
 			// First load
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "first"}');
-			mockConstellationConfig.fromJSON.mockReturnValueOnce({ namespace: 'first' } as unknown as ConstellationConfig);
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "first"}');
+			mockConstellationConfig.fromJSON.mockReturnValueOnce({
+				projectId: 'first',
+			} as unknown as ConstellationConfig);
 
 			await ConfigLoader.loadConfig('/project');
 
@@ -271,8 +307,10 @@ describe('ConfigLoader', () => {
 
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "second"}');
-			mockConstellationConfig.fromJSON.mockReturnValueOnce({ namespace: 'second' } as unknown as ConstellationConfig);
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "second"}');
+			mockConstellationConfig.fromJSON.mockReturnValueOnce({
+				projectId: 'second',
+			} as unknown as ConstellationConfig);
 
 			await ConfigLoader.loadConfig('/project');
 
@@ -284,8 +322,10 @@ describe('ConfigLoader', () => {
 		it('should return cached configuration when available', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
-			const mockConfig = { namespace: 'test' } as unknown as ConstellationConfig;
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
+			const mockConfig = {
+				projectId: 'test',
+			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
 
 			await ConfigLoader.loadConfig('/project');
@@ -307,7 +347,7 @@ describe('ConfigLoader', () => {
 
 			expect(typeof cleanup).toBe('function');
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('No configuration file to watch')
+				expect.stringContaining('No configuration file to watch'),
 			);
 
 			// Cleanup should be safe to call
@@ -335,9 +375,11 @@ describe('ConfigLoader', () => {
 		it('should log config details on successful load', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "my-project"}');
+			mockFileUtils.readFile.mockResolvedValueOnce(
+				'{"projectId": "my-project"}',
+			);
 			const mockConfig = {
-				namespace: 'my-project',
+				projectId: 'my-project',
 				apiUrl: 'http://localhost:3000',
 				branch: 'develop',
 			} as unknown as ConstellationConfig;
@@ -345,20 +387,28 @@ describe('ConfigLoader', () => {
 
 			await ConfigLoader.loadConfig('/project');
 
-			expect(consoleErrorSpy).toHaveBeenCalledWith('[Constellation] Project: my-project');
-			expect(consoleErrorSpy).toHaveBeenCalledWith('[Constellation] API URL: http://localhost:3000');
-			expect(consoleErrorSpy).toHaveBeenCalledWith('[Constellation] Branch: develop');
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'[Constellation] Project: my-project',
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'[Constellation] API URL: http://localhost:3000',
+			);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'[Constellation] Branch: develop',
+			);
 		});
 
 		it('should log when using defaults', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValue(false);
 			mockFileUtils.isRootDirectory.mockReturnValue(true);
-			mockConstellationConfig.createDefault.mockReturnValue({} as ConstellationConfig);
+			mockConstellationConfig.createDefault.mockReturnValue(
+				{} as ConstellationConfig,
+			);
 
 			await ConfigLoader.loadConfig('/project', true);
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Constellation] No configuration file found, using defaults'
+				'[Constellation] No configuration file found, using defaults',
 			);
 		});
 
@@ -369,28 +419,30 @@ describe('ConfigLoader', () => {
 			await ConfigLoader.loadConfig('/project', false);
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Constellation] No configuration file found'
+				'[Constellation] No configuration file found',
 			);
 		});
 
 		it('should log configuration errors', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockRejectedValueOnce(new Error('File read failed'));
+			mockFileUtils.readFile.mockRejectedValueOnce(
+				new Error('File read failed'),
+			);
 
 			await expect(ConfigLoader.loadConfig('/project')).rejects.toThrow();
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Constellation] Configuration error: File read failed'
+				'[Constellation] Configuration error: File read failed',
 			);
 		});
 
 		it('should log when git root found with config', async () => {
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
-			mockFileUtils.readFile.mockResolvedValueOnce('{"namespace": "test"}');
+			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			mockConstellationConfig.fromJSON.mockReturnValueOnce({
-				namespace: 'test',
+				projectId: 'test',
 				apiUrl: 'http://localhost:3000',
 				branch: 'main',
 			} as unknown as ConstellationConfig);
@@ -398,7 +450,7 @@ describe('ConfigLoader', () => {
 			await ConfigLoader.loadConfig('/project');
 
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				expect.stringContaining('Found constellation.json at git root')
+				expect.stringContaining('Found constellation.json at git root'),
 			);
 		});
 	});
@@ -423,7 +475,7 @@ describe('ConfigLoader', () => {
 			await ConfigLoader.loadConfig('/project');
 
 			expect(mockFileUtils.fileIsReadable).toHaveBeenCalledWith(
-				expect.stringContaining('constellation.json')
+				expect.stringContaining('constellation.json'),
 			);
 		});
 	});

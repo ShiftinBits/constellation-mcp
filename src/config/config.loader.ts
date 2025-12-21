@@ -20,7 +20,7 @@ export class ConfigLoader {
 	 */
 	static async loadConfig(
 		startDir: string = process.cwd(),
-		useDefaults: boolean = false
+		useDefaults: boolean = false,
 	): Promise<ConstellationConfig | null> {
 		// Return cached config if available
 		if (this.configCache) {
@@ -32,7 +32,9 @@ export class ConfigLoader {
 			const configPath = await this.findConfigFile(startDir);
 
 			if (configPath) {
-				console.error(`[Constellation] Loading configuration from: ${configPath}`);
+				console.error(
+					`[Constellation] Loading configuration from: ${configPath}`,
+				);
 				const fileContents = await FileUtils.readFile(configPath);
 				const parsed = JSON.parse(fileContents);
 				const config = ConstellationConfig.fromJSON(parsed);
@@ -40,7 +42,7 @@ export class ConfigLoader {
 				// Cache the loaded configuration
 				this.configCache = config;
 				console.error(`[Constellation] Configuration loaded successfully`);
-				console.error(`[Constellation] Project: ${config.namespace}`);
+				console.error(`[Constellation] Project: ${config.projectId}`);
 				console.error(`[Constellation] API URL: ${config.apiUrl}`);
 				console.error(`[Constellation] Branch: ${config.branch}`);
 
@@ -49,7 +51,9 @@ export class ConfigLoader {
 
 			// No config file found
 			if (useDefaults) {
-				console.error('[Constellation] No configuration file found, using defaults');
+				console.error(
+					'[Constellation] No configuration file found, using defaults',
+				);
 				const defaultConfig = ConstellationConfig.createDefault();
 				this.configCache = defaultConfig;
 				return defaultConfig;
@@ -57,7 +61,6 @@ export class ConfigLoader {
 
 			console.error('[Constellation] No configuration file found');
 			return null;
-
 		} catch (error) {
 			if (error instanceof Error) {
 				console.error(`[Constellation] Configuration error: ${error.message}`);
@@ -75,7 +78,9 @@ export class ConfigLoader {
 	 * @param startDir Starting directory for the search
 	 * @returns Path to the configuration file if found at any git root, null otherwise
 	 */
-	private static async findConfigFile(startDir: string): Promise<string | null> {
+	private static async findConfigFile(
+		startDir: string,
+	): Promise<string | null> {
 		let currentDir = path.resolve(startDir);
 
 		// Walk up the directory tree, checking each git repository root
@@ -85,12 +90,16 @@ export class ConfigLoader {
 				const configPath = path.join(currentDir, this.CONFIG_FILENAME);
 
 				if (await FileUtils.fileIsReadable(configPath)) {
-					console.error(`[Constellation] Found ${this.CONFIG_FILENAME} at git root: ${currentDir}`);
+					console.error(
+						`[Constellation] Found ${this.CONFIG_FILENAME} at git root: ${currentDir}`,
+					);
 					return configPath;
 				}
 
 				// Found a git root but no config file, continue searching upward
-				console.error(`[Constellation] No ${this.CONFIG_FILENAME} at git root: ${currentDir}, checking parent repositories...`);
+				console.error(
+					`[Constellation] No ${this.CONFIG_FILENAME} at git root: ${currentDir}, checking parent repositories...`,
+				);
 			}
 
 			// Stop if we've reached the filesystem root
@@ -102,7 +111,9 @@ export class ConfigLoader {
 			currentDir = path.dirname(currentDir);
 		}
 
-		console.error('[Constellation] No constellation.json found in any git repository');
+		console.error(
+			'[Constellation] No constellation.json found in any git repository',
+		);
 		return null;
 	}
 
@@ -127,7 +138,7 @@ export class ConfigLoader {
 	 * @returns Function to stop watching
 	 */
 	static async watchConfig(
-		callback: (config: ConstellationConfig | null) => void
+		callback: (config: ConstellationConfig | null) => void,
 	): Promise<() => void> {
 		const { watch } = await import('fs');
 		const configPath = await this.findConfigFile(process.cwd());
@@ -139,13 +150,18 @@ export class ConfigLoader {
 
 		const watcher = watch(configPath, async (eventType) => {
 			if (eventType === 'change') {
-				console.error('[Constellation] Configuration file changed, reloading...');
+				console.error(
+					'[Constellation] Configuration file changed, reloading...',
+				);
 				this.clearCache();
 				try {
 					const newConfig = await this.loadConfig();
 					callback(newConfig);
 				} catch (error) {
-					console.error('[Constellation] Error reloading configuration:', error);
+					console.error(
+						'[Constellation] Error reloading configuration:',
+						error,
+					);
 					callback(null);
 				}
 			}

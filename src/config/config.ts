@@ -6,7 +6,13 @@
 /**
  * Supported programming languages for parsing.
  */
-export type ParserLanguage = 'typescript' | 'javascript' | 'python' | 'go' | 'rust' | 'java';
+export type ParserLanguage =
+	| 'typescript'
+	| 'javascript'
+	| 'python'
+	| 'go'
+	| 'rust'
+	| 'java';
 
 /**
  * Configuration mapping for supported programming languages.
@@ -30,8 +36,8 @@ export interface IConstellationConfig {
 	readonly branch: string;
 	/** Language-specific configuration including file extensions */
 	readonly languages: IConstellationLanguageConfig;
-	/** Project namespace identifier (typically project name) */
-	readonly namespace: string;
+	/** Unique project identifier (created in Constellation web app) */
+	readonly projectId: string;
 }
 
 /**
@@ -44,13 +50,13 @@ export class ConstellationConfig implements IConstellationConfig {
 	 * @param apiUrl API endpoint URL for the Constellation service
 	 * @param branch Git branch to track and index
 	 * @param languages Language-specific configuration including file extensions
-	 * @param namespace Project namespace identifier
+	 * @param projectId Unique project identifier (created in Constellation web app)
 	 */
 	constructor(
 		readonly apiUrl: string,
 		readonly branch: string,
 		readonly languages: IConstellationLanguageConfig,
-		readonly namespace: string
+		readonly projectId: string,
 	) {}
 
 	/**
@@ -73,7 +79,7 @@ export class ConstellationConfig implements IConstellationConfig {
 			parsed.apiUrl || defaultConfig.apiUrl,
 			parsed.branch || defaultConfig.branch,
 			parsed.languages || defaultConfig.languages,
-			parsed.namespace || defaultConfig.namespace
+			parsed.projectId || defaultConfig.projectId,
 		);
 
 		// Validate the configuration immediately after creation
@@ -98,27 +104,33 @@ export class ConstellationConfig implements IConstellationConfig {
 			throw new Error('Invalid configuration: no languages configured');
 		}
 
-		if (!this.namespace) {
-			throw new Error('Invalid configuration: namespace is missing');
+		if (!this.projectId) {
+			throw new Error('Invalid configuration: projectId is missing');
 		}
 
 		// Validate apiUrl is a valid URL
 		try {
 			new URL(this.apiUrl);
 		} catch {
-			throw new Error(`Invalid configuration: apiUrl "${this.apiUrl}" is not a valid URL`);
+			throw new Error(
+				`Invalid configuration: apiUrl "${this.apiUrl}" is not a valid URL`,
+			);
 		}
 
 		// Validate language configurations
 		for (const [lang, config] of Object.entries(this.languages)) {
 			if (!config?.fileExtensions || config.fileExtensions.length === 0) {
-				throw new Error(`Invalid configuration: language "${lang}" has no file extensions`);
+				throw new Error(
+					`Invalid configuration: language "${lang}" has no file extensions`,
+				);
 			}
 
 			// Ensure all extensions start with a dot
 			for (const ext of config.fileExtensions) {
 				if (!ext.startsWith('.')) {
-					throw new Error(`Invalid configuration: file extension "${ext}" for language "${lang}" must start with a dot`);
+					throw new Error(
+						`Invalid configuration: file extension "${ext}" for language "${lang}" must start with a dot`,
+					);
 				}
 			}
 		}
@@ -134,13 +146,13 @@ export class ConstellationConfig implements IConstellationConfig {
 			'main',
 			{
 				typescript: {
-					fileExtensions: ['.ts', '.tsx']
+					fileExtensions: ['.ts', '.tsx'],
 				},
 				javascript: {
-					fileExtensions: ['.js', '.jsx']
-				}
+					fileExtensions: ['.js', '.jsx'],
+				},
 			},
-			'default-project'
+			'default-project',
 		);
 	}
 }

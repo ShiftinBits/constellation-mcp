@@ -5,8 +5,8 @@
  * Tools can access configuration via getConfig() without managing lifecycle.
  */
 
-import { ConstellationConfig } from "./config.js";
-import { ConfigLoader } from "./config.loader.js";
+import { ConstellationConfig } from './config.js';
+import { ConfigLoader } from './config.loader.js';
 
 /**
  * Configuration context
@@ -14,7 +14,7 @@ import { ConfigLoader } from "./config.loader.js";
 export interface ConfigContext {
 	/** Configuration instance (or default) */
 	config: ConstellationConfig;
-	/** Project ID (from config.namespace only) */
+	/** Project ID (from config.projectId only) */
 	projectId: string;
 	/** Branch name (from config.branch only) */
 	branchName: string;
@@ -52,7 +52,9 @@ class ConfigurationManager {
 	 * @param workingDir Working directory to search for config (defaults to cwd)
 	 */
 	async initialize(workingDir: string = process.cwd()): Promise<void> {
-		console.error(`[ConfigManager] initialize() called - already initialized: ${this.initialized}`);
+		console.error(
+			`[ConfigManager] initialize() called - already initialized: ${this.initialized}`,
+		);
 		if (this.initialized) {
 			console.error('[ConfigManager] Already initialized, skipping');
 			return;
@@ -83,18 +85,19 @@ class ConfigurationManager {
 
 				// Use defaults to allow server to start
 				config = ConstellationConfig.createDefault();
-				projectId = config.namespace;
+				projectId = config.projectId;
 				branchName = config.branch;
 			} else {
 				// Config loaded successfully
 				config = loadedConfig;
 				configLoaded = true;
-				projectId = config.namespace;
+				projectId = config.projectId;
 				branchName = config.branch;
 			}
 		} catch (error) {
 			// Error during config loading - store error and use defaults
-			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
 			initializationError =
 				'Failed to load constellation.json.\n\n' +
 				`Error: ${errorMessage}\n\n` +
@@ -107,7 +110,7 @@ class ConfigurationManager {
 
 			// Use defaults to allow server to start
 			config = ConstellationConfig.createDefault();
-			projectId = config.namespace;
+			projectId = config.projectId;
 			branchName = config.branch;
 		}
 
@@ -116,11 +119,9 @@ class ConfigurationManager {
 
 		if (!apiKey && !initializationError) {
 			console.warn(
-				'[CONSTELLATION] Warning: CONSTELLATION_ACCESS_KEY not set in environment'
+				'[CONSTELLATION] Warning: CONSTELLATION_ACCESS_KEY not set in environment',
 			);
-			console.warn(
-				'[CONSTELLATION] Run: constellation auth'
-			);
+			console.warn('[CONSTELLATION] Run: constellation auth');
 		}
 
 		// Override API URL from environment if provided
@@ -129,7 +130,7 @@ class ConfigurationManager {
 				process.env.CONSTELLATION_API_URL,
 				branchName,
 				config.languages,
-				projectId
+				projectId,
 			);
 		}
 
@@ -145,10 +146,14 @@ class ConfigurationManager {
 		this.initialized = true;
 
 		console.error('[ConfigManager] Initialization COMPLETE');
-		console.error(`[ConfigManager] State: initialized=${this.initialized}, hasContext=${!!this.configContext}`);
+		console.error(
+			`[ConfigManager] State: initialized=${this.initialized}, hasContext=${!!this.configContext}`,
+		);
 
 		if (initializationError) {
-			console.error('[ConfigManager] WARNING: Initialized with errors (degraded mode)');
+			console.error(
+				'[ConfigManager] WARNING: Initialized with errors (degraded mode)',
+			);
 		}
 
 		// Log initialization info (only in debug mode)
@@ -170,12 +175,14 @@ class ConfigurationManager {
 	 * @throws If not initialized
 	 */
 	getContext(): ConfigContext {
-		console.error(`[ConfigManager] getContext() called - initialized: ${this.initialized}, hasContext: ${!!this.configContext}`);
+		console.error(
+			`[ConfigManager] getContext() called - initialized: ${this.initialized}, hasContext: ${!!this.configContext}`,
+		);
 		if (!this.initialized || !this.configContext) {
 			console.error('[ConfigManager] ERROR: Not initialized!');
 			console.error('[ConfigManager] Stack trace:', new Error().stack);
 			throw new Error(
-				'Configuration not initialized. Call initialize() first.'
+				'Configuration not initialized. Call initialize() first.',
 			);
 		}
 		return this.configContext;
@@ -213,7 +220,9 @@ export function getConfigManager(): ConfigurationManager {
 export function getConfigContext(): ConfigContext {
 	const manager = getConfigManager();
 	if (!manager.isInitialized()) {
-		console.error('[ConfigManager] WARNING: getConfigContext() called before initialize()');
+		console.error(
+			'[ConfigManager] WARNING: getConfigContext() called before initialize()',
+		);
 		console.error('[ConfigManager] Performing lazy initialization');
 
 		// Load config synchronously if possible
@@ -227,13 +236,13 @@ export function getConfigContext(): ConfigContext {
 			if (fs.existsSync(configPath)) {
 				const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 				config = ConstellationConfig.fromJSON(configData);
-				projectId = configData.namespace || projectId;
+				projectId = configData.projectId || projectId;
 				console.error(`[ConfigManager] Loaded config from file: ${configPath}`);
 			}
 
 			manager['configContext'] = {
 				config,
-				projectId: projectId, // Always from config.namespace
+				projectId: projectId, // Always from config.projectId
 				branchName: config.branch, // Always from config.branch
 				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
 				configLoaded: fs.existsSync(configPath),
@@ -246,7 +255,7 @@ export function getConfigContext(): ConfigContext {
 			const defaultConfig = ConstellationConfig.createDefault();
 			manager['configContext'] = {
 				config: defaultConfig,
-				projectId: defaultConfig.namespace, // Always from config
+				projectId: defaultConfig.projectId, // Always from config
 				branchName: defaultConfig.branch, // Always from config
 				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
 				configLoaded: false,
@@ -261,8 +270,6 @@ export function getConfigContext(): ConfigContext {
 /**
  * Initialize configuration (called at server startup)
  */
-export async function initializeConfig(
-	workingDir?: string
-): Promise<void> {
+export async function initializeConfig(workingDir?: string): Promise<void> {
 	await getConfigManager().initialize(workingDir);
 }
