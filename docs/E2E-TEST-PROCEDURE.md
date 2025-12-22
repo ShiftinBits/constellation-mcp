@@ -1466,7 +1466,7 @@ return {
 
 ### Known Issues
 
-1. **TC-IMPACT-007**: `filePattern` uses regex, not glob syntax
+1. ~~**TC-IMPACT-007**: `filePattern` uses regex, not glob syntax~~ ✅ FIXED
 2. **TC-TRACE-006**: `includeContext` may not populate context
 3. **TC-DEP-007**: `includeImpactMetrics` may not return metrics
 4. **TC-IMPACT-008**: `filterByKind` may not filter correctly
