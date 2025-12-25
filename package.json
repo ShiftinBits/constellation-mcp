@@ -4,6 +4,7 @@
 	"author": "ShiftinBits Inc",
 	"description": "Your AI assistant's telescope to constellations of code knowledge - MCP server for intelligent, secure codebase exploration",
 	"type": "module",
+	"license": "AGPL-3.0-only",
 	"bin": {
 		"mcp-constellation": "./dist/index.js"
 	},
