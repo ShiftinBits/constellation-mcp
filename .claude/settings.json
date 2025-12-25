@@ -1,21 +1,25 @@
 {
 	"permissions": {
 		"allow": [
+			"Bash(npm run type-check:*)",
+			"Bash(npm ls:*)",
+			"Bash(npm run build:*)",
+			"Bash(npm run test:coverage:*)",
+			"Bash(npm test:*)",
+			"Bash(grep:*)",
+			"Bash(cat:*)",
+			"Bash(find:*)",
+			"WebSearch",
 			"mcp__ide__*",
+			"mcp__constellation__*",
+			"mcp__neo4j__*",
 			"mcp__context7__*",
 			"mcp__tree-sitter__*",
-			"mcp__puppeteer__*",
 			"mcp__memory__*",
 			"mcp__sequential-thinking__*"
 		],
 		"deny": [],
 		"ask": []
 	},
-	"enabledMcpjsonServers": [
-		"memory",
-		"context7",
-		"puppeteer",
-		"tree-sitter",
-		"sequential-thinking"
-	]
+	"enableAllProjectMcpServers": true
 }
