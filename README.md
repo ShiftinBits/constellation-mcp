@@ -1,6 +1,6 @@
 # Constellation MCP Server
 
-<img src="https://img.shields.io/badge/mcp-@constellationdev/mcp-lightgray.svg?logo=modelcontextprotocol" alt="MCP Server"> <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL-blue.svg" alt="License"></a>
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![MCP Server](https://img.shields.io/badge/mcp-@constellationdev/mcp-black.svg?logo=modelcontextprotocol)](https://github.com/ShiftinBits/constellation-mcp) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20claude%20code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
 
 **Your AI assistant's telescope to a bespoke constellation of code knowledge**
 
