@@ -16,26 +16,26 @@ This document provides a complete, reproducible test procedure for validating th
    npm run start:client-api:dev
    ```
 
-2. **Valid access key** configured
-
-   ```bash
-   export CONSTELLATION_ACCESS_KEY=ak_00000000-...
-   ```
+2. **Valid access key** configured (stored in `CONSTELLATION_ACCESS_KEY` env var)
 
 3. **Project indexed** in constellation
 
    ```bash
-   cd constellation-mcp
    constellation index --full
    ```
 
-4. **MCP server** connected to Claude Code (or other MCP client)
+4. **MCP servers** connected to Claude Code:
+   - **Constellation MCP** (`mcp__plugin_constellation_constellation__execute_code`) - For API tests
+   - **Neo4j MCP** (`mcp__neo4j__read-cypher`) - For validation queries
 
 ### Test Context
 
 - **Project:** constellation-mcp
+- **Project ID:** `proj:00000000000040008000000000000033`
 - **Branch:** main
-- **MCP Tool:** `execute_code` (Code Mode)
+- **MCP Tools:**
+  - `execute_code` (Constellation API tests)
+  - `read-cypher` (Neo4j validation queries)
 
 ---
 
@@ -45,18 +45,10 @@ Before running any tests, ensure the codebase is freshly indexed:
 
 ```bash
 cd constellation-mcp
-constellation index
+constellation index --full
 ```
 
 This command parses the codebase, extracts AST intelligence, and uploads it to constellation-core. The index must be current for tests to return accurate results.
-
-**Verify index is complete:**
-
-```bash
-constellation status
-```
-
-You should see the project listed with recent indexing timestamp.
 
 ---
 
@@ -66,7 +58,50 @@ All tests are executed via the `execute_code` MCP tool. Each test case provides:
 
 - **Code**: JavaScript to execute in the sandbox
 - **Expected**: What the result should contain
+- **Neo4j Validation**: Cypher query to cross-check results against the graph database
+- **Cross-Validation**: Comparison logic between API and Neo4j results
 - **Validates**: What aspect of the system is being tested
+
+---
+
+## Neo4j Validation Workflow
+
+Claude Code executes tests using both MCP servers in a two-phase process:
+
+### Phase 1: Execute Constellation API Test
+
+Claude calls `mcp__plugin_constellation_constellation__execute_code` with the test JavaScript code and captures the result.
+
+### Phase 2: Execute Neo4j Validation Query
+
+Claude calls `mcp__neo4j__read-cypher` with the validation Cypher query and captures the result.
+
+### Phase 3: Compare Results
+
+Claude compares API results against Neo4j results:
+
+- **Counts should match** (within tolerance for pagination)
+- **IDs should exist** in both systems
+- **Relationships should be consistent**
+- **Report PASS/FAIL with discrepancy details**
+
+### Interpreting Discrepancies
+
+| Scenario                | Likely Cause                         | Action              |
+| ----------------------- | ------------------------------------ | ------------------- |
+| API count > Neo4j count | API caching or stale data            | Re-index project    |
+| API count < Neo4j count | API filtering (test exclusion)       | Check filter params |
+| Missing relationships   | Incomplete extraction                | Check CLI parser    |
+| Extra relationships     | API enrichment layer                 | Expected behavior   |
+| Symbol not found        | Symbol ID mismatch or encoding issue | Verify ID format    |
+
+### Neo4j Schema Reference
+
+**Node Labels**: `File`, `Symbol`, `Module`, `Package`, `UnresolvedReference`, `Export`
+
+**Relationship Types**: `REFERENCES`, `CONTAINS`, `HAS_CHILD`, `IMPORTS`, `DEPENDS_ON`, `EXPORTS`, `EXPORTS_SYMBOL`, `BELONGS_TO_MODULE`, `CALLS`, `INHERITS`, `RE_EXPORTS_FROM`, `USES_SYMBOL`
+
+**Key Symbol Properties**: `name`, `kind`, `filePath`, `isExported`, `projectId`, `branch`, `id`, `qualifiedName`, `modifiers`, `line`, `column`
 
 ---
 
@@ -100,7 +135,24 @@ return {
 - `firstSymbol.kind === "class"`
 - `hasPagination: true`
 
-**Validates:** Basic search functionality, symbol structure
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'CodeModeSandbox'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as count,
+       collect({name: s.name, kind: s.kind, filePath: s.filePath}) as symbols
+```
+
+**Cross-Validation:**
+
+- Neo4j `count` should equal API `symbolCount`
+- Neo4j `symbols[0].name` should equal `firstSymbol.name`
+- Neo4j `symbols[0].kind` should equal `firstSymbol.kind`
+
+**Validates:** Basic search functionality, symbol structure, Neo4j data consistency
 
 ---
 
@@ -128,7 +180,25 @@ return {
 - `withinLimit: true`
 - `symbolCount <= 5`
 
-**Validates:** `filterByKind` parameter, `limit` parameter
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'Error'
+  AND s.kind = 'class'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as totalCount,
+       collect(s.name)[0..5] as limitedNames
+```
+
+**Cross-Validation:**
+
+- All API symbols should have `kind === 'class'`
+- API `symbolCount` should be <= 5 (limit applied)
+- Neo4j `totalCount` represents unfiltered count (may be >= API count due to limit)
+
+**Validates:** `filterByKind` parameter, `limit` parameter, Neo4j kind filtering
 
 ---
 
@@ -159,7 +229,24 @@ return {
 - All returned symbols should have `visibility: "public"` or similar
 - All returned symbols should be exported
 
-**Validates:** `filterByVisibility`, `isExported` filters
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'execute'
+  AND s.isExported = true
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as count,
+       collect({name: s.name, isExported: s.isExported})[0..10] as symbols
+```
+
+**Cross-Validation:**
+
+- All API symbols should have `isExported: true`
+- API `symbolCount` should match or be subset of Neo4j `count`
+
+**Validates:** `filterByVisibility`, `isExported` filters, Neo4j export filtering
 
 ---
 
@@ -189,7 +276,24 @@ return {
 - `allInClientDir: true`
 - All file paths contain "src/client/"
 
-**Validates:** `filePattern` filtering
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'Error'
+  AND s.filePath STARTS WITH 'src/client/'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as count,
+       collect({name: s.name, filePath: s.filePath})[0..10] as symbols
+```
+
+**Cross-Validation:**
+
+- All API symbols should have `filePath` containing "src/client/"
+- Neo4j `count` should be >= API `symbolCount` (API may apply additional filtering)
+
+**Validates:** `filePattern` filtering, Neo4j path filtering
 
 ---
 
@@ -220,7 +324,26 @@ return {
 - `hasUsageCount: true`
 - Symbols include numeric `usageCount` field
 
-**Validates:** `includeUsageCount` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'getConfigContext'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WITH s, count(ref) as usageCount
+RETURN s.name as name, usageCount
+ORDER BY usageCount DESC
+LIMIT 5
+```
+
+**Cross-Validation:**
+
+- API `usageCount` should match Neo4j reference count for each symbol
+- Symbol names should match between API and Neo4j results
+
+**Validates:** `includeUsageCount` option, Neo4j reference counting
 
 ---
 
@@ -248,7 +371,27 @@ return {
 - `pagination.hasMore: true`
 - Different symbols on each page
 
-**Validates:** `offset` parameter, `pagination` in response
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'Error'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+WITH s ORDER BY s.name
+WITH collect(s.name) as allNames
+RETURN allNames[0..3] as firstPage,
+       allNames[3..6] as secondPage,
+       size(allNames) as totalCount
+```
+
+**Cross-Validation:**
+
+- API `firstPage` names should match Neo4j `firstPage` (order may vary)
+- API `secondPage` names should match Neo4j `secondPage` (order may vary)
+- No overlap between pages in both systems
+
+**Validates:** `offset` parameter, `pagination` in response, Neo4j SKIP/LIMIT consistency
 
 ---
 
@@ -268,6 +411,7 @@ return {
 	symbolKind: details.symbol?.kind,
 	filePath: details.symbol?.filePath,
 	hasSignature: !!details.symbol?.signature,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -277,7 +421,24 @@ return {
 - `symbolName === "CodeModeSandbox"`
 - `symbolKind === "class"`
 
-**Validates:** Symbol lookup by ID
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'CodeModeSandbox'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN s.id as id, s.name as name, s.kind as kind, s.filePath as filePath
+```
+
+**Cross-Validation:**
+
+- API `symbolName` should match Neo4j `name`
+- API `symbolKind` should match Neo4j `kind`
+- API `filePath` should match Neo4j `filePath`
+- Symbol ID should exist in Neo4j
+
+**Validates:** Symbol lookup by ID, Neo4j symbol existence
 
 ---
 
@@ -303,7 +464,24 @@ return {
 - `success: true`
 - `symbolName === "CodeModeSandbox"`
 
-**Validates:** Symbol lookup by name+path combination
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'CodeModeSandbox'
+  AND s.filePath = 'src/code-mode/sandbox.ts'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN s.name as name, s.kind as kind, s.filePath as filePath
+```
+
+**Cross-Validation:**
+
+- API `symbolName` should match Neo4j `name`
+- API `filePath` should match Neo4j `filePath`
+- Exactly one symbol should be returned in both systems
+
+**Validates:** Symbol lookup by name+path combination, Neo4j precise matching
 
 ---
 
@@ -328,6 +506,7 @@ return {
 	symbolName: result.symbol?.name,
 	hasReferences: !!result.references,
 	referenceCount: result.references?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -336,7 +515,24 @@ return {
 - `hasReferences: true`
 - `referenceCount > 0`
 
-**Validates:** `includeReferences` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'createStructuredError'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (ref)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WITH s, count(ref) as refCount, collect(DISTINCT ref.filePath) as refFiles
+RETURN s.name as name, refCount, refFiles
+```
+
+**Cross-Validation:**
+
+- API `referenceCount` should match or be close to Neo4j `refCount`
+- Both systems should show references exist for this symbol
+
+**Validates:** `includeReferences` option, Neo4j REFERENCES relationship counting
 
 ---
 
@@ -363,6 +559,7 @@ return {
 	relationshipKeys: result.relationships
 		? Object.keys(result.relationships)
 		: [],
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -371,7 +568,30 @@ return {
 - `hasRelationships: true`
 - `relationshipKeys` includes items like "calls", "calledBy", "inherits"
 
-**Validates:** `includeRelationships` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'ConstellationClient'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (s)-[:CALLS]->(called:Symbol)
+OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
+OPTIONAL MATCH (s)-[:INHERITS]->(parent:Symbol)
+OPTIONAL MATCH (child:Symbol)-[:INHERITS]->(s)
+RETURN s.name as name,
+       count(DISTINCT called) as callsCount,
+       count(DISTINCT caller) as calledByCount,
+       count(DISTINCT parent) as inheritsCount,
+       count(DISTINCT child) as inheritedByCount
+```
+
+**Cross-Validation:**
+
+- API relationship counts should match Neo4j relationship counts
+- Relationship types present in API should have corresponding Neo4j relationships
+
+**Validates:** `includeRelationships` option, Neo4j CALLS/INHERITS relationships
 
 ---
 
@@ -401,7 +621,22 @@ return {
 - `file === "src/code-mode/sandbox.ts"`
 - `directDependencyCount > 0`
 
-**Validates:** Basic dependency analysis
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (f)-[:IMPORTS]->(dep:File)
+RETURN f.path as file,
+       count(dep) as depCount,
+       collect(dep.path)[0..3] as firstThreeDeps
+```
+
+**Cross-Validation:**
+
+- API `directDependencyCount` should match Neo4j `depCount`
+- API `firstThreeDeps` should be subset of Neo4j imported files
+
+**Validates:** Basic dependency analysis, Neo4j IMPORTS relationship
 
 ---
 
@@ -427,7 +662,23 @@ return {
 - `hasTransitive: true`
 - `transitiveDependencyCount > 0`
 
-**Validates:** `depth` parameter, transitive dependencies
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (f)-[:IMPORTS]->(direct:File)
+OPTIONAL MATCH (f)-[:IMPORTS*2]->(transitive:File)
+WHERE transitive <> f
+RETURN count(DISTINCT direct) as directCount,
+       count(DISTINCT transitive) as transitiveCount
+```
+
+**Cross-Validation:**
+
+- API `directDependencyCount` should match Neo4j `directCount`
+- API `transitiveDependencyCount` should be close to Neo4j `transitiveCount`
+
+**Validates:** `depth` parameter, transitive dependencies, Neo4j path traversal
 
 ---
 
@@ -453,7 +704,21 @@ return {
 - `hasPackages: true`
 - `packages` includes npm/node packages like "vm"
 
-**Validates:** `includePackages` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (f)-[:IMPORTS]->(pkg:Package)
+RETURN count(pkg) as packageCount,
+       collect(pkg.name)[0..5] as packages
+```
+
+**Cross-Validation:**
+
+- API `packageCount` should match Neo4j package count
+- API `packages` should match Neo4j package names
+
+**Validates:** `includePackages` option, Neo4j Package node imports
 
 ---
 
@@ -488,7 +753,24 @@ return {
 - `hasSymbols: true`
 - Dependencies include `importedSymbols` arrays
 
-**Validates:** `includeSymbols` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f)-[imp:IMPORTS]->(dep:File)
+WHERE imp.symbols IS NOT NULL
+RETURN dep.path as depPath,
+       imp.symbols as importedSymbols,
+       size(imp.symbols) as symbolCount
+LIMIT 3
+```
+
+**Cross-Validation:**
+
+- API `importedSymbols` should match Neo4j `imp.symbols` property
+- Symbol counts should be consistent between systems
+
+**Validates:** `includeSymbols` option, Neo4j IMPORTS relationship symbols property
 
 ---
 
@@ -514,7 +796,22 @@ return {
 - `success: true`
 - `directDependentCount > 0`
 
-**Validates:** Reverse dependency analysis
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
+RETURN f.path as file,
+       count(dependent) as dependentCount,
+       collect(dependent.path)[0..3] as firstThree
+```
+
+**Cross-Validation:**
+
+- API `directDependentCount` should match Neo4j `dependentCount`
+- API `firstThree` should be subset of Neo4j dependent files
+
+**Validates:** Reverse dependency analysis, Neo4j reverse IMPORTS traversal
 
 ---
 
@@ -540,7 +837,23 @@ return {
 - `hasTransitive: true`
 - `transitiveDependentCount >= directDependentCount`
 
-**Validates:** `depth` parameter for reverse dependencies
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/types/mcp-errors.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (direct:File)-[:IMPORTS]->(f)
+OPTIONAL MATCH (transitive:File)-[:IMPORTS*2]->(f)
+WHERE transitive <> f
+RETURN count(DISTINCT direct) as directCount,
+       count(DISTINCT transitive) as transitiveCount
+```
+
+**Cross-Validation:**
+
+- API `directDependentCount` should match Neo4j `directCount`
+- API `transitiveDependentCount` should be close to Neo4j `transitiveCount`
+
+**Validates:** `depth` parameter for reverse dependencies, Neo4j reverse path traversal
 
 ---
 
@@ -566,7 +879,22 @@ return {
 - `success: true`
 - Note: `hasDetailedMetrics` may be false (known observation)
 
-**Validates:** `includeImpactMetrics` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/config/config-manager.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
+RETURN f.path as file,
+       count(dependent) as dependentCount,
+       collect(dependent.path) as dependents
+```
+
+**Cross-Validation:**
+
+- API `directDependentCount` should match Neo4j `dependentCount`
+- Metric calculation is API-layer enrichment, not directly in Neo4j
+
+**Validates:** `includeImpactMetrics` option, Neo4j dependent count accuracy
 
 ---
 
@@ -590,7 +918,21 @@ return {
 - `totalCycles` and `cycleCount` should match
 - A clean codebase will have 0 cycles
 
-**Validates:** Circular dependency detection
+**Neo4j Validation:**
+
+```cypher
+MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..10]->(f)
+WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
+RETURN count(DISTINCT cyclePaths) as cycleCount,
+       collect(DISTINCT cyclePaths)[0..3] as sampleCycles
+```
+
+**Cross-Validation:**
+
+- API `cycleCount` should match Neo4j `cycleCount`
+- Both systems should detect the same circular dependency patterns
+
+**Validates:** Circular dependency detection, Neo4j cycle detection query
 
 ---
 
@@ -614,7 +956,21 @@ return {
 
 - Returns only cycles involving the specified file
 
-**Validates:** `filePath` filter, `maxDepth` limit
+**Neo4j Validation:**
+
+```cypher
+MATCH path = (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..5]->(f)
+WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
+RETURN count(DISTINCT cyclePaths) as cycleCount,
+       collect(DISTINCT cyclePaths) as cycles
+```
+
+**Cross-Validation:**
+
+- API `totalCycles` should match Neo4j `cycleCount`
+- All cycles should involve the specified file
+
+**Validates:** `filePath` filter, `maxDepth` limit, Neo4j file-specific cycle detection
 
 ---
 
@@ -635,6 +991,7 @@ return {
 	symbolName: result.symbol?.name,
 	hasDirectUsages: !!result.directUsages,
 	directUsageCount: result.directUsages?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -644,7 +1001,25 @@ return {
 - `hasDirectUsages: true`
 - `directUsageCount > 0`
 
-**Validates:** Usage tracing by ID
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'getConfigContext'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+RETURN s.name as symbolName,
+       count(usage) as usageCount,
+       collect(DISTINCT type(r)) as relationshipTypes
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `usageCount`
+- Both systems should show usages exist for this symbol
+
+**Validates:** Usage tracing by ID, Neo4j REFERENCES/CALLS relationship counting
 
 ---
 
@@ -669,7 +1044,25 @@ return {
 - `success: true`
 - `directUsageCount > 0`
 
-**Validates:** Usage tracing by name+path
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'createStructuredError'
+  AND s.filePath = 'src/client/error-factory.ts'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+RETURN s.name as symbolName,
+       count(usage) as usageCount
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `usageCount`
+- Symbol should be found by name+path in Neo4j
+
+**Validates:** Usage tracing by name+path, Neo4j precise symbol lookup
 
 ---
 
@@ -690,6 +1083,7 @@ return {
 	success: !!result.symbol,
 	symbolName: result.symbol?.name,
 	directUsageCount: result.directUsages?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -697,7 +1091,24 @@ return {
 
 - Only usages of type "import" returned
 
-**Validates:** `filterByUsageType` filter
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'ErrorCode'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (usage)-[r:IMPORTS]->(s)
+RETURN s.name as symbolName,
+       count(usage) as importCount
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `importCount` when filtered by import
+- Only IMPORTS relationships should be counted
+
+**Validates:** `filterByUsageType` filter, Neo4j relationship type filtering
 
 ---
 
@@ -723,6 +1134,7 @@ return {
 	directUsageCount: result.directUsages?.length || 0,
 	hasTransitive: !!result.transitiveUsages,
 	transitiveCount: result.transitiveUsages?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -730,7 +1142,27 @@ return {
 
 - `hasTransitive: true`
 
-**Validates:** `includeTransitive` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'ConstellationClient'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (direct)-[r1:REFERENCES|CALLS|USES_SYMBOL]->(s)
+OPTIONAL MATCH (transitive)-[r2:REFERENCES|CALLS|USES_SYMBOL*2]->(s)
+WHERE transitive <> s
+RETURN s.name as symbolName,
+       count(DISTINCT direct) as directCount,
+       count(DISTINCT transitive) as transitiveCount
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `directCount`
+- API `transitiveCount` should be related to Neo4j multi-hop relationships
+
+**Validates:** `includeTransitive` option, Neo4j multi-hop relationship traversal
 
 ---
 
@@ -759,6 +1191,7 @@ return {
 	symbolName: result.symbol?.name,
 	directUsageCount: result.directUsages?.length || 0,
 	hasTestFiles,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -766,7 +1199,25 @@ return {
 
 - `hasTestFiles: false`
 
-**Validates:** `excludeTests` filter
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'CodeModeSandbox'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WHERE NOT (usage.filePath CONTAINS 'test' OR usage.filePath CONTAINS '.spec.' OR usage.filePath CONTAINS '.test.')
+RETURN s.name as symbolName,
+       count(usage) as nonTestUsageCount
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `nonTestUsageCount` when tests excluded
+- No test file paths should appear in results
+
+**Validates:** `excludeTests` filter, Neo4j path exclusion filtering
 
 ---
 
@@ -794,6 +1245,7 @@ return {
 	directUsageCount: result.directUsages?.length || 0,
 	hasContext,
 	sampleContext: result.directUsages?.[0]?.context?.substring(0, 100) || null,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -802,7 +1254,25 @@ return {
 - `hasContext: true` with code snippets
 - Note: Currently returns `hasContext: false` (known observation)
 
-**Validates:** `includeContext` option
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'createStructuredError'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+RETURN s.name as symbolName,
+       count(usage) as usageCount,
+       collect({filePath: usage.filePath, line: usage.line})[0..5] as usageLocations
+```
+
+**Cross-Validation:**
+
+- API `directUsageCount` should match Neo4j `usageCount`
+- Context is API-layer enrichment (reads source), not stored in Neo4j
+
+**Validates:** `includeContext` option, Neo4j usage locations (context is API-generated)
 
 ---
 
@@ -829,6 +1299,7 @@ return {
 	rootName: result.root?.name,
 	hasCallees: !!result.callees,
 	calleeCount: result.callees?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -837,7 +1308,27 @@ return {
 - `hasCallees: true`
 - `calleeCount > 0`
 
-**Validates:** Call graph for outgoing calls
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'execute'
+  AND s.kind = 'method'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+WITH s LIMIT 1
+OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
+RETURN s.name as rootName,
+       count(callee) as calleeCount,
+       collect(callee.name) as calleeNames
+```
+
+**Cross-Validation:**
+
+- API `calleeCount` should match Neo4j `calleeCount`
+- Callee names should match between API and Neo4j results
+
+**Validates:** Call graph for outgoing calls, Neo4j CALLS relationship traversal
 
 ---
 
@@ -863,6 +1354,7 @@ return {
 	rootName: result.root?.name,
 	hasCallers: !!result.callers,
 	callerCount: result.callers?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -871,7 +1363,25 @@ return {
 - `hasCallers: true`
 - `callerCount > 0`
 
-**Validates:** Call graph for incoming calls
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'createStructuredError'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
+RETURN s.name as rootName,
+       count(caller) as callerCount,
+       collect(caller.name) as callerNames
+```
+
+**Cross-Validation:**
+
+- API `callerCount` should match Neo4j `callerCount`
+- Caller names should match between API and Neo4j results
+
+**Validates:** Call graph for incoming calls, Neo4j reverse CALLS relationship
 
 ---
 
@@ -896,6 +1406,7 @@ return {
 	hasCallees: !!result.callees,
 	callerCount: result.callers?.length || 0,
 	calleeCount: result.callees?.length || 0,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -904,7 +1415,29 @@ return {
 - `hasCallers: true`
 - `hasCallees: true`
 
-**Validates:** Bidirectional call graph
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'getConfigContext'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
+OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
+RETURN s.name as rootName,
+       count(DISTINCT caller) as callerCount,
+       count(DISTINCT callee) as calleeCount,
+       collect(DISTINCT caller.name) as callerNames,
+       collect(DISTINCT callee.name) as calleeNames
+```
+
+**Cross-Validation:**
+
+- API `callerCount` should match Neo4j `callerCount`
+- API `calleeCount` should match Neo4j `calleeCount`
+- Both directions should be captured
+
+**Validates:** Bidirectional call graph, Neo4j dual-direction CALLS traversal
 
 ---
 
@@ -929,6 +1462,7 @@ return {
 	hasImpactedFiles: !!result.impactedFiles,
 	impactedFileCount: result.impactedFiles?.length || 0,
 	hasSummary: !!result.summary,
+	symbolId: search.symbols[0].id,
 };
 ```
 
@@ -937,13 +1471,49 @@ return {
 - `success: true`
 - `hasSummary: true`
 
-**Validates:** Basic impact analysis
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'ConstellationClient'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WITH s, collect(DISTINCT ref.filePath) as refFiles
+OPTIONAL MATCH (f:File)-[:CONTAINS]->(ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+RETURN s.name as symbolName,
+       count(DISTINCT f.path) as impactedFileCount,
+       collect(DISTINCT f.path)[0..5] as sampleFiles
+```
+
+**Cross-Validation:**
+
+- API `impactedFileCount` should be close to Neo4j impacted file count
+- Impact analysis includes API-layer risk calculations not stored in Neo4j
+
+**Validates:** Basic impact analysis, Neo4j reference-to-file mapping
 
 ---
 
 ### TC-IMPACT-002 through TC-IMPACT-009
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Neo4j Validation Pattern for Impact Tests:**
+
+All impact tests should validate against Neo4j using similar patterns:
+
+```cypher
+-- For symbol-based impact
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+OPTIONAL MATCH (usage)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+RETURN count(DISTINCT usage) as directImpact
+
+-- For file-based impact (depth traversal)
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+OPTIONAL MATCH path = (usage)-[:REFERENCES|CALLS|USES_SYMBOL*1..2]->(s)
+RETURN count(DISTINCT usage) as transitiveImpact
+```
 
 ---
 
@@ -970,13 +1540,57 @@ return {
 - `hasStructure: true`
 - `hasDependencies: true`
 
-**Validates:** Basic architecture overview
+**Neo4j Validation:**
+
+```cypher
+// File count
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(f) as totalFiles
+
+// Symbol distribution
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN s.kind as kind, count(s) as count
+ORDER BY count DESC
+
+// Dependency count
+MATCH (f1:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(f2:File)
+RETURN count(*) as totalDependencies
+```
+
+**Cross-Validation:**
+
+- API file counts should match Neo4j file count
+- API symbol distribution should match Neo4j kind counts
+- API dependency count should match Neo4j IMPORTS count
+
+**Validates:** Basic architecture overview, Neo4j aggregate statistics
 
 ---
 
 ### TC-ARCH-002 through TC-ARCH-004
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Neo4j Validation Pattern for Architecture Tests:**
+
+```cypher
+-- Language distribution
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+WHERE f.language IS NOT NULL
+RETURN f.language as language, count(f) as fileCount
+
+-- External package usage
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(p:Package)
+RETURN p.name as package, count(f) as usageCount
+ORDER BY usageCount DESC
+LIMIT 10
+
+-- Module structure
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+WITH split(f.path, '/')[0] as topDir, count(f) as fileCount
+RETURN topDir, fileCount
+ORDER BY fileCount DESC
+```
 
 ---
 
@@ -1006,13 +1620,30 @@ try {
 - Error thrown
 - `hasQueryMention: true`
 
-**Validates:** Required parameter validation
+**Neo4j Validation:**
+
+Parameter validation tests validate API-layer behavior, not Neo4j data. However, we can verify that the validation prevents invalid queries from reaching Neo4j:
+
+```cypher
+// Verify no query was executed with empty parameters
+// This is a no-op validation - if API validation works, Neo4j is never called
+RETURN 'Parameter validation is API-layer, not Neo4j' as note
+```
+
+**Cross-Validation:**
+
+- API should throw error before reaching Neo4j
+- No Neo4j query should be executed for invalid parameters
+
+**Validates:** Required parameter validation, API-layer error handling
 
 ---
 
 ### TC-VALID-002 through TC-VALID-011
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Note:** Parameter validation tests (TC-VALID-002 through TC-VALID-011) validate API-layer input validation. These tests ensure the API correctly rejects invalid inputs before any Neo4j queries are executed. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
 
 ---
 
@@ -1046,6 +1677,8 @@ return {
 ### TC-ERR-002 through TC-ERR-006
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Note:** Error handling tests (TC-ERR-001 through TC-ERR-006) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying Neo4j data. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
 
 ---
 
@@ -1220,6 +1853,10 @@ return { note: 'Infinite loops detected at validation phase' };
 
 ---
 
+**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-009) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
+
+---
+
 ## Category 9: Edge Cases (8 Tests)
 
 ### TC-EDGE-001: Empty Search Results
@@ -1242,13 +1879,60 @@ return {
 - `isEmpty: true`
 - `hasSymbolsArray: true`
 
-**Validates:** Empty results handling
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'ThisSymbolDefinitelyDoesNotExist12345678XYZABC'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as count
+```
+
+**Cross-Validation:**
+
+- Neo4j `count` should be 0
+- Both API and Neo4j should return empty results for non-existent symbols
+
+**Validates:** Empty results handling, Neo4j consistent empty responses
 
 ---
 
 ### TC-EDGE-002 through TC-EDGE-008
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Neo4j Validation Pattern for Edge Case Tests:**
+
+Edge case tests validate API behavior with boundary conditions. For tests that query data:
+
+```cypher
+-- For non-existent file queries (TC-EDGE-002)
+MATCH (f:File {path: '<non-existent-path>', projectId: 'proj:00000000000040008000000000000033'})
+RETURN count(f) as count
+-- Expected: 0
+
+-- For non-existent symbol queries (TC-EDGE-003)
+MATCH (s:Symbol {id: '<invalid-symbol-id>', projectId: 'proj:00000000000040008000000000000033'})
+RETURN count(s) as count
+-- Expected: 0
+
+-- For special character searches (TC-EDGE-004)
+MATCH (s:Symbol)
+WHERE s.name CONTAINS '<special-chars>'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+RETURN count(s) as count
+
+-- For very long query strings (TC-EDGE-005)
+-- Validate that queries with long strings don't crash Neo4j
+
+-- For deeply nested structures (TC-EDGE-007)
+-- Validate depth traversal limits are respected
+MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS*1..10]->(dep:File)
+RETURN max(length(path)) as maxDepth
+```
+
+**Note:** Some edge case tests (TC-EDGE-006: undefined/null handling) validate API-layer behavior and don't require Neo4j validation.
 
 ---
 
@@ -1279,7 +1963,29 @@ return {
 - `success: true`
 - Method chaining works
 
-**Validates:** Sequential method chaining
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name = 'CodeModeSandbox'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
+OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
+OPTIONAL MATCH (s)-[:INHERITS]->(parent:Symbol)
+RETURN s.name as name, s.kind as kind,
+       count(DISTINCT callee) as calleeCount,
+       count(DISTINCT caller) as callerCount,
+       count(DISTINCT parent) as inheritsCount
+```
+
+**Cross-Validation:**
+
+- Symbol name should match between search and details
+- Relationship counts should match Neo4j relationship counts
+- Both API calls should reference the same symbol ID
+
+**Validates:** Sequential method chaining, Neo4j data consistency across calls
 
 ---
 
@@ -1306,13 +2012,71 @@ return {
 - Both queries succeed
 - Returns counts for both
 
-**Validates:** Promise.all parallel queries
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+OPTIONAL MATCH (f)-[:IMPORTS]->(imports:File)
+OPTIONAL MATCH (importedBy:File)-[:IMPORTS]->(f)
+RETURN f.path as file,
+       count(DISTINCT imports) as importsCount,
+       count(DISTINCT importedBy) as importedByCount
+```
+
+**Cross-Validation:**
+
+- API `imports` should match Neo4j `importsCount`
+- API `importedBy` should match Neo4j `importedByCount`
+- Parallel queries should return consistent data
+
+**Validates:** Promise.all parallel queries, Neo4j bidirectional dependency consistency
 
 ---
 
 ### TC-COMBO-003 through TC-COMBO-005
 
 See E2E-TEST-RESULTS.md for complete test cases.
+
+**Neo4j Validation Pattern for Combined Workflow Tests:**
+
+Combined workflow tests chain multiple API methods. Each step can be validated against Neo4j:
+
+```cypher
+-- TC-COMBO-003: Full Symbol Analysis (search -> details -> usage -> impact)
+-- Step 1: Verify search result exists
+MATCH (s:Symbol)
+WHERE s.name CONTAINS '<searchQuery>'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+RETURN s.id, s.name, s.filePath
+LIMIT 1
+
+-- Step 2: Verify symbol details
+MATCH (s:Symbol {id: '<symbolId from step 1>'})
+RETURN s.name, s.kind, s.filePath, s.isExported
+
+-- Step 3: Verify usage count
+MATCH (s:Symbol {id: '<symbolId>'})<-[:REFERENCES|CALLS|USES_SYMBOL]-(usage)
+RETURN count(usage) as usageCount
+
+-- Step 4: Verify impact analysis
+MATCH (s:Symbol {id: '<symbolId>'})<-[:REFERENCES|CALLS|USES_SYMBOL]-(usage)
+WITH DISTINCT usage
+MATCH (f:File)-[:CONTAINS]->(usage)
+RETURN count(DISTINCT f.path) as impactedFileCount
+
+-- TC-COMBO-004: Architecture to Dependencies
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+WITH f ORDER BY size(()-[:IMPORTS]->(f)) DESC
+LIMIT 1
+MATCH (f)-[:IMPORTS]->(dep:File)
+RETURN f.path as mostImported, collect(dep.path) as dependencies
+
+-- TC-COMBO-005: Circular Dependency Investigation
+MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS*2..5]->(f)
+WITH [n IN nodes(path) | n.path] as cyclePath
+RETURN cyclePath[0] as startFile, cyclePath
+LIMIT 1
+```
 
 ---
 
@@ -1331,7 +2095,22 @@ return result.symbols?.length || 0;
 
 - Returns a number (await works at top level)
 
-**Validates:** Async IIFE wrapping
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'Error'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+RETURN count(s) as totalCount
+```
+
+**Cross-Validation:**
+
+- API returned count should be <= 5 (due to limit)
+- Neo4j `totalCount` should be >= API count (Neo4j has no limit)
+
+**Validates:** Async IIFE wrapping, Neo4j query execution
 
 ---
 
@@ -1352,7 +2131,29 @@ return {
 
 - Both values populated
 
-**Validates:** Sequential await execution
+**Neo4j Validation:**
+
+```cypher
+// First query
+MATCH (s:Symbol)
+WHERE s.name CONTAINS 'Error'
+  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+WITH count(s) as errorCount
+// Second query
+MATCH (s2:Symbol)
+WHERE s2.name CONTAINS 'Client'
+  AND s2.projectId = 'proj:00000000000040008000000000000033'
+  AND s2.branch = 'main'
+RETURN errorCount, count(s2) as clientCount
+```
+
+**Cross-Validation:**
+
+- API `first` should be <= 3 and <= Neo4j `errorCount`
+- API `second` should be <= 3 and <= Neo4j `clientCount`
+
+**Validates:** Sequential await execution, Neo4j multiple query consistency
 
 ---
 
@@ -1376,6 +2177,8 @@ const x = 1 + 1;
 // TC-CODE-007: Return Null
 return null;
 ```
+
+**Note:** Return value tests (TC-CODE-003 through TC-CODE-007) validate sandbox JavaScript execution and serialization capabilities. These tests don't query Neo4j data and therefore don't require Neo4j validation.
 
 **Validates:** Various return value types
 
@@ -1403,6 +2206,8 @@ return { done: true };
 
 - Logs captured in `logs` array
 - Error/warn prefixed appropriately
+
+**Note:** Console logging tests (TC-CODE-008 through TC-CODE-012) validate sandbox console capture functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
 
 **Validates:** Console capture
 
@@ -1441,7 +2246,360 @@ return {
 - `allPresent: true`
 - `methodCount: 10`
 
+**Note:** listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+
 **Validates:** Complete method list and documentation
+
+---
+
+## Category 12: Neo4j Cross-Validation (10 Tests)
+
+This category contains dedicated tests for validating data consistency between the Constellation API and Neo4j graph database.
+
+### TC-XVAL-001: Symbol Count Consistency
+
+**Purpose:** Verify API symbol count matches Neo4j total count
+
+**Code:**
+
+```javascript
+const result = await api.searchSymbols({ query: '', limit: 1000 });
+return {
+	apiCount: result.pagination?.total || result.symbols?.length || 0,
+	symbolsReturned: result.symbols?.length || 0,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(s) as neo4jCount
+```
+
+**Cross-Validation:**
+
+- `apiCount` should equal `neo4jCount` (exact match expected)
+- Discrepancy indicates indexing issue or stale data
+
+**Validates:** Total symbol count consistency
+
+---
+
+### TC-XVAL-002: File Count Consistency
+
+**Purpose:** Verify API file count matches Neo4j file count
+
+**Code:**
+
+```javascript
+const result = await api.getArchitectureOverview({});
+return {
+	fileCount: result.metadata?.totalFiles || 0,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(f) as neo4jFileCount
+```
+
+**Cross-Validation:**
+
+- `fileCount` should equal `neo4jFileCount`
+
+**Validates:** File count consistency
+
+---
+
+### TC-XVAL-003: Dependency Relationship Integrity
+
+**Purpose:** Verify getDependencies matches IMPORTS relationships
+
+**Code:**
+
+```javascript
+const result = await api.getDependencies({ filePath: 'src/index.ts' });
+return {
+	apiDeps: result.directDependencies?.map((d) => d.filePath || d.path).sort(),
+	depCount: result.directDependencies?.length || 0,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/index.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS]->(dep:File)
+RETURN collect(dep.path) as neo4jDeps, count(dep) as neo4jDepCount
+ORDER BY dep.path
+```
+
+**Cross-Validation:**
+
+- `depCount` should equal `neo4jDepCount`
+- `apiDeps` array should contain same paths as `neo4jDeps`
+
+**Validates:** IMPORTS relationship consistency
+
+---
+
+### TC-XVAL-004: Symbol Kind Distribution
+
+**Purpose:** Verify API symbol kinds match Neo4j distribution
+
+**Code:**
+
+```javascript
+const classes = await api.searchSymbols({
+	query: '',
+	filterByKind: ['class'],
+	limit: 1000,
+});
+const functions = await api.searchSymbols({
+	query: '',
+	filterByKind: ['function'],
+	limit: 1000,
+});
+const methods = await api.searchSymbols({
+	query: '',
+	filterByKind: ['method'],
+	limit: 1000,
+});
+return {
+	classes: classes.pagination?.total || classes.symbols?.length || 0,
+	functions: functions.pagination?.total || functions.symbols?.length || 0,
+	methods: methods.pagination?.total || methods.symbols?.length || 0,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN s.kind as kind, count(s) as count
+ORDER BY count DESC
+```
+
+**Cross-Validation:**
+
+- API class count should match Neo4j class count
+- API function count should match Neo4j function count
+- API method count should match Neo4j method count
+
+**Validates:** Symbol kind distribution consistency
+
+---
+
+### TC-XVAL-005: Call Graph Bidirectional Consistency
+
+**Purpose:** Verify callers/callees are symmetric in Neo4j
+
+**Neo4j Validation:**
+
+```cypher
+// All CALLS relationships should be bidirectionally queryable
+MATCH (a:Symbol {projectId: 'proj:00000000000040008000000000000033'})-[r:CALLS]->(b:Symbol)
+WITH a, b
+MATCH (b)<-[r2:CALLS]-(a)
+WITH count(*) as symmetricCount
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033'})-[:CALLS]->()
+RETURN symmetricCount, count(*) as totalCalls, symmetricCount = count(*) as isSymmetric
+```
+
+**Cross-Validation:**
+
+- `isSymmetric` should be `true`
+- Every CALLS relationship should be traversable in both directions
+
+**Validates:** CALLS relationship bidirectional integrity
+
+---
+
+### TC-XVAL-006: Exported Symbol Consistency
+
+**Purpose:** Verify isExported flag matches Neo4j data
+
+**Code:**
+
+```javascript
+const result = await api.searchSymbols({
+	query: '',
+	isExported: true,
+	limit: 1000,
+});
+return {
+	exportedCount: result.pagination?.total || result.symbols?.length || 0,
+	sampleSymbols: result.symbols?.slice(0, 5).map((s) => s.name) || [],
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+WHERE s.isExported = true
+RETURN count(s) as neo4jExportedCount,
+       collect(s.name)[0..5] as sampleNames
+```
+
+**Cross-Validation:**
+
+- `exportedCount` should equal `neo4jExportedCount`
+- Sample symbols should exist in Neo4j exported symbols
+
+**Validates:** isExported flag consistency
+
+---
+
+### TC-XVAL-007: Package Import Consistency
+
+**Purpose:** Verify external package imports match Neo4j Package nodes
+
+**Code:**
+
+```javascript
+const result = await api.getDependencies({
+	filePath: 'src/code-mode/sandbox.ts',
+	includePackages: true,
+});
+return {
+	packageCount: result.packages?.length || 0,
+	packages: result.packages?.map((p) => p.name || p).sort() || [],
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(p:Package)
+RETURN count(p) as neo4jPackageCount,
+       collect(p.name) as neo4jPackages
+ORDER BY p.name
+```
+
+**Cross-Validation:**
+
+- `packageCount` should equal `neo4jPackageCount`
+- `packages` array should match `neo4jPackages`
+
+**Validates:** Package node import consistency
+
+---
+
+### TC-XVAL-008: Symbol Location Accuracy
+
+**Purpose:** Verify symbol line/column numbers match Neo4j
+
+**Code:**
+
+```javascript
+const search = await api.searchSymbols({ query: 'CodeModeSandbox', limit: 1 });
+if (search.symbols?.length === 0) return { error: 'Not found' };
+const details = await api.getSymbolDetails({ symbolId: search.symbols[0].id });
+return {
+	name: details.symbol?.name,
+	filePath: details.symbol?.filePath,
+	line: details.symbol?.line,
+	column: details.symbol?.column,
+	symbolId: search.symbols[0].id,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {name: 'CodeModeSandbox', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN s.name as name, s.filePath as filePath, s.line as line, s.column as column
+```
+
+**Cross-Validation:**
+
+- API `line` should equal Neo4j `line`
+- API `column` should equal Neo4j `column`
+- API `filePath` should equal Neo4j `filePath`
+
+**Validates:** Symbol location data accuracy
+
+---
+
+### TC-XVAL-009: Circular Dependency Detection Accuracy
+
+**Purpose:** Verify circular dependencies match Neo4j cycle detection
+
+**Code:**
+
+```javascript
+const result = await api.findCircularDependencies({ maxDepth: 5 });
+return {
+	cycleCount: result.cycles?.length || 0,
+	hasCycles: (result.cycles?.length || 0) > 0,
+	sampleCycle: result.cycles?.[0] || null,
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..5]->(f)
+WITH DISTINCT [n IN nodes(path) | n.path] as cyclePath
+RETURN count(cyclePath) as neo4jCycleCount,
+       collect(cyclePath)[0] as sampleCycle
+```
+
+**Cross-Validation:**
+
+- API `cycleCount` should equal Neo4j `neo4jCycleCount`
+- Same files should appear in detected cycles
+
+**Validates:** Circular dependency detection accuracy
+
+---
+
+### TC-XVAL-010: Orphaned Code Detection Accuracy
+
+**Purpose:** Verify orphaned code detection matches Neo4j unreferenced symbols
+
+**Code:**
+
+```javascript
+const result = await api.findOrphanedCode({
+	filePattern: 'src/**',
+	filterByKind: ['function', 'class'],
+	limit: 20,
+});
+return {
+	orphanCount: result.orphanedSymbols?.length || 0,
+	orphans:
+		result.orphanedSymbols?.slice(0, 5).map((s) => ({
+			name: s.name,
+			kind: s.kind,
+			filePath: s.filePath,
+		})) || [],
+};
+```
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+WHERE s.filePath STARTS WITH 'src/'
+  AND s.kind IN ['function', 'class']
+  AND s.isExported = true
+  AND NOT exists(()-[:REFERENCES|CALLS|USES_SYMBOL]->(s))
+  AND NOT exists(()-[:IMPORTS]->(s))
+RETURN count(s) as neo4jOrphanCount,
+       collect({name: s.name, kind: s.kind, filePath: s.filePath})[0..5] as sampleOrphans
+```
+
+**Cross-Validation:**
+
+- API `orphanCount` should be close to Neo4j `neo4jOrphanCount`
+- Detected orphans should match Neo4j unreferenced symbols
+- Note: API may apply additional filtering (test files, internal symbols)
+
+**Validates:** Orphaned code detection accuracy
 
 ---
 
@@ -1449,20 +2607,64 @@ return {
 
 ### Test Count by Category
 
-| Category             | Count  |
-| -------------------- | ------ |
-| Discovery Methods    | 10     |
-| Dependency Methods   | 9      |
-| Tracing Methods      | 9      |
-| Impact Methods       | 9      |
-| Architecture Methods | 4      |
-| Parameter Validation | 11     |
-| Error Handling       | 6      |
-| Sandbox Security     | 9      |
-| Edge Cases           | 8      |
-| Combined Workflows   | 5      |
-| Code Mode Specific   | 15     |
-| **TOTAL**            | **95** |
+| Category               | Count   | Neo4j Validation |
+| ---------------------- | ------- | ---------------- |
+| Discovery Methods      | 10      | Full             |
+| Dependency Methods     | 9       | Full             |
+| Tracing Methods        | 9       | Full             |
+| Impact Methods         | 9       | Full             |
+| Architecture Methods   | 4       | Full             |
+| Parameter Validation   | 11      | N/A (API-layer)  |
+| Error Handling         | 6       | N/A (API-layer)  |
+| Sandbox Security       | 9       | N/A (Sandbox)    |
+| Edge Cases             | 8       | Partial          |
+| Combined Workflows     | 5       | Full             |
+| Code Mode Specific     | 15      | Partial          |
+| Neo4j Cross-Validation | 10      | Full             |
+| **TOTAL**              | **105** |                  |
+
+### Neo4j Validation Commands
+
+**Schema Discovery:**
+
+```cypher
+CALL db.labels()                    -- List all node labels
+CALL db.relationshipTypes()         -- List all relationship types
+MATCH (s:Symbol) RETURN keys(s)[0..10] -- Sample symbol properties
+```
+
+**Common Validation Queries:**
+
+```cypher
+-- Count symbols
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(s)
+
+-- Count files
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(f)
+
+-- Count relationships
+MATCH ()-[r]->() RETURN type(r), count(r) ORDER BY count(r) DESC
+
+-- Symbol lookup by name
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+RETURN s.name, s.kind, s.filePath, s.line
+```
+
+### MCP Tool Commands
+
+**Constellation API Test:**
+
+```
+mcp__plugin_constellation_constellation__execute_code
+```
+
+**Neo4j Validation Query:**
+
+```
+mcp__neo4j__read-cypher
+```
 
 ### Known Issues
 
