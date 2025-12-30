@@ -1,6 +1,6 @@
 # Constellation MCP Server
 
-[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![MCP Server](https://img.shields.io/badge/mcp-@constellationdev/mcp-black.svg?logo=modelcontextprotocol)](https://github.com/ShiftinBits/constellation-mcp) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20claude%20code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](https://vscode.dev/redirect/mcp/install?name=Constellation%20MCP&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%22%5D%7D) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20Claude%20Code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
 
 **Your AI assistant's telescope to a bespoke constellation of code knowledge**
 
@@ -19,13 +19,16 @@ When AI assistants work with code, they typically can only see the files you exp
 **The key difference**: All this intelligence comes from a pre-indexed graph database, not by reading your source code. This means:
 
 ✅ **Instant results** - Millisecond responses, not minutes of parsing
+
 ✅ **No source code transmission** - Only metadata and relationships, never your code
-✅ **Team-wide consistency** - Everyone's assistant uses the same code intelligence
-✅ **Always up-to-date** - Indexed automatically when code changes
+
+✅ **Team-wide consistency** - Code intelligence shared amongst team members
+
+✅ **Always up-to-date** - Indexes updated for the entire team
 
 ## How It Works
 
-```
+```text
 Your Codebase → [Constellation CLI] → Index → [MCP Server] → Your AI Assistant
                   (parses locally)    (team-shared)    (this package)   (instant answers)
 ```
@@ -44,13 +47,13 @@ Your Codebase → [Constellation CLI] → Index → [MCP Server] → Your AI Ass
 
 **Traditional MCP**: Each tool call requires a full round-trip through the AI
 
-```
+```text
 AI → Tool 1 → AI → Tool 2 → AI → Tool 3 → Result  (slow, 30+ seconds)
 ```
 
 **Code Mode**: Write once, execute once
 
-```
+```text
 AI → Write Code → Execute → Result  (fast, 2-3 seconds)
 ```
 
