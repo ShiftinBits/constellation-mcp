@@ -264,5 +264,82 @@ return {
 		'MISTAKE: Infinite loops → DO: Always have exit conditions in loops',
 	],
 
+	// Trigger phrases for organic AI recognition
+	// These help AI assistants automatically invoke Constellation when users ask related questions
+	triggerPhrases: [
+		// Discovery patterns - searchSymbols, getSymbolDetails
+		'find function',
+		'find class',
+		'find interface',
+		'find method',
+		'find variable',
+		'where is defined',
+		'locate symbol',
+		'search for symbol',
+		'show me all functions',
+		'show me all classes',
+		'what functions exist',
+		'what classes exist',
+		'list all exports',
+
+		// Dependency patterns - getDependencies, getDependents
+		'what does it import',
+		'what imports this',
+		'what uses this',
+		'dependencies of',
+		'dependents of',
+		'who uses',
+		'show imports',
+		'show dependencies',
+		'import graph',
+		'dependency tree',
+
+		// Impact patterns - impactAnalysis
+		'what breaks if',
+		'is it safe to change',
+		'is it safe to delete',
+		'can I safely remove',
+		'impact of changing',
+		'impact of refactoring',
+		'who will be affected',
+		'blast radius',
+		'breaking changes',
+		'refactor safely',
+
+		// Architecture patterns - getArchitectureOverview
+		'how is this organized',
+		'project structure',
+		'codebase overview',
+		'architecture overview',
+		'module structure',
+		'codebase architecture',
+
+		// Dead code patterns - findOrphanedCode
+		'unused code',
+		'dead code',
+		'orphaned code',
+		'never used',
+		'safe to remove',
+		'what can be deleted',
+		'unused exports',
+
+		// Circular dependency patterns - findCircularDependencies
+		'circular dependency',
+		'circular dependencies',
+		'import cycle',
+		'dependency loop',
+		'cyclic imports',
+
+		// Call graph patterns - getCallGraph, traceSymbolUsage
+		'what calls this',
+		'what is called by',
+		'call chain',
+		'call graph',
+		'trace execution',
+		'where is this used',
+		'find all usages',
+		'trace symbol usage',
+	],
+
 	sinceVersion: '0.1.0',
 };

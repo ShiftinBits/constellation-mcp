@@ -81,6 +81,23 @@ export interface McpStructuredError {
 
 	/** Optional documentation URL for more information */
 	docs?: string;
+
+	/**
+	 * Suggested code snippet for AI to try next.
+	 * Provides an executable recovery action when the error is recoverable.
+	 */
+	suggestedCode?: string;
+
+	/**
+	 * Alternative approach using a different tool.
+	 * Suggests fallback when Constellation isn't the right choice.
+	 */
+	alternativeApproach?: {
+		/** Tool name to use instead (e.g., 'Grep', 'Read') */
+		tool: string;
+		/** Brief description of what to do with the tool */
+		description: string;
+	};
 }
 
 /**

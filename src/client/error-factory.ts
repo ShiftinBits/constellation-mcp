@@ -147,6 +147,16 @@ export function createStructuredError(
 				],
 				context: baseContext,
 				docs: 'https://docs.constellationdev.io/getting-started',
+				suggestedCode: `// Check project capabilities first:
+const caps = await api.getCapabilities();
+if (!caps.isIndexed) {
+  return { error: "Project not indexed", action: "Run: constellation index" };
+}`,
+				alternativeApproach: {
+					tool: 'Glob',
+					description:
+						'Use Glob and Grep to explore the codebase until indexed',
+				},
 			},
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
@@ -167,6 +177,13 @@ export function createStructuredError(
 					'Check network connectivity',
 				],
 				context: baseContext,
+				suggestedCode: `// Retry with reduced scope:
+// If using depth, reduce it: depth=1 instead of depth=3
+// If using limit, reduce it: limit=10 instead of limit=100
+const result = await api.searchSymbols({
+  query: "...",
+  limit: 10  // Start small
+});`,
 			},
 			formattedMessage:
 				error.message || 'Operation timed out - try a smaller request',
@@ -339,6 +356,20 @@ function createErrorFromMessage(
 					'Re-index the project if the symbol was recently added',
 				],
 				context: baseContext,
+				suggestedCode: `// Try a broader search to find similar symbols:
+const results = await api.searchSymbols({
+  query: "...",  // Use partial name or related term
+  limit: 20
+});
+return results.symbols.map(s => ({
+  name: s.name,
+  file: s.filePath,
+  kind: s.kind
+}));`,
+				alternativeApproach: {
+					tool: 'Grep',
+					description: 'Search for the symbol name as text in source files',
+				},
 			},
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
@@ -359,6 +390,16 @@ function createErrorFromMessage(
 					'Re-index the project if the file was recently added',
 				],
 				context: baseContext,
+				suggestedCode: `// Search for symbols to discover correct file paths:
+const results = await api.searchSymbols({
+  query: "...",  // Search for known symbols in the file
+  limit: 10
+});
+// Check filePath in results to find correct paths`,
+				alternativeApproach: {
+					tool: 'Glob',
+					description: 'Use Glob to find files matching a pattern',
+				},
 			},
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};

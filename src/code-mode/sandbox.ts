@@ -10,6 +10,10 @@ import { ConstellationClient } from '../client/constellation-client.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { createStructuredError } from '../client/error-factory.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
+import {
+	getProjectCapabilities,
+	type ProjectCapabilities,
+} from './capabilities.js';
 
 /**
  * Sandbox configuration options
@@ -172,48 +176,140 @@ export class CodeModeSandbox {
 			}
 		};
 
-		// Available API methods for listMethods()
+		// Available API methods for listMethods() with enhanced metadata
 		const availableMethods = [
 			{
 				name: 'searchSymbols',
 				description: 'Search for symbols by name/pattern',
+				triggerPhrases: ['find function', 'find class', 'where is', 'locate'],
+				quickExample: `await api.searchSymbols({ query: "User", limit: 10 })`,
 			},
 			{
 				name: 'getSymbolDetails',
 				description: 'Get detailed info about a symbol',
+				triggerPhrases: ['symbol details', 'more info about'],
+				quickExample: `await api.getSymbolDetails({ symbolId: "..." })`,
 			},
-			{ name: 'getDependencies', description: 'Get what a file depends on' },
-			{ name: 'getDependents', description: 'Get what depends on a file' },
+			{
+				name: 'getDependencies',
+				description: 'Get what a file depends on',
+				triggerPhrases: ['what imports', 'dependencies of', 'what does it use'],
+				quickExample: `await api.getDependencies({ filePath: "src/index.ts" })`,
+			},
+			{
+				name: 'getDependents',
+				description: 'Get what depends on a file',
+				triggerPhrases: ['what uses this', 'who imports', 'dependents of'],
+				quickExample: `await api.getDependents({ filePath: "src/utils.ts" })`,
+			},
 			{
 				name: 'findCircularDependencies',
 				description: 'Find circular dependency cycles',
+				triggerPhrases: [
+					'circular dependency',
+					'import cycle',
+					'dependency loop',
+				],
+				quickExample: `await api.findCircularDependencies({ maxDepth: 10 })`,
 			},
-			{ name: 'traceSymbolUsage', description: 'Find all usages of a symbol' },
-			{ name: 'getCallGraph', description: 'Get function call relationships' },
-			{ name: 'findOrphanedCode', description: 'Find unused/dead code' },
-			{ name: 'impactAnalysis', description: 'Analyze change impact' },
+			{
+				name: 'traceSymbolUsage',
+				description: 'Find all usages of a symbol',
+				triggerPhrases: ['where is used', 'find usages', 'trace usage'],
+				quickExample: `await api.traceSymbolUsage({ symbolName: "User", filePath: "..." })`,
+			},
+			{
+				name: 'getCallGraph',
+				description: 'Get function call relationships',
+				triggerPhrases: ['what calls', 'called by', 'call graph'],
+				quickExample: `await api.getCallGraph({ symbolName: "process", filePath: "..." })`,
+			},
+			{
+				name: 'findOrphanedCode',
+				description: 'Find unused/dead code',
+				triggerPhrases: ['unused code', 'dead code', 'orphaned', 'can delete'],
+				quickExample: `await api.findOrphanedCode({ limit: 20 })`,
+			},
+			{
+				name: 'impactAnalysis',
+				description: 'Analyze change impact',
+				triggerPhrases: [
+					'what breaks if',
+					'safe to change',
+					'impact of',
+					'blast radius',
+				],
+				quickExample: `await api.impactAnalysis({ symbolName: "Config", filePath: "..." })`,
+			},
 			{
 				name: 'getArchitectureOverview',
 				description: 'Get high-level project structure',
+				triggerPhrases: [
+					'project structure',
+					'architecture',
+					'codebase overview',
+				],
+				quickExample: `await api.getArchitectureOverview({ includeMetrics: true })`,
+			},
+			{
+				name: 'getCapabilities',
+				description: 'Check project indexing status and available features',
+				triggerPhrases: ['is indexed', 'project status', 'capabilities'],
+				quickExample: `await api.getCapabilities()`,
 			},
 		];
+
+		// Decision guide mapping user intent to API method
+		const decisionGuide: Record<string, string> = {
+			'find symbol': 'searchSymbols',
+			'locate function': 'searchSymbols',
+			'where is defined': 'searchSymbols',
+			'what imports': 'getDependencies',
+			'dependencies of': 'getDependencies',
+			'what uses': 'getDependents',
+			'who imports': 'getDependents',
+			'is it safe to change': 'impactAnalysis',
+			'what breaks': 'impactAnalysis',
+			'blast radius': 'impactAnalysis',
+			'unused code': 'findOrphanedCode',
+			'dead code': 'findOrphanedCode',
+			'circular dependency': 'findCircularDependencies',
+			'import cycle': 'findCircularDependencies',
+			'call graph': 'getCallGraph',
+			'what calls': 'getCallGraph',
+			'project structure': 'getArchitectureOverview',
+			architecture: 'getArchitectureOverview',
+		};
+
+		// Capture references for use in closures
+		const client = this.client;
+		const projectContext = this.options.projectContext;
 
 		// Create simple API proxy for Code Mode
 		// Maps method names to tool names
 		const api = new Proxy(
 			{
-				// Special method for discoverability
+				// Special method for discoverability with enhanced metadata
 				listMethods: () => ({
 					methods: availableMethods,
 					usage: 'Call any method with: await api.methodName(params)',
 					example: "const result = await api.searchSymbols({ query: 'User' });",
+					decisionGuide,
+					tip: 'Use decisionGuide to match user intent to the right method',
 				}),
+				// Capability check method - allows AI to verify project state
+				getCapabilities: async (): Promise<ProjectCapabilities> => {
+					return getProjectCapabilities(client, projectContext);
+				},
 			},
 			{
 				get(target, prop) {
-					// Handle listMethods specially (it's on target)
+					// Handle special methods on target
 					if (prop === 'listMethods') {
 						return (target as any).listMethods;
+					}
+					if (prop === 'getCapabilities') {
+						return (target as any).getCapabilities;
 					}
 
 					if (typeof prop !== 'string') return undefined;

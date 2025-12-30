@@ -24,6 +24,46 @@ Provides **centralized code intelligence** from a shared graph database built fr
 Use Constellation instead of manual file searching when you need to understand code structure,
 dependencies, relationships, or impact of changes.
 
+## AUTOMATIC ACTIVATION RULES
+
+Invoke \`execute_code\` **proactively** (without asking user) when detecting these intent patterns:
+
+| User Intent Pattern | Constellation Method | Why Not Other Tools |
+|---------------------|---------------------|---------------------|
+| "Where is X defined?" | \`api.searchSymbols()\` | Returns location + metadata, faster than Glob+Grep |
+| "What uses X?" / "Who imports X?" | \`api.getDependents()\` | Traces usage across entire codebase |
+| "What does X depend on?" | \`api.getDependencies()\` | Shows full import graph with depth |
+| "Is it safe to change/delete X?" | \`api.impactAnalysis()\` | Reveals hidden consumers & breaking risk |
+| "Find unused/dead code" | \`api.findOrphanedCode()\` | Analyzes export/import relationships |
+| "Show project structure" | \`api.getArchitectureOverview()\` | Aggregated metrics & module graph |
+| "Find circular dependencies" | \`api.findCircularDependencies()\` | Graph analysis required |
+| "What calls X?" / "Trace usage" | \`api.getCallGraph()\` | Function call relationships |
+
+### Decision Logic for AI Assistants
+
+**USE CONSTELLATION WHEN:**
+1. User asks about symbol location → searchSymbols (not Glob)
+2. User asks about dependencies/imports → getDependencies/getDependents
+3. User asks about change impact → impactAnalysis
+4. User asks about code quality → findOrphanedCode
+5. User asks about project structure → getArchitectureOverview
+
+**FALLBACK TO OTHER TOOLS WHEN:**
+- Need to **read source code** → Use \`Read\` tool (Constellation has no source)
+- Need to **modify files** → Use \`Edit\`/\`Write\` tools
+- **Simple text search** → Use \`Grep\` (no symbol analysis needed)
+- **Project not indexed** → Inform user to run \`constellation index\`
+
+### Capability Check Pattern
+
+First call in a session can verify indexing:
+\`\`\`javascript
+const caps = await api.getCapabilities();
+if (!caps.isIndexed) {
+  return { error: "Project not indexed", suggestion: "Run: constellation index" };
+}
+\`\`\`
+
 ## How Code Mode Works
 
 Constellation exposes ONE tool: \`execute_code\`. Write JavaScript code that uses the \`api\` object to call methods.
