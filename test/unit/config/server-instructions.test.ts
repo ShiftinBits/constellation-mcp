@@ -2,7 +2,7 @@
  * Server Instructions Unit Tests
  *
  * Tests the getServerInstructions function that provides
- * comprehensive guidance to AI assistants about Constellation tools.
+ * comprehensive guidance to AI assistants about Constellation Code Mode.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -16,26 +16,53 @@ describe('server-instructions', () => {
 			expect(instructions.length).toBeGreaterThan(0);
 		});
 
-		it('should include the main header', () => {
+		it('should include the main header for Code Mode', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('# Constellation MCP Server');
-			expect(instructions).toContain('Code Intelligence Tools');
+			expect(instructions).toContain('# Constellation MCP Server - Code Mode');
+		});
+
+		it('should explain how Code Mode works', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('## How Code Mode Works');
+			expect(instructions).toContain('execute_code');
+			expect(instructions).toContain('api');
+		});
+
+		it('should include key principles for Code Mode', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('### Key Principles');
+			expect(instructions).toContain('await');
+			expect(instructions).toContain('return');
+			expect(instructions).toContain('Promise.all()');
 		});
 
 		it('should include core principle section', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('## Core Principle');
-			expect(instructions).toContain('Constellation = Code Metadata & Relationships');
+			expect(instructions).toContain(
+				'Constellation = Code Metadata & Relationships',
+			);
 		});
 
 		it('should include when to use section with proactive triggers', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## When to Use Constellation (Proactive)');
+			expect(instructions).toContain(
+				'## When to Use Constellation (Proactive)',
+			);
 			expect(instructions).toContain('**Discovery**');
 			expect(instructions).toContain('**Dependencies**');
 			expect(instructions).toContain('**Impact Analysis**');
 			expect(instructions).toContain('**Architecture**');
 			expect(instructions).toContain('**Code Quality**');
+		});
+
+		it('should include JavaScript code examples for each use case', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('api.searchSymbols');
+			expect(instructions).toContain('api.getDependencies');
+			expect(instructions).toContain('api.impactAnalysis');
+			expect(instructions).toContain('api.getArchitectureOverview');
+			expect(instructions).toContain('api.findOrphanedCode');
 		});
 
 		it('should include when NOT to use section', () => {
@@ -46,40 +73,27 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Running commands');
 		});
 
-		it('should include tool categories section', () => {
+		it('should include API reference table', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## Tool Categories');
-			expect(instructions).toContain('**Discovery');
-			expect(instructions).toContain('**Dependency');
-			expect(instructions).toContain('**Impact');
-			expect(instructions).toContain('**Architecture');
+			expect(instructions).toContain('## API Reference');
+			expect(instructions).toContain('| Method | Parameters | Use When |');
+			expect(instructions).toContain('api.searchSymbols()');
+			expect(instructions).toContain('api.getSymbolDetails()');
+			expect(instructions).toContain('api.getDependencies()');
+			expect(instructions).toContain('api.getDependents()');
+			expect(instructions).toContain('api.traceSymbolUsage()');
+			expect(instructions).toContain('api.getCallGraph()');
+			expect(instructions).toContain('api.impactAnalysis()');
+			expect(instructions).toContain('api.findCircularDependencies()');
+			expect(instructions).toContain('api.findOrphanedCode()');
+			expect(instructions).toContain('api.getArchitectureOverview()');
 		});
 
-		it('should list key tool names', () => {
+		it('should include common patterns section', () => {
 			const instructions = getServerInstructions();
-			// Discovery tools
-			expect(instructions).toContain('search_symbols');
-			expect(instructions).toContain('get_symbol_details');
-			// Dependency tools
-			expect(instructions).toContain('get_dependencies');
-			expect(instructions).toContain('get_dependents');
-			expect(instructions).toContain('trace_symbol_usage');
-			expect(instructions).toContain('get_call_graph');
-			expect(instructions).toContain('find_circular_dependencies');
-			// Impact tools
-			expect(instructions).toContain('impact_analysis');
-			expect(instructions).toContain('find_orphaned_code');
-			// Architecture tools
-			expect(instructions).toContain('get_architecture_overview');
-		});
-
-		it('should include common tool chaining patterns', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('## Common Tool Chaining Patterns');
-			expect(instructions).toContain('### Pattern 1: Before Refactoring');
-			expect(instructions).toContain('### Pattern 2: Understanding New Codebase');
-			expect(instructions).toContain('### Pattern 3: Debugging Dependencies');
-			expect(instructions).toContain('### Pattern 4: Finding Dead Code');
+			expect(instructions).toContain('## Common Patterns');
+			expect(instructions).toContain('### Chained Analysis');
+			expect(instructions).toContain('### Error Handling');
 		});
 
 		it('should include best practices section', () => {
@@ -87,32 +101,25 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('## Best Practices');
 			expect(instructions).toContain('### Start Small, Escalate');
 			expect(instructions).toContain('### Use symbolId');
-			expect(instructions).toContain('### Chain Tools Effectively');
-			expect(instructions).toContain('### Leverage Cache');
+			expect(instructions).toContain('### Parallel Execution');
 			expect(instructions).toContain('### Filter Appropriately');
+		});
+
+		it('should include semantic markers section', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('## Semantic Markers');
+			expect(instructions).toContain('[EXPORTED]');
+			expect(instructions).toContain('[INTERNAL]');
+			expect(instructions).toContain('[TEST]');
+			expect(instructions).toContain('[UNUSED]');
+			expect(instructions).toContain('[HEAVILY_USED]');
+			expect(instructions).toContain('[HIGH_IMPACT]');
 		});
 
 		it('should include quick decision matrix', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('## Quick Decision Matrix');
-			expect(instructions).toContain('**Need to...**');
-		});
-
-		it('should include tool-specific guidance section', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('## Tool-Specific Guidance');
-			expect(instructions).toContain('whenToUse');
-			expect(instructions).toContain('examples');
-			expect(instructions).toContain('commonMistakes');
-			expect(instructions).toContain('relatedTools');
-		});
-
-		it('should include start here section for new users', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('**Start Here for New Users:**');
-			expect(instructions).toContain('1. `get_architecture_overview`');
-			expect(instructions).toContain('2. `search_symbols`');
-			expect(instructions).toContain('3. `impact_analysis`');
+			expect(instructions).toContain('| Need to... | Do this |');
 		});
 
 		it('should return trimmed output without leading/trailing whitespace', () => {
@@ -127,16 +134,23 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('EXPONENTIALLY');
 		});
 
-		it('should mention caching behavior', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('cached');
-			expect(instructions).toContain('<100ms');
-		});
-
 		it('should mention excludeTests filter option', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('excludeTests=true');
-			expect(instructions).toContain('excludeTests=false');
+		});
+
+		it('should not contain template placeholders', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).not.toContain('{{');
+			expect(instructions).not.toContain('}}');
+			expect(instructions).not.toContain('TODO');
+			expect(instructions).not.toContain('FIXME');
+		});
+
+		it('should provide substantial content', () => {
+			const instructions = getServerInstructions();
+			// Should be comprehensive guide - at least 3000 chars
+			expect(instructions.length).toBeGreaterThan(3000);
 		});
 	});
 });
