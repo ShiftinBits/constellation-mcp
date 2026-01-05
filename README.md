@@ -1,6 +1,6 @@
 # Constellation MCP Server
 
-[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](https://vscode.dev/redirect/mcp/install?name=Constellation%20MCP&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%22%5D%7D) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20Claude%20Code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](https://vscode.dev/redirect/mcp/install?name=Constellation%20MCP&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%22%5D%7D) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20Claude%20Code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
 
 **Your AI assistant's telescope to a bespoke constellation of code knowledge**
 
@@ -88,44 +88,6 @@ return classes.symbols
 **Performance**: 10-15x faster for multi-step operations. Code is the native language of LLMs.
 
 **📖 See [Code Mode Documentation](docs/code-mode/README.md) for comprehensive examples, patterns, and best practices.**
-
-## Installation
-
-### Claude Code
-
-Add to `~/.claude.json` (macOS) or `%CURRENTUSER%/claude.json` (Windows):
-
-```json
-{
-	"mcpServers": {
-		"constellation": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@constellationdev/mcp@latest"]
-		}
-	}
-}
-```
-
-### Cursor / Cline / Continue
-
-Add to your MCP configuration file:
-
-```json
-{
-	"mcpServers": {
-		"constellation": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@constellationdev/mcp@latest"]
-		}
-	}
-}
-```
-
-### GitHub Copilot / VS Code
-
-Configure through your IDE's MCP settings with the same parameters.
 
 ## Available Tools
 
