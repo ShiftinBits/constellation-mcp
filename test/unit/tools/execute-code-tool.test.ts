@@ -103,7 +103,13 @@ describe('registerExecuteCodeTool', () => {
 			expect(result.content).toHaveLength(1);
 			expect(result.content[0].type).toBe('text');
 			expect(result.content[0].text).toContain('"success": true');
-			expect(result.structuredContent).toEqual(mockResponse);
+			// structuredContent is transformed to match outputSchema (time instead of executionTime)
+			expect(result.structuredContent).toEqual({
+				success: true,
+				result: 42,
+				logs: ['test log'],
+				time: 100,
+			});
 			expect(result.isError).toBeUndefined();
 		});
 
@@ -220,7 +226,8 @@ describe('registerExecuteCodeTool', () => {
 				code: 'return 42;',
 			});
 
-			expect(result.structuredContent.executionTime).toBe(250);
+			// structuredContent uses 'time' to match outputSchema
+			expect(result.structuredContent.time).toBe(250);
 		});
 	});
 
@@ -299,7 +306,11 @@ describe('registerExecuteCodeTool', () => {
 			});
 
 			expect(result.structuredContent).toBeDefined();
-			expect(result.structuredContent).toEqual(response);
+			// structuredContent is transformed to match outputSchema (empty arrays are excluded)
+			expect(result.structuredContent).toEqual({
+				success: true,
+				result: { data: 'value' },
+			});
 		});
 
 		it('should not include structured content for errors', async () => {

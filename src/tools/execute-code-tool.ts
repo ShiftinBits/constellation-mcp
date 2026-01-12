@@ -8,12 +8,50 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { CodeModeRuntime } from '../code-mode/runtime.js';
+import { CodeModeRuntime, CodeModeResponse } from '../code-mode/runtime.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { standardErrors } from '../utils/error-messages.js';
 import { createStructuredError } from '../client/error-factory.js';
 import { ConfigurationError } from '../client/constellation-client.js';
 import { ErrorCode } from '../types/mcp-errors.js';
+
+/**
+ * Output schema type for MCP compliance.
+ * Must match the outputSchema declared in registerTool.
+ * Index signature required for MCP SDK compatibility.
+ */
+interface SchemaCompliantOutput {
+	success: boolean;
+	result?: any;
+	logs?: string[];
+	time?: number;
+	error?: string;
+	[x: string]: unknown;
+}
+
+/**
+ * Transform CodeModeResponse to match the declared outputSchema.
+ * This ensures strict MCP clients (like Google Gemini CLI) don't reject
+ * the response due to additional properties not in the schema.
+ */
+function toSchemaCompliantOutput(
+	response: CodeModeResponse,
+): SchemaCompliantOutput {
+	const output: SchemaCompliantOutput = {
+		success: response.success,
+	};
+
+	if (response.success) {
+		if (response.result !== undefined) output.result = response.result;
+		if (response.logs?.length) output.logs = response.logs;
+		if (response.executionTime) output.time = response.executionTime;
+	} else {
+		if (response.error) output.error = response.error;
+		if (response.logs?.length) output.logs = response.logs;
+	}
+
+	return output;
+}
 
 /**
  * Register the execute_code tool with the MCP server
@@ -119,7 +157,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 
 				console.error('[execute_code] Execution successful');
 
-				// Return both text and structured content
+				// Return both text and structured content (schema-compliant)
 				return {
 					content: [
 						{
@@ -127,7 +165,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 							text: formatted,
 						},
 					],
-					structuredContent: response, // Optional: provides structured data for clients that support it
+					structuredContent: toSchemaCompliantOutput(response),
 				};
 			} catch (error) {
 				console.error('[execute_code] Execution error:', error);
