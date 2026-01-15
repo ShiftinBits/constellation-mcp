@@ -16,6 +16,18 @@ import { ConfigurationError } from '../client/constellation-client.js';
 import { ErrorCode } from '../types/mcp-errors.js';
 
 /**
+ * Input validation constants
+ * FIX SB-87: Prevent DoS via large code submissions
+ */
+const MAX_CODE_SIZE = 100 * 1024; // 100KB limit for code input
+
+/**
+ * Regex to detect invalid binary/control characters in code
+ * Allows common whitespace (\t \n \r) but rejects other control chars
+ */
+const BINARY_CHAR_PATTERN = /[\x00-\x08\x0E-\x1F]/;
+
+/**
  * Output schema type for MCP compliance.
  * Must match the outputSchema declared in registerTool.
  * Index signature required for MCP SDK compatibility.
@@ -124,6 +136,76 @@ export function registerExecuteCodeTool(server: McpServer): void {
 							{
 								type: 'text',
 								text: JSON.stringify(structuredError, null, 2),
+							},
+						],
+						isError: true,
+					};
+				}
+
+				// FIX SB-87: Validate code size to prevent DoS attacks
+				if (code.length > MAX_CODE_SIZE) {
+					console.error(
+						`[execute_code] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
+					);
+					return {
+						content: [
+							{
+								type: 'text',
+								text: JSON.stringify(
+									{
+										success: false,
+										error: {
+											code: ErrorCode.VALIDATION_ERROR,
+											type: 'ValidationError',
+											message: `Code size (${code.length} bytes) exceeds maximum allowed (${MAX_CODE_SIZE} bytes / 100KB)`,
+											recoverable: true,
+											guidance: [
+												'Reduce code size by removing unnecessary code',
+												'Break large operations into smaller steps',
+												'Move data to API calls instead of embedding in code',
+											],
+										},
+										formattedMessage: `Code too large: ${code.length} bytes exceeds ${MAX_CODE_SIZE} byte limit`,
+									},
+									null,
+									2,
+								),
+							},
+						],
+						isError: true,
+					};
+				}
+
+				// FIX SB-87: Check for binary/control characters
+				if (BINARY_CHAR_PATTERN.test(code)) {
+					console.error(
+						'[execute_code] Code contains invalid binary characters',
+					);
+					return {
+						content: [
+							{
+								type: 'text',
+								text: JSON.stringify(
+									{
+										success: false,
+										error: {
+											code: ErrorCode.VALIDATION_ERROR,
+											type: 'ValidationError',
+											message:
+												'Code contains invalid binary or control characters',
+											recoverable: true,
+											guidance: [
+												'Ensure code is valid UTF-8 text',
+												'Remove any binary data or control characters',
+												'Check for encoding issues in your code editor',
+											],
+										},
+										formattedMessage:
+											'Code contains invalid binary characters - only text is allowed',
+									},
+									null,
+									2,
+								),
 							},
 						],
 						isError: true,

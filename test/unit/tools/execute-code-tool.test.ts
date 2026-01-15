@@ -325,6 +325,126 @@ describe('registerExecuteCodeTool', () => {
 		});
 	});
 
+	describe('input validation', () => {
+		it('should reject code exceeding 100KB size limit', async () => {
+			// Create code just over 100KB (100 * 1024 + 1 bytes)
+			const largeCode = 'a'.repeat(100 * 1024 + 1);
+
+			const result = await registeredHandler({
+				code: largeCode,
+			});
+
+			expect(result.isError).toBe(true);
+
+			// Parse the JSON response
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBe('VALIDATION_ERROR');
+			expect(parsed.error.type).toBe('ValidationError');
+			expect(parsed.error.message).toContain('exceeds maximum allowed');
+			expect(parsed.error.recoverable).toBe(true);
+			expect(parsed.error.guidance).toContain(
+				'Reduce code size by removing unnecessary code',
+			);
+
+			// Should not call runtime.execute
+			expect(mockRuntime.execute).not.toHaveBeenCalled();
+		});
+
+		it('should accept code at exactly 100KB size limit', async () => {
+			// Create code at exactly 100KB (100 * 1024 bytes)
+			const maxCode = 'a'.repeat(100 * 1024);
+
+			mockRuntime.execute.mockResolvedValue({
+				success: true,
+				result: 'ok',
+			});
+			mockRuntime.formatResult.mockReturnValue(
+				'{"success":true,"result":"ok"}',
+			);
+
+			const result = await registeredHandler({
+				code: maxCode,
+			});
+
+			// Should call runtime.execute since it's at the limit, not over
+			expect(mockRuntime.execute).toHaveBeenCalled();
+			expect(result.isError).toBeUndefined();
+		});
+
+		it('should reject code containing binary/control characters', async () => {
+			// Code with null byte (control character)
+			const codeWithNull = 'return 1;\x00';
+
+			const result = await registeredHandler({
+				code: codeWithNull,
+			});
+
+			expect(result.isError).toBe(true);
+
+			// Parse the JSON response
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBe('VALIDATION_ERROR');
+			expect(parsed.error.type).toBe('ValidationError');
+			expect(parsed.error.message).toContain('binary or control characters');
+			expect(parsed.error.recoverable).toBe(true);
+			expect(parsed.error.guidance).toContain(
+				'Ensure code is valid UTF-8 text',
+			);
+
+			// Should not call runtime.execute
+			expect(mockRuntime.execute).not.toHaveBeenCalled();
+		});
+
+		it('should reject code with other control characters', async () => {
+			// Code with backspace character (\x08)
+			const codeWithBackspace = 'return 1;\x08';
+
+			const result = await registeredHandler({
+				code: codeWithBackspace,
+			});
+
+			expect(result.isError).toBe(true);
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.code).toBe('VALIDATION_ERROR');
+			expect(parsed.error.message).toContain('binary or control characters');
+		});
+
+		it('should allow code with common whitespace characters', async () => {
+			// Code with tabs, newlines, and carriage returns (should be allowed)
+			const codeWithWhitespace = 'const x = 1;\n\treturn x;\r\n';
+
+			mockRuntime.execute.mockResolvedValue({
+				success: true,
+				result: 1,
+			});
+			mockRuntime.formatResult.mockReturnValue('{"success":true,"result":1}');
+
+			const result = await registeredHandler({
+				code: codeWithWhitespace,
+			});
+
+			// Should call runtime.execute since whitespace is allowed
+			expect(mockRuntime.execute).toHaveBeenCalled();
+			expect(result.isError).toBeUndefined();
+		});
+
+		it('should validate size before binary character check', async () => {
+			// Large code with binary character - should fail on size first
+			const largeCodeWithBinary = 'a'.repeat(100 * 1024 + 1) + '\x00';
+
+			const result = await registeredHandler({
+				code: largeCodeWithBinary,
+			});
+
+			expect(result.isError).toBe(true);
+			const parsed = JSON.parse(result.content[0].text);
+			// Should be size error, not binary error (size is checked first)
+			expect(parsed.error.message).toContain('exceeds maximum allowed');
+		});
+	});
+
 	describe('structured error responses', () => {
 		it('should return structured JSON for runtime structuredError', async () => {
 			const structuredError = {
