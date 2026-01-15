@@ -10,6 +10,13 @@ import { getConfigContext } from '../config/config-manager.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 
 /**
+ * Result size thresholds
+ * FIX SB-95: Add hard limit to prevent memory issues and MCP protocol failures
+ */
+const RESULT_SIZE_WARNING_THRESHOLD = 100 * 1024; // 100KB - warn user
+const RESULT_SIZE_HARD_LIMIT = 1024 * 1024; // 1MB - enforce truncation
+
+/**
  * Code Mode execution request
  */
 export interface CodeModeRequest {
@@ -38,6 +45,86 @@ export interface CodeModeResponse {
 		validated: boolean;
 	};
 	[x: string]: unknown; // Index signature for MCP SDK compatibility
+}
+
+/**
+ * Truncated result wrapper
+ * FIX SB-95: Structure for returning truncated large results
+ */
+interface TruncatedResult {
+	truncated: true;
+	originalSizeKB: number;
+	limitKB: number;
+	message: string;
+	hint: string;
+	preview?: unknown;
+}
+
+/**
+ * Truncate a large result to fit within size limits
+ * FIX SB-95: Intelligent truncation that preserves useful information
+ *
+ * @param result - The result to truncate
+ * @param maxSize - Maximum size in bytes
+ * @returns Truncated result with metadata
+ */
+function truncateResult(result: unknown, maxSize: number): TruncatedResult {
+	const originalSize = JSON.stringify(result).length;
+	const originalSizeKB = Math.round(originalSize / 1024);
+	const limitKB = Math.round(maxSize / 1024);
+
+	// Try to provide a useful preview
+	let preview: unknown;
+
+	if (Array.isArray(result)) {
+		// For arrays, show first few items and count
+		const itemCount = result.length;
+		const previewItems = result.slice(0, 5);
+		preview = {
+			type: 'array',
+			totalItems: itemCount,
+			showing: previewItems.length,
+			items: previewItems,
+		};
+	} else if (typeof result === 'object' && result !== null) {
+		// For objects, show keys and first few values
+		const keys = Object.keys(result);
+		const previewObj: Record<string, unknown> = {};
+		for (const key of keys.slice(0, 10)) {
+			const value = (result as Record<string, unknown>)[key];
+			// Only include small values in preview
+			const valueStr = JSON.stringify(value);
+			if (valueStr && valueStr.length < 1000) {
+				previewObj[key] = value;
+			} else {
+				previewObj[key] = '[truncated]';
+			}
+		}
+		preview = {
+			type: 'object',
+			totalKeys: keys.length,
+			showing: Math.min(keys.length, 10),
+			keys: keys.slice(0, 20),
+			sample: previewObj,
+		};
+	} else if (typeof result === 'string') {
+		// For strings, show first portion
+		preview = {
+			type: 'string',
+			totalLength: result.length,
+			showing: 1000,
+			content: result.slice(0, 1000) + '...',
+		};
+	}
+
+	return {
+		truncated: true,
+		originalSizeKB,
+		limitKB,
+		message: `Result exceeded ${limitKB}KB limit (was ${originalSizeKB}KB)`,
+		hint: 'Use pagination parameters (limit, offset) or filter results to reduce response size',
+		preview,
+	};
 }
 
 /**
@@ -89,12 +176,25 @@ export class CodeModeRuntime {
 		// Combine warning logs with execution logs
 		const allLogs = [...warningLogs, ...(result.logs || [])];
 
-		// Check result size and warn if large
-		const RESULT_SIZE_WARNING_THRESHOLD = 100 * 1024; // 100KB
+		// FIX SB-95: Check result size and enforce limits
+		let finalResult = result.result;
 		if (result.result !== undefined) {
 			try {
 				const resultSize = JSON.stringify(result.result).length;
-				if (resultSize > RESULT_SIZE_WARNING_THRESHOLD) {
+
+				// Hard limit: truncate if exceeds 1MB
+				if (resultSize > RESULT_SIZE_HARD_LIMIT) {
+					const sizeKB = Math.round(resultSize / 1024);
+					console.error(
+						`[CodeModeRuntime] Result truncated: size (${sizeKB}KB) exceeded ${Math.round(RESULT_SIZE_HARD_LIMIT / 1024)}KB limit.`,
+					);
+					allLogs.push(
+						`[WARN] Result truncated: size (${sizeKB}KB) exceeded limit. Use pagination or filtering.`,
+					);
+					finalResult = truncateResult(result.result, RESULT_SIZE_HARD_LIMIT);
+				}
+				// Warning threshold: just warn if between 100KB and 1MB
+				else if (resultSize > RESULT_SIZE_WARNING_THRESHOLD) {
 					const sizeKB = Math.round(resultSize / 1024);
 					console.error(
 						`[CodeModeRuntime] Warning: Large result size (${sizeKB}KB). ` +
@@ -112,7 +212,7 @@ export class CodeModeRuntime {
 		// Format response
 		return {
 			success: result.success,
-			result: result.result,
+			result: finalResult,
 			error: result.error,
 			structuredError: result.structuredError,
 			logs: allLogs.length > 0 ? allLogs : undefined,

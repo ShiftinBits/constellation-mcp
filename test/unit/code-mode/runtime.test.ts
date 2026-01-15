@@ -299,6 +299,136 @@ describe('CodeModeRuntime', () => {
 			expect(result.success).toBe(true);
 			expect(result.result).toBeUndefined();
 		});
+
+		// FIX SB-95: Tests for result truncation at 1MB limit
+		it('should truncate array results exceeding 1MB limit', async () => {
+			// Create array that exceeds 1MB
+			const largeArray = Array(50000)
+				.fill(null)
+				.map((_, i) => ({
+					id: i,
+					data: 'x'.repeat(30),
+				}));
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: largeArray,
+				logs: [],
+				executionTime: 100,
+			});
+
+			const result = await runtime.execute({ code: 'return largeArray;' });
+
+			expect(result.success).toBe(true);
+			// Result should be truncated
+			expect(result.result).toHaveProperty('truncated', true);
+			expect(result.result).toHaveProperty('originalSizeKB');
+			expect(result.result).toHaveProperty('limitKB', 1024);
+			expect(result.result).toHaveProperty('message');
+			expect(result.result).toHaveProperty('hint');
+			// Should have array preview with first items
+			expect(result.result.preview).toHaveProperty('type', 'array');
+			expect(result.result.preview).toHaveProperty('totalItems', 50000);
+			expect(result.result.preview.items.length).toBeLessThanOrEqual(5);
+			// Should log truncation warning
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Result truncated'),
+			);
+			// Should include warning in logs
+			expect(
+				result.logs?.some(
+					(log) => log.includes('[WARN]') && log.includes('Result truncated'),
+				),
+			).toBe(true);
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should truncate object results exceeding 1MB limit', async () => {
+			// Create object that exceeds 1MB
+			const largeObject: Record<string, string> = {};
+			for (let i = 0; i < 5000; i++) {
+				largeObject[`key${i}`] = 'x'.repeat(250);
+			}
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: largeObject,
+				logs: [],
+				executionTime: 100,
+			});
+
+			const result = await runtime.execute({ code: 'return largeObject;' });
+
+			expect(result.success).toBe(true);
+			// Result should be truncated
+			expect(result.result).toHaveProperty('truncated', true);
+			// Should have object preview with keys
+			expect(result.result.preview).toHaveProperty('type', 'object');
+			expect(result.result.preview).toHaveProperty('totalKeys', 5000);
+			expect(result.result.preview.keys.length).toBeLessThanOrEqual(20);
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should truncate string results exceeding 1MB limit', async () => {
+			// Create string that exceeds 1MB
+			const largeString = 'x'.repeat(1.5 * 1024 * 1024); // 1.5MB
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: largeString,
+				logs: [],
+				executionTime: 100,
+			});
+
+			const result = await runtime.execute({ code: 'return largeString;' });
+
+			expect(result.success).toBe(true);
+			// Result should be truncated
+			expect(result.result).toHaveProperty('truncated', true);
+			// Should have string preview
+			expect(result.result.preview).toHaveProperty('type', 'string');
+			expect(result.result.preview.content.length).toBeLessThanOrEqual(1004); // 1000 + '...'
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it('should not truncate results under 1MB limit (but over 100KB)', async () => {
+			// Create data between 100KB and 1MB - should warn but not truncate
+			const mediumData = 'x'.repeat(500 * 1024); // 500KB
+			const consoleErrorSpy = jest.spyOn(console, 'error');
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: mediumData,
+				logs: [],
+				executionTime: 50,
+			});
+
+			const result = await runtime.execute({ code: 'return mediumData;' });
+
+			expect(result.success).toBe(true);
+			// Result should NOT be truncated
+			expect(result.result).toBe(mediumData);
+			expect(result.result).not.toHaveProperty('truncated');
+			// Should log warning about large result (but not truncation)
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Large result size'),
+			);
+			expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+				expect.stringContaining('Result truncated'),
+			);
+
+			consoleErrorSpy.mockRestore();
+		});
 	});
 
 	describe('formatResult', () => {
