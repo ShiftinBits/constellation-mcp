@@ -41,6 +41,7 @@ Errors:
 
 	whenToUse: [
 		'ALWAYS use this tool - it is the only one available',
+		'PREFER over Grep/Glob: searchSymbols for location, traceSymbolUsage for usage, getArchitectureOverview for structure',
 		'Simple query: return await api.searchSymbols({ query: "X" })',
 		'Complex analysis: chain multiple API calls with custom logic',
 		'Parallel execution: use Promise.all() for concurrent API calls',
@@ -74,32 +75,42 @@ Errors:
 		required: ['code'],
 	},
 
-	// Condensed API type reference for AI assistants
+	// Condensed API type reference for AI assistants (ordered by typical usage)
 	apiReference: `
 ## Available API Methods
 
-### Discovery
+### Start Here (Entry Points)
 api.searchSymbols({ query, filterByKind?, limit? }) → { symbols[], pagination? }
 api.getSymbolDetails({ symbolId | symbolName+filePath, includeReferences? }) → { symbol, references?, relationships? }
+api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { metadata, structure, dependencies }
+
+### Analysis (After Discovery)
+api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType? }) → { symbol, directUsages[] }
+api.impactAnalysis({ symbolId | symbolName+filePath, depth? }) → { symbol, impactedFiles[], summary, breakingChangeRisk? }
+api.getCallGraph({ symbolId | symbolName+filePath, direction?, depth? }) → { root, callers?, callees? }
 
 ### Dependencies
 api.getDependencies({ filePath, depth?, includePackages? }) → { directDependencies[], transitiveDependencies? }
 api.getDependents({ filePath, depth? }) → { directDependents[], transitiveDependents? }
 api.findCircularDependencies({ filePath?, maxDepth? }) → { cycles[], totalCycles }
 
-### Tracing
-api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType? }) → { symbol, directUsages[] }
-api.getCallGraph({ symbolId | symbolName+filePath, direction?, depth? }) → { root, callers?, callees? }
-
-### Impact
-api.impactAnalysis({ symbolId | symbolName+filePath, depth? }) → { symbol, impactedFiles[], summary, breakingChangeRisk? }
+### Code Quality
 api.findOrphanedCode({ filePattern?, filterByKind? }) → { orphanedSymbols[], orphanedFiles[] }
-
-### Architecture
-api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { metadata, structure, dependencies }
 
 ### Utility
 api.listMethods() → { methods[], usage, example }
+`,
+
+	// Decision tree for when to use Constellation vs other tools
+	methodSelection: `
+Before Grep/Glob for code questions, check:
+1. Symbol location? → api.searchSymbols() (semantic + metadata + line numbers)
+2. Usage/imports? → api.traceSymbolUsage() | api.getDependents() (cross-file graph)
+3. Architecture? → api.getArchitectureOverview() (aggregated structure)
+4. Refactor safety? → api.impactAnalysis() (breaking change risk)
+5. Literal text only? → Use Grep (Constellation is semantic, not textual)
+
+Constellation advantage: Pre-indexed graph = instant results vs full-repo search.
 `,
 
 	examples: [
@@ -112,7 +123,7 @@ api.listMethods() → { methods[], usage, example }
 // Find all exported symbols
 const symbols = await api.searchSymbols({
   query: '',
-  filterByExported: true,
+  isExported: true,
   limit: 100
 });
 
@@ -126,9 +137,9 @@ const usagePromises = symbols.symbols.map(s =>
 
 const usages = await Promise.all(usagePromises);
 
-// Filter to find unused symbols
+// Filter to find unused symbols (directUsages.length === 0 means no usages)
 const unused = symbols.symbols.filter((s, i) =>
-  usages[i].totalUsages === 0
+  usages[i].directUsages.length === 0
 );
 
 return {
@@ -186,14 +197,18 @@ const [details, usage, deps, dependents, impact] = await Promise.all([
   })
 ]);
 
-// Calculate risk score
-let riskScore = 0;
-if (usage.totalUsages > 50) riskScore += 3;
-else if (usage.totalUsages > 20) riskScore += 2;
-else if (usage.totalUsages > 5) riskScore += 1;
+// Calculate risk score based on usage and dependency counts
+const usageCount = usage.directUsages.length;
+const depsCount = deps.directDependencies.length;
+const dependentCount = dependents.directDependents.length;
 
-if (dependents.totalCount > 10) riskScore += 2;
-if (deps.totalCount > 20) riskScore += 1;
+let riskScore = 0;
+if (usageCount > 50) riskScore += 3;
+else if (usageCount > 20) riskScore += 2;
+else if (usageCount > 5) riskScore += 1;
+
+if (dependentCount > 10) riskScore += 2;
+if (depsCount > 20) riskScore += 1;
 
 const riskLevel = riskScore >= 4 ? "HIGH" :
                   riskScore >= 2 ? "MEDIUM" : "LOW";
@@ -201,12 +216,12 @@ const riskLevel = riskScore >= 4 ? "HIGH" :
 return {
   symbol: symbol.name,
   file: symbol.filePath,
-  usageCount: usage.totalUsages,
-  dependencyCount: deps.totalCount,
-  dependentCount: dependents.totalCount,
+  usageCount,
+  dependencyCount: depsCount,
+  dependentCount,
   riskLevel,
   riskScore,
-  impactSummary: impact.impact,
+  impactSummary: impact.summary,
   recommendation: riskLevel === "HIGH"
     ? "Consider gradual refactoring with feature flags"
     : "Safe to refactor directly"
@@ -239,9 +254,9 @@ const analysisPromises = cycles.cycles.map(async (cycle) => {
     )
   );
 
-  // Calculate total impact
+  // Calculate total impact (sum of directDependents across all nodes)
   const totalDependents = nodeDetails.reduce(
-    (sum, d) => sum + d.totalCount, 0
+    (sum, d) => sum + d.directDependents.length, 0
   );
 
   return {
@@ -279,6 +294,9 @@ return {
 		'MISTAKE: Using require() or import → DO: API is already available, just use api.*',
 		'MISTAKE: Trying to access files directly → DO: Use API methods only, no fs access',
 		'MISTAKE: Infinite loops → DO: Always have exit conditions in loops',
+		'MISTAKE: Using Grep to find function definitions → DO: api.searchSymbols() returns location + metadata instantly',
+		'MISTAKE: Using Grep/Read loops to trace usage → DO: api.traceSymbolUsage() provides cross-file graph',
+		'MISTAKE: Manual exploration to understand codebase → DO: api.getArchitectureOverview() gives instant structure',
 	],
 
 	// Trigger phrases for organic AI recognition (max 20 per schema)

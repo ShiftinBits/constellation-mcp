@@ -149,6 +149,18 @@ export interface McpToolDefinition {
 	apiReference?: string;
 
 	/**
+	 * Optional: Decision tree for when to use API methods vs other tools
+	 * Helps AI agents choose between Constellation and Grep/Glob
+	 */
+	methodSelection?: string;
+
+	/**
+	 * Optional: Performance considerations
+	 * Notes about execution time, resource usage, or optimization tips
+	 */
+	performanceNotes?: string[];
+
+	/**
 	 * Optional: Version when tool was introduced
 	 * Useful for compatibility checking
 	 */
@@ -226,6 +238,7 @@ export const McpToolDefinitionSchema = z.object({
 
 	commonMistakes: z.array(z.string()).optional(),
 	apiReference: z.string().optional(),
+	methodSelection: z.string().max(1000).optional(),
 	performanceNotes: z.array(z.string()).optional(),
 	sinceVersion: z
 		.string()

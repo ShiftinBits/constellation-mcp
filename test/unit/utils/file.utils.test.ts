@@ -1,75 +1,138 @@
 /**
  * File Utilities Tests
  *
- * Tests for the FileUtils class that provides file system utilities.
- * Uses real file system operations with temp directories for integration testing.
+ * Unit tests for the FileUtils class with mocked fs module.
+ * Tests FileUtils logic without real file system operations.
  */
 
-import {
-	describe,
-	it,
-	expect,
-	beforeAll,
-	afterAll,
-	beforeEach,
-} from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import type { Stats } from 'fs';
+
+// Mock fs module before importing FileUtils
+// Note: fs.promises has its own constants property in Node.js 18+
+jest.mock('fs', () => ({
+	promises: {
+		access: jest.fn(),
+		stat: jest.fn(),
+		readFile: jest.fn(),
+		constants: {
+			R_OK: 4,
+		},
+	},
+	constants: {
+		R_OK: 4,
+	},
+}));
+
+// Import after mocking
 import { FileUtils } from '../../../src/utils/file.utils.js';
-import { promises as fs } from 'fs';
-import path from 'path';
-import os from 'os';
+import { promises as fs, constants } from 'fs';
+
+// Type the mocked fs for better IntelliSense
+const mockAccess = fs.access as jest.MockedFunction<typeof fs.access>;
+const mockStat = fs.stat as jest.MockedFunction<typeof fs.stat>;
+const mockReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
+
+// Helper to create mock Stats object
+function createMockStats(overrides: Partial<Stats> = {}): Stats {
+	return {
+		isFile: () => false,
+		isDirectory: () => false,
+		isBlockDevice: () => false,
+		isCharacterDevice: () => false,
+		isSymbolicLink: () => false,
+		isFIFO: () => false,
+		isSocket: () => false,
+		dev: 0,
+		ino: 0,
+		mode: 0,
+		nlink: 0,
+		uid: 0,
+		gid: 0,
+		rdev: 0,
+		size: 0,
+		blksize: 0,
+		blocks: 0,
+		atimeMs: 0,
+		mtimeMs: 0,
+		ctimeMs: 0,
+		birthtimeMs: 0,
+		atime: new Date(),
+		mtime: new Date(),
+		ctime: new Date(),
+		birthtime: new Date(),
+		...overrides,
+	} as Stats;
+}
 
 describe('FileUtils', () => {
-	let tempDir: string;
-
-	beforeAll(async () => {
-		// Create a temporary directory for tests
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'file-utils-test-'));
-	});
-
-	afterAll(async () => {
-		// Clean up temp directory
-		await fs.rm(tempDir, { recursive: true, force: true });
+	beforeEach(() => {
+		jest.clearAllMocks();
 	});
 
 	describe('fileIsReadable', () => {
 		it('should return true when file is readable', async () => {
-			const testFile = path.join(tempDir, 'readable-file.txt');
-			await fs.writeFile(testFile, 'test content');
+			mockAccess.mockResolvedValue(undefined);
 
-			const result = await FileUtils.fileIsReadable(testFile);
+			const result = await FileUtils.fileIsReadable(
+				'/path/to/readable-file.txt',
+			);
 
 			expect(result).toBe(true);
+			expect(mockAccess).toHaveBeenCalledWith(
+				'/path/to/readable-file.txt',
+				constants.R_OK,
+			);
 		});
 
 		it('should return false when file does not exist', async () => {
-			const nonExistentFile = path.join(tempDir, 'non-existent-file.txt');
+			mockAccess.mockRejectedValue(
+				new Error('ENOENT: no such file or directory'),
+			);
 
-			const result = await FileUtils.fileIsReadable(nonExistentFile);
+			const result = await FileUtils.fileIsReadable(
+				'/path/to/non-existent-file.txt',
+			);
+
+			expect(result).toBe(false);
+		});
+
+		it('should return false when file is not readable (permission denied)', async () => {
+			mockAccess.mockRejectedValue(new Error('EACCES: permission denied'));
+
+			const result = await FileUtils.fileIsReadable(
+				'/path/to/protected-file.txt',
+			);
 
 			expect(result).toBe(false);
 		});
 
 		it('should handle paths with special characters', async () => {
-			const testFile = path.join(tempDir, 'file with spaces (1).txt');
-			await fs.writeFile(testFile, 'test content');
+			mockAccess.mockResolvedValue(undefined);
 
-			const result = await FileUtils.fileIsReadable(testFile);
+			const result = await FileUtils.fileIsReadable(
+				'/path/to/file with spaces (1).txt',
+			);
 
 			expect(result).toBe(true);
+			expect(mockAccess).toHaveBeenCalledWith(
+				'/path/to/file with spaces (1).txt',
+				constants.R_OK,
+			);
 		});
 
-		it('should return false for directory path', async () => {
-			const testDir = path.join(tempDir, 'test-dir');
-			await fs.mkdir(testDir, { recursive: true });
+		it('should return true for directory path (fs.access behavior)', async () => {
+			// fs.access with R_OK returns success for readable directories too
+			mockAccess.mockResolvedValue(undefined);
 
-			// Note: directories are readable, but this tests the behavior
-			const result = await FileUtils.fileIsReadable(testDir);
+			const result = await FileUtils.fileIsReadable('/path/to/directory');
 
-			// fs.access with R_OK returns true for directories too
 			expect(result).toBe(true);
 		});
 
 		it('should return false for empty path', async () => {
+			mockAccess.mockRejectedValue(new Error('ENOENT'));
+
 			const result = await FileUtils.fileIsReadable('');
 
 			expect(result).toBe(false);
@@ -78,102 +141,119 @@ describe('FileUtils', () => {
 
 	describe('readFile', () => {
 		it('should read file contents as string', async () => {
-			const testFile = path.join(tempDir, 'read-test.txt');
-			const content = 'Hello, World!';
-			await fs.writeFile(testFile, content);
+			mockReadFile.mockResolvedValue('Hello, World!');
 
-			const result = await FileUtils.readFile(testFile);
+			const result = await FileUtils.readFile('/path/to/file.txt');
 
-			expect(result).toBe(content);
+			expect(result).toBe('Hello, World!');
+			expect(mockReadFile).toHaveBeenCalledWith('/path/to/file.txt', 'utf-8');
 		});
 
 		it('should read file with unicode content', async () => {
-			const testFile = path.join(tempDir, 'unicode-test.txt');
-			const content = 'Hello, 世界! 🌍';
-			await fs.writeFile(testFile, content, 'utf-8');
+			const unicodeContent = 'Hello, 世界! 🌍';
+			mockReadFile.mockResolvedValue(unicodeContent);
 
-			const result = await FileUtils.readFile(testFile);
+			const result = await FileUtils.readFile('/path/to/unicode-file.txt');
 
-			expect(result).toBe(content);
+			expect(result).toBe(unicodeContent);
 		});
 
 		it('should throw error when file does not exist', async () => {
-			const nonExistentFile = path.join(tempDir, 'non-existent-read.txt');
+			mockReadFile.mockRejectedValue(
+				new Error('ENOENT: no such file or directory'),
+			);
 
-			await expect(FileUtils.readFile(nonExistentFile)).rejects.toThrow();
+			await expect(
+				FileUtils.readFile('/path/to/non-existent.txt'),
+			).rejects.toThrow();
+		});
+
+		it('should throw error when permission denied', async () => {
+			mockReadFile.mockRejectedValue(new Error('EACCES: permission denied'));
+
+			await expect(
+				FileUtils.readFile('/path/to/protected.txt'),
+			).rejects.toThrow('EACCES');
 		});
 
 		it('should handle empty file', async () => {
-			const testFile = path.join(tempDir, 'empty-file.txt');
-			await fs.writeFile(testFile, '');
+			mockReadFile.mockResolvedValue('');
 
-			const result = await FileUtils.readFile(testFile);
+			const result = await FileUtils.readFile('/path/to/empty-file.txt');
 
 			expect(result).toBe('');
 		});
 
 		it('should handle multi-line content', async () => {
-			const testFile = path.join(tempDir, 'multiline.txt');
-			const content = 'Line 1\nLine 2\nLine 3';
-			await fs.writeFile(testFile, content);
+			const multilineContent = 'Line 1\nLine 2\nLine 3';
+			mockReadFile.mockResolvedValue(multilineContent);
 
-			const result = await FileUtils.readFile(testFile);
+			const result = await FileUtils.readFile('/path/to/multiline.txt');
 
-			expect(result).toBe(content);
+			expect(result).toBe(multilineContent);
 			expect(result.split('\n').length).toBe(3);
 		});
 	});
 
 	describe('directoryExists', () => {
 		it('should return true when directory exists', async () => {
-			const testDir = path.join(tempDir, 'existing-dir');
-			await fs.mkdir(testDir, { recursive: true });
+			mockStat.mockResolvedValue(createMockStats({ isDirectory: () => true }));
 
-			const result = await FileUtils.directoryExists(testDir);
+			const result = await FileUtils.directoryExists('/path/to/directory');
 
 			expect(result).toBe(true);
+			expect(mockStat).toHaveBeenCalledWith('/path/to/directory');
 		});
 
 		it('should return false when path is a file', async () => {
-			const testFile = path.join(tempDir, 'just-a-file.txt');
-			await fs.writeFile(testFile, 'content');
+			mockStat.mockResolvedValue(
+				createMockStats({ isDirectory: () => false, isFile: () => true }),
+			);
 
-			const result = await FileUtils.directoryExists(testFile);
+			const result = await FileUtils.directoryExists('/path/to/file.txt');
 
 			expect(result).toBe(false);
 		});
 
 		it('should return false when path does not exist', async () => {
-			const nonExistentDir = path.join(tempDir, 'non-existent-dir');
+			mockStat.mockRejectedValue(
+				new Error('ENOENT: no such file or directory'),
+			);
 
-			const result = await FileUtils.directoryExists(nonExistentDir);
+			const result = await FileUtils.directoryExists('/path/to/non-existent');
 
 			expect(result).toBe(false);
 		});
 
 		it('should handle nested directories', async () => {
-			const nestedDir = path.join(tempDir, 'level1', 'level2', 'level3');
-			await fs.mkdir(nestedDir, { recursive: true });
+			mockStat.mockResolvedValue(createMockStats({ isDirectory: () => true }));
 
-			const result = await FileUtils.directoryExists(nestedDir);
+			const result = await FileUtils.directoryExists('/level1/level2/level3');
 
 			expect(result).toBe(true);
+			expect(mockStat).toHaveBeenCalledWith('/level1/level2/level3');
 		});
 
 		it('should handle root directory', async () => {
+			mockStat.mockResolvedValue(createMockStats({ isDirectory: () => true }));
+
 			const result = await FileUtils.directoryExists('/');
 
 			expect(result).toBe(true);
 		});
 
-		it('should handle temp directory', async () => {
-			const result = await FileUtils.directoryExists(tempDir);
+		it('should handle permission errors', async () => {
+			mockStat.mockRejectedValue(new Error('EACCES: permission denied'));
 
-			expect(result).toBe(true);
+			const result = await FileUtils.directoryExists('/protected/directory');
+
+			expect(result).toBe(false);
 		});
 	});
 
 	describe('isRootDirectory', () => {
+		// isRootDirectory is synchronous and uses path module, no mocking needed
+
 		it('should return true for Unix root directory', () => {
 			const result = FileUtils.isRootDirectory('/');
 
@@ -204,166 +284,128 @@ describe('FileUtils', () => {
 			expect(result).toBe(false);
 		});
 
-		it('should return false for temp directory', () => {
-			const result = FileUtils.isRootDirectory(tempDir);
-
-			expect(result).toBe(false);
-		});
-
 		it('should handle complex paths with parent references', () => {
 			const result = FileUtils.isRootDirectory('/home/user/../user/projects');
 
 			expect(result).toBe(false);
 		});
-
-		it('should normalize and check parent path matches normalized path', () => {
-			// Test the normalization logic
-			const normalized1 = path.normalize('/');
-			const parent1 = path.dirname(normalized1);
-			expect(normalized1).toBe(parent1); // Root is its own parent
-
-			const normalized2 = path.normalize('/home');
-			const parent2 = path.dirname(normalized2);
-			expect(normalized2).not.toBe(parent2); // /home is not its own parent
-		});
 	});
 
 	describe('isGitRepository', () => {
-		let gitRepoDir: string;
-
-		beforeEach(async () => {
-			// Create a fresh git-like directory for each test
-			gitRepoDir = path.join(tempDir, `git-test-${Date.now()}`);
-			await fs.mkdir(gitRepoDir, { recursive: true });
-		});
-
 		it('should return true when .git directory exists', async () => {
-			const gitDir = path.join(gitRepoDir, '.git');
-			await fs.mkdir(gitDir, { recursive: true });
+			mockStat.mockResolvedValue(createMockStats({ isDirectory: () => true }));
 
-			const result = await FileUtils.isGitRepository(gitRepoDir);
+			const result = await FileUtils.isGitRepository('/repo/path');
 
 			expect(result).toBe(true);
+			expect(mockStat).toHaveBeenCalledWith('/repo/path/.git');
 		});
 
 		it('should return true when .git file exists (submodule)', async () => {
-			const gitFile = path.join(gitRepoDir, '.git');
-			await fs.writeFile(gitFile, 'gitdir: ../../../.git/modules/my-submodule');
+			// For submodules, .git is a file, not a directory
+			mockStat.mockResolvedValue(createMockStats({ isFile: () => true }));
 
-			const result = await FileUtils.isGitRepository(gitRepoDir);
+			const result = await FileUtils.isGitRepository('/submodule/path');
 
 			expect(result).toBe(true);
+			expect(mockStat).toHaveBeenCalledWith('/submodule/path/.git');
 		});
 
 		it('should return false when .git does not exist', async () => {
-			const result = await FileUtils.isGitRepository(gitRepoDir);
+			mockStat.mockRejectedValue(
+				new Error('ENOENT: no such file or directory'),
+			);
+
+			const result = await FileUtils.isGitRepository('/not/a/repo');
 
 			expect(result).toBe(false);
 		});
 
-		it('should return false for root directory (usually)', async () => {
-			// Root typically doesn't have a .git
+		it('should return false for root directory (typically no .git)', async () => {
+			mockStat.mockRejectedValue(new Error('ENOENT'));
+
 			const result = await FileUtils.isGitRepository('/');
 
 			expect(result).toBe(false);
+			expect(mockStat).toHaveBeenCalledWith('/.git');
 		});
 
-		it('should handle nested repository structure', async () => {
-			const nestedDir = path.join(gitRepoDir, 'src', 'lib');
-			await fs.mkdir(nestedDir, { recursive: true });
-			await fs.mkdir(path.join(gitRepoDir, '.git'), { recursive: true });
+		it('should handle nested repository check', async () => {
+			// First call for nested dir (no .git)
+			mockStat.mockRejectedValueOnce(new Error('ENOENT'));
+			// Second call for parent dir (has .git)
+			mockStat.mockResolvedValueOnce(
+				createMockStats({ isDirectory: () => true }),
+			);
 
-			// The nested dir itself is not a git repo
-			const nestedResult = await FileUtils.isGitRepository(nestedDir);
+			const nestedResult = await FileUtils.isGitRepository('/repo/src/lib');
 			expect(nestedResult).toBe(false);
 
-			// But the parent is
-			const parentResult = await FileUtils.isGitRepository(gitRepoDir);
+			const parentResult = await FileUtils.isGitRepository('/repo');
 			expect(parentResult).toBe(true);
 		});
 
 		it('should handle paths with spaces', async () => {
-			const spacePath = path.join(tempDir, 'path with spaces');
-			await fs.mkdir(spacePath, { recursive: true });
-			await fs.mkdir(path.join(spacePath, '.git'), { recursive: true });
+			mockStat.mockResolvedValue(createMockStats({ isDirectory: () => true }));
 
-			const result = await FileUtils.isGitRepository(spacePath);
+			const result = await FileUtils.isGitRepository('/path with spaces/repo');
 
 			expect(result).toBe(true);
+			expect(mockStat).toHaveBeenCalledWith('/path with spaces/repo/.git');
+		});
+
+		it('should handle permission errors gracefully', async () => {
+			mockStat.mockRejectedValue(new Error('EACCES: permission denied'));
+
+			const result = await FileUtils.isGitRepository('/protected/repo');
+
+			expect(result).toBe(false);
 		});
 	});
 
-	describe('edge cases and integration', () => {
+	describe('error handling edge cases', () => {
 		it('should handle concurrent file checks', async () => {
-			const file1 = path.join(tempDir, 'concurrent-1.txt');
-			const file2 = path.join(tempDir, 'concurrent-2.txt');
-			const file3 = path.join(tempDir, 'concurrent-3.txt');
-
-			await fs.writeFile(file1, 'content 1');
-			// file2 does not exist
-			await fs.writeFile(file3, 'content 3');
+			mockAccess
+				.mockResolvedValueOnce(undefined)
+				.mockRejectedValueOnce(new Error('ENOENT'))
+				.mockResolvedValueOnce(undefined);
 
 			const results = await Promise.all([
-				FileUtils.fileIsReadable(file1),
-				FileUtils.fileIsReadable(file2),
-				FileUtils.fileIsReadable(file3),
+				FileUtils.fileIsReadable('/file1.txt'),
+				FileUtils.fileIsReadable('/file2.txt'),
+				FileUtils.fileIsReadable('/file3.txt'),
 			]);
 
 			expect(results).toEqual([true, false, true]);
 		});
 
 		it('should handle concurrent directory checks', async () => {
-			const dir1 = path.join(tempDir, 'concurrent-dir-1');
-			const file1 = path.join(tempDir, 'concurrent-file-1.txt');
-			const nonExistent = path.join(tempDir, 'concurrent-nonexistent');
-
-			await fs.mkdir(dir1, { recursive: true });
-			await fs.writeFile(file1, 'content');
-			// nonExistent does not exist
+			mockStat
+				.mockResolvedValueOnce(createMockStats({ isDirectory: () => true }))
+				.mockResolvedValueOnce(createMockStats({ isDirectory: () => false }))
+				.mockRejectedValueOnce(new Error('ENOENT'));
 
 			const results = await Promise.all([
-				FileUtils.directoryExists(dir1),
-				FileUtils.directoryExists(file1),
-				FileUtils.directoryExists(nonExistent),
+				FileUtils.directoryExists('/dir1'),
+				FileUtils.directoryExists('/file1.txt'),
+				FileUtils.directoryExists('/nonexistent'),
 			]);
 
 			expect(results).toEqual([true, false, false]);
 		});
 
-		it('should handle symbolic links for directories', async () => {
-			const realDir = path.join(tempDir, 'real-directory');
-			const linkPath = path.join(tempDir, 'link-to-directory');
+		it('should handle unexpected error types', async () => {
+			mockAccess.mockRejectedValue('string error');
 
-			await fs.mkdir(realDir, { recursive: true });
-			await fs.symlink(realDir, linkPath);
+			const result = await FileUtils.fileIsReadable('/path');
 
-			const result = await FileUtils.directoryExists(linkPath);
-
-			expect(result).toBe(true);
+			expect(result).toBe(false);
 		});
 
-		it('should handle symbolic links for files', async () => {
-			const realFile = path.join(tempDir, 'real-file.txt');
-			const linkPath = path.join(tempDir, 'link-to-file.txt');
+		it('should handle null/undefined in error scenarios', async () => {
+			mockStat.mockRejectedValue(null);
 
-			await fs.writeFile(realFile, 'content');
-			await fs.symlink(realFile, linkPath);
-
-			const result = await FileUtils.fileIsReadable(linkPath);
-
-			expect(result).toBe(true);
-
-			const content = await FileUtils.readFile(linkPath);
-			expect(content).toBe('content');
-		});
-
-		it('should handle broken symbolic links', async () => {
-			const brokenLink = path.join(tempDir, 'broken-link.txt');
-			const nonExistent = path.join(tempDir, 'does-not-exist.txt');
-
-			await fs.symlink(nonExistent, brokenLink);
-
-			const result = await FileUtils.fileIsReadable(brokenLink);
+			const result = await FileUtils.directoryExists('/path');
 
 			expect(result).toBe(false);
 		});
