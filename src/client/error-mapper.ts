@@ -120,15 +120,26 @@ For more information, visit: https://docs.constellationdev.io/tools
 function formatGenericError(toolName: string, error: Error): string {
 	const context = getConfigContext();
 
-	// Check if it's an API/network error
-	if (error.message.includes('fetch failed') ||
-	    error.message.includes('ECONNREFUSED') ||
-	    error.message.includes('ENOTFOUND') ||
-	    error.message.includes('timeout')) {
+	// FIX SB-89: Check error.code first (standard Node.js pattern), then fall back to message
+	const errorWithCode = error as Error & { code?: string };
+	const isNetworkError =
+		// Standard Node.js error codes
+		errorWithCode.code === 'ECONNREFUSED' ||
+		errorWithCode.code === 'ENOTFOUND' ||
+		errorWithCode.code === 'ETIMEDOUT' ||
+		errorWithCode.code === 'ECONNRESET' ||
+		errorWithCode.code === 'ECONNABORTED' ||
+		// Fallback to message only for non-standard errors (e.g., fetch API)
+		(errorWithCode.code === undefined &&
+			(error.message.toLowerCase().includes('fetch failed') ||
+				error.message.toLowerCase().includes('network') ||
+				error.message.toLowerCase().includes('timeout')));
+
+	if (isNetworkError) {
 		return `${toolName} Failed\n\n${standardErrors.apiError(
 			toolName,
 			undefined,
-			error.message
+			error.message,
 		)}\n\n**Context:**\n  Project ID: ${context.projectId}\n  Branch: ${context.branchName}`;
 	}
 
@@ -142,7 +153,10 @@ ${error.message}
 `;
 
 	// Add suggestion based on error message
-	if (error.message.includes('Invalid') || error.message.includes('validation')) {
+	if (
+		error.message.includes('Invalid') ||
+		error.message.includes('validation')
+	) {
 		output += `
 **This looks like a validation error:**
   • Check the tool parameters
@@ -173,7 +187,7 @@ Please report this issue if it persists.
  * @returns Error message extracted from response
  */
 export async function extractApiErrorMessage(
-	response: Response
+	response: Response,
 ): Promise<string> {
 	try {
 		// Try to parse as JSON first

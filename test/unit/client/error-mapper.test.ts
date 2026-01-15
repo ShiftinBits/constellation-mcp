@@ -160,7 +160,8 @@ describe('mapErrorToMessage', () => {
 	});
 
 	describe('Network error detection', () => {
-		it('should detect fetch failed errors', () => {
+		// Message-based detection (fallback for non-standard errors)
+		it('should detect fetch failed errors via message', () => {
 			const error = new Error('fetch failed: network error');
 			const result = mapErrorToMessage(error, 'test_tool');
 
@@ -168,28 +169,92 @@ describe('mapErrorToMessage', () => {
 			expect(result).toContain('Failed');
 		});
 
-		it('should detect ECONNREFUSED errors', () => {
-			const error = new Error('ECONNREFUSED: connection refused');
-			const result = mapErrorToMessage(error, 'test_tool');
-
-			expect(result).toContain('test_tool');
-			expect(result).toContain('Failed');
-		});
-
-		it('should detect ENOTFOUND errors', () => {
-			const error = new Error('ENOTFOUND: DNS lookup failed');
-			const result = mapErrorToMessage(error, 'test_tool');
-
-			expect(result).toContain('test_tool');
-			expect(result).toContain('Failed');
-		});
-
-		it('should detect timeout errors', () => {
+		it('should detect timeout errors via message', () => {
 			const error = new Error('timeout: request took too long');
 			const result = mapErrorToMessage(error, 'test_tool');
 
 			expect(result).toContain('test_tool');
 			expect(result).toContain('Failed');
+		});
+
+		// FIX SB-89: Code-based detection (preferred for standard Node.js errors)
+		it('should detect ECONNREFUSED via error code', () => {
+			const error = new Error(
+				'connect ECONNREFUSED 127.0.0.1:3000',
+			) as Error & { code: string };
+			error.code = 'ECONNREFUSED';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should detect ENOTFOUND via error code', () => {
+			const error = new Error(
+				'getaddrinfo ENOTFOUND api.example.com',
+			) as Error & {
+				code: string;
+			};
+			error.code = 'ENOTFOUND';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should detect ETIMEDOUT via error code', () => {
+			const error = new Error('connection timed out') as Error & {
+				code: string;
+			};
+			error.code = 'ETIMEDOUT';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should detect ECONNRESET via error code', () => {
+			const error = new Error('socket hang up') as Error & { code: string };
+			error.code = 'ECONNRESET';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should detect ECONNABORTED via error code', () => {
+			const error = new Error('connection aborted') as Error & { code: string };
+			error.code = 'ECONNABORTED';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should prefer error code over message matching', () => {
+			// Error with code should be detected even if message doesn't match patterns
+			const error = new Error('some random message') as Error & {
+				code: string;
+			};
+			error.code = 'ECONNREFUSED';
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+		});
+
+		it('should not use message fallback when error has non-network code', () => {
+			// If error has a code but it's not a network error code, don't treat as network error
+			const error = new Error('timeout in some context') as Error & {
+				code: string;
+			};
+			error.code = 'ENOENT'; // File not found, not a network error
+			const result = mapErrorToMessage(error, 'test_tool');
+
+			// Should be treated as generic error, not network error
+			expect(result).toContain('test_tool');
+			expect(result).toContain('Failed');
+			expect(result).toContain('timeout in some context');
 		});
 	});
 
