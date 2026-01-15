@@ -23,6 +23,15 @@ import {
 } from './constellation-client.js';
 
 /**
+ * FIX SB-88: Check if user has configured authentication (has API key set)
+ * Used to conditionally include detailed API suggestions in error responses
+ */
+function hasApiKeyConfigured(): boolean {
+	const context = getConfigContext();
+	return Boolean(context.apiKey);
+}
+
+/**
  * Create a structured error response from any error type.
  *
  * This function preserves error type information that would otherwise
@@ -121,7 +130,10 @@ export function createStructuredError(
 				recoverable: false,
 				guidance: [
 					'Check the tool name is spelled correctly',
-					'Use api.listMethods() to see available tools',
+					// FIX SB-88: Only mention API method when authenticated
+					...(hasApiKeyConfigured()
+						? ['Use api.listMethods() to see available tools']
+						: []),
 					'Refer to documentation for available tools',
 				],
 				context: baseContext,
@@ -133,58 +145,69 @@ export function createStructuredError(
 
 	// Not Found Error (Project not indexed)
 	if (error instanceof NotFoundError) {
-		return {
-			success: false,
-			error: {
-				code: ErrorCode.PROJECT_NOT_INDEXED,
-				type: 'NotFoundError',
-				message: 'Project or resource not found - may need indexing',
-				recoverable: true,
-				guidance: [
-					'Run: constellation index',
-					'Verify you are in the correct project directory',
-					'Check that the branch has been indexed',
-				],
-				context: baseContext,
-				docs: 'https://docs.constellationdev.io/getting-started',
-				suggestedCode: `// Check project capabilities first:
+		const errorDetails: McpErrorResponse['error'] = {
+			code: ErrorCode.PROJECT_NOT_INDEXED,
+			type: 'NotFoundError',
+			message: 'Project or resource not found - may need indexing',
+			recoverable: true,
+			guidance: [
+				'Run: constellation index',
+				'Verify you are in the correct project directory',
+				'Check that the branch has been indexed',
+			],
+			context: baseContext,
+			docs: 'https://docs.constellationdev.io/getting-started',
+		};
+
+		// FIX SB-88: Only include detailed API suggestions when authenticated
+		if (hasApiKeyConfigured()) {
+			errorDetails.suggestedCode = `// Check project capabilities first:
 const caps = await api.getCapabilities();
 if (!caps.isIndexed) {
   return { error: "Project not indexed", action: "Run: constellation index" };
-}`,
-				alternativeApproach: {
-					tool: 'Glob',
-					description:
-						'Use Glob and Grep to explore the codebase until indexed',
-				},
-			},
+}`;
+			errorDetails.alternativeApproach = {
+				tool: 'Glob',
+				description: 'Use Glob and Grep to explore the codebase until indexed',
+			};
+		}
+
+		return {
+			success: false,
+			error: errorDetails,
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
 	}
 
 	// Timeout Error
 	if (error instanceof TimeoutError) {
-		return {
-			success: false,
-			error: {
-				code: ErrorCode.EXECUTION_TIMEOUT,
-				type: 'TimeoutError',
-				message: 'Operation timed out',
-				recoverable: true,
-				guidance: [
-					'Try a more specific query to reduce processing time',
-					'Break down the request into smaller parts',
-					'Check network connectivity',
-				],
-				context: baseContext,
-				suggestedCode: `// Retry with reduced scope:
+		const errorDetails: McpErrorResponse['error'] = {
+			code: ErrorCode.EXECUTION_TIMEOUT,
+			type: 'TimeoutError',
+			message: 'Operation timed out',
+			recoverable: true,
+			guidance: [
+				'Try a more specific query to reduce processing time',
+				'Break down the request into smaller parts',
+				'Check network connectivity',
+			],
+			context: baseContext,
+		};
+
+		// FIX SB-88: Only include detailed API suggestions when authenticated
+		if (hasApiKeyConfigured()) {
+			errorDetails.suggestedCode = `// Retry with reduced scope:
 // If using depth, reduce it: depth=1 instead of depth=3
 // If using limit, reduce it: limit=10 instead of limit=100
 const result = await api.searchSymbols({
   query: "...",
   limit: 10  // Start small
-});`,
-			},
+});`;
+		}
+
+		return {
+			success: false,
+			error: errorDetails,
 			formattedMessage:
 				error.message || 'Operation timed out - try a smaller request',
 		};
@@ -343,20 +366,25 @@ function createErrorFromMessage(
 
 	// Symbol not found
 	if (message.includes('symbol not found') || message.includes('symbol')) {
-		return {
-			success: false,
-			error: {
-				code: ErrorCode.SYMBOL_NOT_FOUND,
-				type: 'SymbolNotFoundError',
-				message: 'Symbol not found in the index',
-				recoverable: true,
-				guidance: [
-					'Verify the symbol name is correct',
-					'Use api.searchSymbols() to find the symbol',
-					'Re-index the project if the symbol was recently added',
-				],
-				context: baseContext,
-				suggestedCode: `// Try a broader search to find similar symbols:
+		const errorDetails: McpErrorResponse['error'] = {
+			code: ErrorCode.SYMBOL_NOT_FOUND,
+			type: 'SymbolNotFoundError',
+			message: 'Symbol not found in the index',
+			recoverable: true,
+			guidance: [
+				'Verify the symbol name is correct',
+				// FIX SB-88: Only mention API method when authenticated
+				...(hasApiKeyConfigured()
+					? ['Use api.searchSymbols() to find the symbol']
+					: []),
+				'Re-index the project if the symbol was recently added',
+			],
+			context: baseContext,
+		};
+
+		// FIX SB-88: Only include detailed API suggestions when authenticated
+		if (hasApiKeyConfigured()) {
+			errorDetails.suggestedCode = `// Try a broader search to find similar symbols:
 const results = await api.searchSymbols({
   query: "...",  // Use partial name or related term
   limit: 20
@@ -365,42 +393,52 @@ return results.symbols.map(s => ({
   name: s.name,
   file: s.filePath,
   kind: s.kind
-}));`,
-				alternativeApproach: {
-					tool: 'Grep',
-					description: 'Search for the symbol name as text in source files',
-				},
-			},
+}));`;
+			errorDetails.alternativeApproach = {
+				tool: 'Grep',
+				description: 'Search for the symbol name as text in source files',
+			};
+		}
+
+		return {
+			success: false,
+			error: errorDetails,
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
 	}
 
 	// File not found
 	if (message.includes('file not found') || message.includes('file')) {
-		return {
-			success: false,
-			error: {
-				code: ErrorCode.FILE_NOT_FOUND,
-				type: 'FileNotFoundError',
-				message: 'File not found in the index',
-				recoverable: true,
-				guidance: [
-					'Verify the file path is correct',
-					'Check the file exists in the repository',
-					'Re-index the project if the file was recently added',
-				],
-				context: baseContext,
-				suggestedCode: `// Search for symbols to discover correct file paths:
+		const errorDetails: McpErrorResponse['error'] = {
+			code: ErrorCode.FILE_NOT_FOUND,
+			type: 'FileNotFoundError',
+			message: 'File not found in the index',
+			recoverable: true,
+			guidance: [
+				'Verify the file path is correct',
+				'Check the file exists in the repository',
+				'Re-index the project if the file was recently added',
+			],
+			context: baseContext,
+		};
+
+		// FIX SB-88: Only include detailed API suggestions when authenticated
+		if (hasApiKeyConfigured()) {
+			errorDetails.suggestedCode = `// Search for symbols to discover correct file paths:
 const results = await api.searchSymbols({
   query: "...",  // Search for known symbols in the file
   limit: 10
 });
-// Check filePath in results to find correct paths`,
-				alternativeApproach: {
-					tool: 'Glob',
-					description: 'Use Glob to find files matching a pattern',
-				},
-			},
+// Check filePath in results to find correct paths`;
+			errorDetails.alternativeApproach = {
+				tool: 'Glob',
+				description: 'Use Glob to find files matching a pattern',
+			};
+		}
+
+		return {
+			success: false,
+			error: errorDetails,
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
 	}
