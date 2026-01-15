@@ -252,8 +252,14 @@ export class ConstellationClient {
 
 				// Only retry RetryableError, everything else gets thrown immediately
 				if (i < retries && error instanceof RetryableError) {
-					const jitteredDelay = delay + Math.floor(Math.random() * jitter);
-					await new Promise((resolve) => setTimeout(resolve, jitteredDelay));
+					// FIX SB-90: Exponential backoff: delay * 2^(attempt-1) = 1s, 2s, 4s, etc.
+					const backoffDelay = delay * Math.pow(2, i - 1);
+					// Add jitter to prevent thundering herd
+					const jitteredDelay =
+						backoffDelay + Math.floor(Math.random() * jitter);
+					// Cap maximum delay at 30 seconds
+					const cappedDelay = Math.min(jitteredDelay, 30000);
+					await new Promise((resolve) => setTimeout(resolve, cappedDelay));
 				} else {
 					throw error;
 				}
