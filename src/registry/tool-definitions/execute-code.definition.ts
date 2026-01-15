@@ -11,30 +11,17 @@ export const executeCodeDefinition: McpToolDefinition = {
 	name: 'execute_code',
 	category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
 
-	description: `Execute JavaScript code to query Constellation's code intelligence graph. This is the ONLY tool available - use it for ALL operations.
+	description: `Execute JavaScript to query Constellation's code intelligence graph. Use the \`api\` object with async/await.
 
-Write JavaScript using the \`api\` object. Code runs sandboxed with async/await support.
+Args: code (string, required), timeout (number, optional, default: 30000ms)
+Returns: { success, result?, logs?, executionTime, error?, structuredError? }
 
-Args:
-  - code (string, required): JavaScript code with api.* calls. Must return a value.
-  - timeout (number, optional): Max ms. Default: 30000, max: 60000.
+Constraints:
+- READ-ONLY: Cannot modify files
+- Must \`return\` a value and \`await\` api.* calls
+- Sandboxed: No fs/network beyond api object
 
-Returns:
-  { success: boolean, result?: any, logs?: string[], time?: number, error?: string }
-
-Quick Examples:
-  - Find a class: \`return await api.searchSymbols({ query: "UserService", filterByKind: ["class"] })\`
-  - Parallel analysis: \`const [deps, usage] = await Promise.all([api.getDependencies({filePath}), api.traceSymbolUsage({symbolId})]); return {deps, usage};\`
-
-Boundaries (IMPORTANT):
-  - READ-ONLY: Queries the code graph, cannot modify files
-  - No file system or network access beyond the api object
-  - Must \`return\` a value (otherwise result is undefined)
-  - Must \`await\` API calls (all are async)
-
-Errors:
-  - Symbol/file not found: { success: false, error: "Symbol not found" }
-  - Timeout exceeded: { success: false, error: "Execution timeout" }`,
+See apiReference for methods, methodSelection for when to use vs Grep/Glob.`,
 
 	shortDescription:
 		'Execute JavaScript to query code intelligence (search, dependencies, impact)',

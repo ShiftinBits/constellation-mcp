@@ -848,8 +848,11 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.logs).toBeDefined();
-			// Should fall back to String()
-			expect(result.logs![0]).toContain('[object Object]');
+			// Should log a warning about serialization failure (SB-84 fix)
+			expect(result.logs![0]).toContain('[WARN] JSON serialization failed:');
+			expect(result.logs![0]).toContain('Falling back to String()');
+			// Should then fall back to String() output
+			expect(result.logs![1]).toContain('[object Object]');
 		});
 	});
 

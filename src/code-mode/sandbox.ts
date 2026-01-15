@@ -50,16 +50,29 @@ export class CodeModeSandbox {
 	private client: ConstellationClient;
 
 	constructor(options: SandboxOptions = {}) {
+		// FIX SB-83: Get config context first to fail-fast if not initialized
+		// This prevents race conditions where client operations fail later with confusing errors
+		const configContext = getConfigContext();
+
+		// Validate config is properly initialized before proceeding
+		if (!configContext.config || !configContext.apiKey) {
+			throw new Error(
+				'Configuration not initialized. Ensure CONSTELLATION_ACCESS_KEY and CONSTELLATION_API_URL are set.',
+			);
+		}
+
 		this.options = {
 			timeout: options.timeout || 30000, // 30 seconds default
 			memoryLimit: options.memoryLimit || 128, // 128MB default
 			allowConsole: options.allowConsole !== false,
 			allowTimers: options.allowTimers || false,
-			projectContext: options.projectContext || this.getDefaultContext(),
+			projectContext: options.projectContext || {
+				projectId: configContext.projectId,
+				branchName: configContext.branchName,
+			},
 		};
 
-		// Initialize constellation client
-		const configContext = getConfigContext();
+		// Initialize constellation client with validated config
 		this.client = new ConstellationClient(
 			configContext.config,
 			configContext.apiKey,
@@ -86,17 +99,44 @@ export class CodeModeSandbox {
 			});
 
 			const context = vm.createContext(sandbox);
-			const result = await script.runInContext(context, {
-				timeout: this.options.timeout,
+
+			// FIX SB-85: VM timeout only applies to synchronous execution.
+			// Async code (including our async IIFE wrapper) returns a Promise immediately,
+			// which means infinite async loops would bypass the timeout.
+			// Use Promise.race() to enforce timeout on the entire async execution.
+			const timeoutMs = this.options.timeout;
+			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+			const timeoutPromise = new Promise<never>((_, reject) => {
+				timeoutHandle = setTimeout(() => {
+					reject(new Error('Script execution timed out'));
+				}, timeoutMs);
+			});
+
+			// Run script with VM timeout (catches sync hangs) and race with timeout Promise (catches async hangs)
+			const scriptResult = script.runInContext(context, {
+				timeout: timeoutMs,
 				breakOnSigint: true,
 			});
 
-			return {
-				success: true,
-				result,
-				logs,
-				executionTime: Date.now() - startTime,
-			};
+			try {
+				// Race the script result (which may be a Promise) against the timeout
+				const result = await Promise.race([
+					Promise.resolve(scriptResult),
+					timeoutPromise,
+				]);
+
+				return {
+					success: true,
+					result,
+					logs,
+					executionTime: Date.now() - startTime,
+				};
+			} finally {
+				// Clean up timeout to prevent unhandled rejection warnings
+				if (timeoutHandle) {
+					clearTimeout(timeoutHandle);
+				}
+			}
 		} catch (error) {
 			// Create structured error to preserve error type information
 			const structuredError = createStructuredError(error, 'execute');
@@ -368,7 +408,14 @@ export class CodeModeSandbox {
 						return compact;
 					}
 					return json;
-				} catch {
+				} catch (error) {
+					// FIX SB-84: Log serialization failures instead of silent fallback
+					// This helps debug circular references, BigInt values, or other non-serializable types
+					const errorMsg =
+						error instanceof Error ? error.message : 'unknown error';
+					logs.push(
+						`[WARN] JSON serialization failed: ${errorMsg}. Falling back to String().`,
+					);
 					return String(arg);
 				}
 			};
@@ -433,17 +480,6 @@ ${code}
 			return error.message;
 		}
 		return String(error);
-	}
-
-	/**
-	 * Get default project context from configuration
-	 */
-	private getDefaultContext(): { projectId: string; branchName: string } {
-		const configContext = getConfigContext();
-		return {
-			projectId: configContext.projectId,
-			branchName: configContext.branchName,
-		};
 	}
 
 	/**
