@@ -115,11 +115,14 @@ describe('ConfigurationManager', () => {
 			expect(context.branchName).toBeDefined();
 		});
 
-		it('should throw error if getConfigContext called before initialization', () => {
-			// Note: This test actually triggers lazy initialization now
-			// Lazy init reads from actual constellation.json if it exists, so we just verify it works
-			const context = getConfigContext();
-			expect(context.projectId).toBeDefined(); // Lazy init loads from config file or uses default
+		it('should throw error if getConfigContext called before initialization', async () => {
+			// FIX SB-91: Lazy init removed - now fails fast if not initialized
+			const { getConfigManager, getConfigContext } = await import(
+				'../../../src/config/config-manager.js'
+			);
+			getConfigManager().reset();
+
+			expect(() => getConfigContext()).toThrow('Configuration not initialized');
 		});
 
 		it('should return same instance (singleton)', async () => {
@@ -380,20 +383,19 @@ describe('ConfigurationManager', () => {
 		});
 	});
 
-	describe('lazy initialization', () => {
-		it('should perform lazy initialization when getConfigContext called before initialize', async () => {
-			const { getConfigManager } = await import(
+	describe('fail-fast initialization (SB-91)', () => {
+		it('should throw when getConfigContext called before initialize', async () => {
+			// FIX SB-91: Lazy init removed - now requires explicit initialization
+			const { getConfigManager, getConfigContext } = await import(
 				'../../../src/config/config-manager.js'
 			);
 			const manager = getConfigManager();
 
 			manager.reset();
 
-			// getConfigContext should perform lazy init
-			const context = getConfigContext();
-
-			expect(manager.isInitialized()).toBe(true);
-			expect(context.projectId).toBeDefined();
+			// getConfigContext should throw, not lazy init
+			expect(() => getConfigContext()).toThrow('Configuration not initialized');
+			expect(manager.isInitialized()).toBe(false);
 		});
 	});
 });

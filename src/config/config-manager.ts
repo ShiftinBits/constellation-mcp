@@ -215,56 +215,10 @@ export function getConfigManager(): ConfigurationManager {
  * Get current configuration context
  * Convenience function for tools
  *
- * If not initialized, performs lazy initialization with defaults
+ * @throws Error if configuration not initialized (call initializeConfig() first)
  */
 export function getConfigContext(): ConfigContext {
-	const manager = getConfigManager();
-	if (!manager.isInitialized()) {
-		console.error(
-			'[ConfigManager] WARNING: getConfigContext() called before initialize()',
-		);
-		console.error('[ConfigManager] Performing lazy initialization');
-
-		// Load config synchronously if possible
-		try {
-			const fs = require('fs');
-			const path = require('path');
-			const configPath = path.join(process.cwd(), 'constellation.json');
-			let config = ConstellationConfig.createDefault();
-			let projectId = 'constellation-mcp'; // Default for this project
-
-			if (fs.existsSync(configPath)) {
-				const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-				config = ConstellationConfig.fromJSON(configData);
-				projectId = configData.projectId || projectId;
-				console.error(`[ConfigManager] Loaded config from file: ${configPath}`);
-			}
-
-			manager['configContext'] = {
-				config,
-				projectId: projectId, // Always from config.projectId
-				branchName: config.branch, // Always from config.branch
-				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
-				configLoaded: fs.existsSync(configPath),
-				initializationError: undefined,
-			};
-			manager['initialized'] = true;
-		} catch (error) {
-			console.error('[ConfigManager] Error during lazy init:', error);
-			// Fallback to defaults
-			const defaultConfig = ConstellationConfig.createDefault();
-			manager['configContext'] = {
-				config: defaultConfig,
-				projectId: defaultConfig.projectId, // Always from config
-				branchName: defaultConfig.branch, // Always from config
-				apiKey: process.env.CONSTELLATION_ACCESS_KEY || '',
-				configLoaded: false,
-				initializationError: undefined,
-			};
-			manager['initialized'] = true;
-		}
-	}
-	return manager.getContext();
+	return getConfigManager().getContext();
 }
 
 /**
