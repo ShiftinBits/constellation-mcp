@@ -11,23 +11,40 @@ export const executeCodeDefinition: McpToolDefinition = {
 	name: 'execute_code',
 	category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
 
-	description:
-		'THE ONLY TOOL AVAILABLE. Execute JavaScript code to interact with the Constellation API. ' +
-		'You MUST use this tool for ALL operations. Write JavaScript code that calls api methods like searchSymbols(), ' +
-		'getDependencies(), etc. Supports async/await, Promise.all(), and full JavaScript capabilities. ' +
-		'This is a Code Mode-only server - always write JavaScript code instead of trying to call individual tools.',
+	description: `Execute JavaScript code to query Constellation's code intelligence graph. This is the ONLY tool available - use it for ALL operations.
+
+Write JavaScript using the \`api\` object. Code runs sandboxed with async/await support.
+
+Args:
+  - code (string, required): JavaScript code with api.* calls. Must return a value.
+  - timeout (number, optional): Max ms. Default: 30000, max: 60000.
+
+Returns:
+  { success: boolean, result?: any, logs?: string[], time?: number, error?: string }
+
+Quick Examples:
+  - Find a class: \`return await api.searchSymbols({ query: "UserService", filterByKind: ["class"] })\`
+  - Parallel analysis: \`const [deps, usage] = await Promise.all([api.getDependencies({filePath}), api.traceSymbolUsage({symbolId})]); return {deps, usage};\`
+
+Boundaries (IMPORTANT):
+  - READ-ONLY: Queries the code graph, cannot modify files
+  - No file system or network access beyond the api object
+  - Must \`return\` a value (otherwise result is undefined)
+  - Must \`await\` API calls (all are async)
+
+Errors:
+  - Symbol/file not found: { success: false, error: "Symbol not found" }
+  - Timeout exceeded: { success: false, error: "Execution timeout" }`,
 
 	shortDescription:
-		'Code Mode - Write JavaScript to access all Constellation capabilities',
+		'Execute JavaScript to query code intelligence (search, dependencies, impact)',
 
 	whenToUse: [
-		'**ALWAYS** - This is the only tool available',
-		'**ANY REQUEST** - Search, analysis, dependencies, architecture overview, etc.',
-		'Simple queries: Write code like `return await api.searchSymbols({ query: "User" })`',
-		'Complex analysis: Chain multiple API calls with custom logic',
-		'Parallel operations: Use Promise.all() for concurrent execution',
-		'All codebase exploration must be done through Code Mode',
-		'Remember: There are NO other tools - you MUST write code',
+		'ALWAYS use this tool - it is the only one available',
+		'Simple query: return await api.searchSymbols({ query: "X" })',
+		'Complex analysis: chain multiple API calls with custom logic',
+		'Parallel execution: use Promise.all() for concurrent API calls',
+		'Composite workflows: combine search, analysis, and computation in ONE call',
 	],
 
 	relatedTools: ['execute_code'], // Self-reference to satisfy validation (only tool available)
@@ -81,7 +98,7 @@ api.findOrphanedCode({ filePattern?, filterByKind? }) → { orphanedSymbols[], o
 ### Architecture
 api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { metadata, structure, dependencies }
 
-### Discovery
+### Utility
 api.listMethods() → { methods[], usage, example }
 `,
 
@@ -279,7 +296,7 @@ return {
 		'dependency tree',
 		// Impact (4)
 		'is it safe to change',
-		'impact of refactoring',
+		'impact analysis',
 		'breaking changes',
 		'blast radius',
 		// Architecture (2)
@@ -288,7 +305,7 @@ return {
 		// Dead code (3)
 		'unused code',
 		'dead code',
-		'find orphaned code',
+		'orphaned code',
 		// Circular deps (1)
 		'circular dependency',
 		// Call graph (2)

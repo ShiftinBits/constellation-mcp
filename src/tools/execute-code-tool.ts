@@ -95,6 +95,12 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				time: z.number().optional(),
 				error: z.string().optional(),
 			},
+			annotations: {
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
 		},
 		async ({ code, timeout }) => {
 			console.error('[execute_code] Executing code mode script');

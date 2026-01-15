@@ -179,6 +179,51 @@ try {
 }
 \`\`\`
 
+## Composite Workflows
+
+**Why Code Mode is Powerful**: A single \`execute_code\` call can replace 6+ traditional MCP tool calls with deterministic results.
+
+Traditional MCP tools would require separate calls for search, details, usage, dependencies, dependents, and impact analysis. The AI then synthesizes results non-deterministically. With Code Mode, you compose everything in one execution with custom logic.
+
+### Comprehensive Symbol Analysis Pattern
+
+\`\`\`javascript
+const symbolName = "UserService";
+
+// Step 1: Find the symbol
+const search = await api.searchSymbols({ query: symbolName, limit: 1 });
+if (search.symbols.length === 0) {
+  return { error: \`Symbol "\${symbolName}" not found\` };
+}
+const symbol = search.symbols[0];
+
+// Step 2: Parallel analysis (5 API calls in one round-trip)
+const [details, usage, deps, dependents, impact] = await Promise.all([
+  api.getSymbolDetails({ symbolId: symbol.id, includeRelationships: true }),
+  api.traceSymbolUsage({ symbolId: symbol.id, excludeTests: true }),
+  api.getDependencies({ filePath: symbol.filePath, depth: 2 }),
+  api.getDependents({ filePath: symbol.filePath, depth: 2 }),
+  api.impactAnalysis({ symbolId: symbol.id, analyzeBreakingChanges: true })
+]);
+
+// Step 3: Custom risk calculation (deterministic)
+const usageCount = usage.directUsages?.length || 0;
+const dependentCount = dependents.directDependents?.length || 0;
+let riskLevel = "LOW";
+if (usageCount > 50 || dependentCount > 20) riskLevel = "HIGH";
+else if (usageCount > 20 || dependentCount > 10) riskLevel = "MEDIUM";
+
+return {
+  symbol,
+  metrics: { usageCount, dependencyCount: deps.directDependencies?.length || 0, dependentCount, riskLevel },
+  relationships: details.relationships,
+  impact: impact.summary,
+  breakingChangeRisk: impact.breakingChangeRisk
+};
+\`\`\`
+
+**Result**: 6 operations + custom logic in ONE tool call. Traditional tools would require 6 calls plus non-deterministic AI synthesis.
+
 ## Best Practices
 
 ### Start Small, Escalate
