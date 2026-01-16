@@ -452,6 +452,8 @@ export interface FindOrphanedCodeParams {
 	filePattern?: string;
 	filterByKind?: string[];
 	exportedOnly?: boolean;
+	/** Exclude test files from orphan analysis @default true */
+	excludeTests?: boolean;
 	includeReasons?: boolean;
 	includeConfidence?: boolean;
 	limit?: number;

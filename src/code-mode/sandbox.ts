@@ -340,6 +340,23 @@ export class CodeModeSandbox {
 		const client = this.client;
 		const projectContext = this.options.projectContext;
 
+		// Parameter transformation for known MCP → Core mismatches
+		// This handles cases where MCP api-types.ts uses different param names than Core executors
+		const transformParams = (toolName: string, params: any): any => {
+			if (!params || typeof params !== 'object') return params;
+
+			// Make a shallow copy to avoid mutating the original
+			const transformed = { ...params };
+
+			// search_symbols: MCP uses 'isExported', Core expects 'filterByExported'
+			if (toolName === 'search_symbols' && 'isExported' in transformed) {
+				transformed.filterByExported = transformed.isExported;
+				delete transformed.isExported;
+			}
+
+			return transformed;
+		};
+
 		// Create simple API proxy for Code Mode
 		// Maps method names to tool names
 		const api = new Proxy(
@@ -378,7 +395,9 @@ export class CodeModeSandbox {
 
 					// Return async function that calls the executor
 					return async (params: any) => {
-						return executor(toolName, params);
+						// Transform params for known mismatches between MCP and Core
+						const transformedParams = transformParams(toolName, params);
+						return executor(toolName, transformedParams);
 					};
 				},
 			},
