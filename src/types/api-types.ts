@@ -595,3 +595,18 @@ export interface GetArchitectureOverviewResult {
 	metrics?: QualityMetrics;
 	moduleGraph?: ModuleGraph;
 }
+
+/**
+ * Ping
+ * Mirrors constellation-core/apps/client-api/src/mcp/dto/ping.dto.ts
+ */
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface PingParams {
+	// No parameters - ping validates auth/project access from request context
+}
+
+export interface PingResult {
+	/** Always true on success - indicates connectivity verified */
+	pong: true;
+}

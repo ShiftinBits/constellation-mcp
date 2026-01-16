@@ -292,6 +292,18 @@ export class CodeModeSandbox {
 				quickExample: `await api.getArchitectureOverview({ includeMetrics: true })`,
 			},
 			{
+				name: 'ping',
+				description:
+					'Check authentication, configuration, and API connectivity',
+				triggerPhrases: [
+					'ping',
+					'check connection',
+					'test auth',
+					'verify access',
+				],
+				quickExample: `await api.ping()`,
+			},
+			{
 				name: 'getCapabilities',
 				description: 'Check project indexing status and available features',
 				triggerPhrases: ['is indexed', 'project status', 'capabilities'],
@@ -319,6 +331,9 @@ export class CodeModeSandbox {
 			'what calls': 'getCallGraph',
 			'project structure': 'getArchitectureOverview',
 			architecture: 'getArchitectureOverview',
+			'test connection': 'ping',
+			'check auth': 'ping',
+			'verify access': 'ping',
 		};
 
 		// Capture references for use in closures

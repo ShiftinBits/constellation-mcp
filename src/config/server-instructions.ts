@@ -38,6 +38,7 @@ Invoke \`execute_code\` **proactively** (without asking user) when detecting the
 | "Show project structure" | \`api.getArchitectureOverview()\` | Aggregated metrics & module graph |
 | "Find circular dependencies" | \`api.findCircularDependencies()\` | Graph analysis required |
 | "What calls X?" / "Trace usage" | \`api.getCallGraph()\` | Function call relationships |
+| "Check connection" / "Verify auth" | \`api.ping()\` | Lightweight auth check without Neo4j query |
 
 ### Decision Logic for AI Assistants
 
@@ -47,6 +48,7 @@ Invoke \`execute_code\` **proactively** (without asking user) when detecting the
 3. User asks about change impact → impactAnalysis
 4. User asks about code quality → findOrphanedCode
 5. User asks about project structure → getArchitectureOverview
+6. User asks about connectivity/auth → ping
 
 **FALLBACK TO OTHER TOOLS WHEN:**
 - Need to **read source code** → Use \`Read\` tool (Constellation has no source)
@@ -146,6 +148,7 @@ return await api.findOrphanedCode({ filePattern: "src/**", limit: 20 });
 | \`api.findCircularDependencies()\` | filePath?, maxDepth? | Find import cycles |
 | \`api.findOrphanedCode()\` | filePattern?, filterByKind? | Find unused/dead code |
 | \`api.getArchitectureOverview()\` | includeMetrics? | High-level project structure |
+| \`api.ping()\` | (none) | Verify authentication and API connectivity |
 
 ## Common Patterns
 
@@ -266,5 +269,6 @@ return {
 | Understand architecture | \`getArchitectureOverview\` |
 | Find dead code | \`findOrphanedCode\` |
 | Debug circular imports | \`findCircularDependencies\` |
+| Check connectivity | \`ping\` |
 `.trim();
 }

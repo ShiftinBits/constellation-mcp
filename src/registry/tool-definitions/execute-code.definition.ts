@@ -85,6 +85,7 @@ api.findCircularDependencies({ filePath?, maxDepth? }) → { cycles[], totalCycl
 api.findOrphanedCode({ filePattern?, filterByKind? }) → { orphanedSymbols[], orphanedFiles[] }
 
 ### Utility
+api.ping() → { pong: true }  // Verify auth & connectivity (no Neo4j)
 api.listMethods() → { methods[], usage, example }
 `,
 
@@ -316,6 +317,9 @@ return {
 		// Call graph (2)
 		'what calls this',
 		'find all usages',
+		// Connectivity (2)
+		'check connection',
+		'verify auth',
 	],
 
 	sinceVersion: '0.1.0',
