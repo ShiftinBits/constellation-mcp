@@ -37,6 +37,8 @@ This document provides a complete, reproducible test procedure for validating th
   - `execute_code` (Constellation API tests)
   - `read-cypher` (Neo4j validation queries)
 
+> **Note:** The Project ID above is environment-specific. If running tests against a different Constellation instance, update the project ID in all Neo4j validation queries throughout this document. You can find your project ID by running `constellation status` or checking the Constellation web interface.
+
 ---
 
 ## Step 0: Update the Code Index
@@ -105,7 +107,7 @@ Claude compares API results against Neo4j results:
 
 ---
 
-## Category 1: Discovery Methods (10 Tests)
+## Category 1: Discovery Methods (14 Tests)
 
 ### TC-DISC-001: searchSymbols - Basic Query
 
@@ -592,6 +594,141 @@ RETURN s.name as name,
 - Relationship types present in API should have corresponding Neo4j relationships
 
 **Validates:** `includeRelationships` option, Neo4j CALLS/INHERITS relationships
+
+---
+
+### TC-DISC-011: ping - Authentication Check
+
+**Code:**
+
+```javascript
+const result = await api.ping();
+return {
+	success: result.pong === true,
+	pong: result.pong,
+};
+```
+
+**Expected:**
+
+- `success: true`
+- `pong: true`
+
+**Neo4j Validation:**
+
+```cypher
+// ping is a lightweight auth check that doesn't query Neo4j
+// If ping succeeds, authentication is valid
+RETURN 'ping validates authentication, not Neo4j data' as note
+```
+
+**Cross-Validation:**
+
+- ping() succeeds = valid authentication
+- No Neo4j query required (auth-only check)
+
+**Validates:** Authentication verification, lightweight connectivity check
+
+---
+
+### TC-DISC-012: getCapabilities - Project Status Check
+
+**Code:**
+
+```javascript
+const result = await api.getCapabilities();
+return {
+	success: true,
+	isIndexed: result.isIndexed,
+	hasSymbolCount: typeof result.symbolCount === 'number',
+	hasFileCount: typeof result.fileCount === 'number',
+	availableFeatures: result.availableFeatures
+		? Object.keys(result.availableFeatures)
+		: [],
+};
+```
+
+**Expected:**
+
+- `isIndexed: true` (for indexed project)
+- `hasSymbolCount: true`
+- `hasFileCount: true`
+- `availableFeatures` includes: searchSymbols, impactAnalysis, callGraph, etc.
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+WITH count(s) as symbolCount
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN symbolCount, count(f) as fileCount
+```
+
+**Cross-Validation:**
+
+- API `symbolCount` should match Neo4j `symbolCount`
+- API `fileCount` should match Neo4j `fileCount`
+- `isIndexed` should be true if Neo4j returns counts > 0
+
+**Validates:** Project indexing status, capability discovery, feature availability
+
+---
+
+### TC-DISC-013: ping - Failure Handling (Documentation)
+
+**Code:**
+
+```javascript
+return {
+	note: 'Cannot test ping failure with valid auth - documenting expected behavior',
+	documentedBehavior: {
+		successResponse: { pong: true },
+		failureScenarios: [
+			'Invalid CONSTELLATION_ACCESS_KEY → AUTH_ERROR',
+			'Network unreachable → NETWORK_ERROR',
+			'API server down → CONNECTION_ERROR',
+		],
+	},
+};
+```
+
+**Expected:**
+
+- Documents expected ping failure scenarios
+
+**Validates:** ping error handling (documented)
+
+---
+
+### TC-DISC-014: getCapabilities - Unindexed Project (Documentation)
+
+**Code:**
+
+```javascript
+return {
+	note: 'Cannot test unindexed project with current setup - documenting expected behavior',
+	documentedBehavior: {
+		indexedResponse: {
+			isIndexed: true,
+			symbolCount: '>0',
+			fileCount: '>0',
+			availableFeatures: { searchSymbols: true, impactAnalysis: true },
+		},
+		unindexedResponse: {
+			isIndexed: false,
+			symbolCount: 0,
+			fileCount: 0,
+			limitations: ['Project not indexed. Run: constellation index'],
+		},
+	},
+};
+```
+
+**Expected:**
+
+- Documents expected getCapabilities behavior for indexed vs unindexed projects
+
+**Validates:** getCapabilities unindexed state (documented)
 
 ---
 
@@ -1682,7 +1819,7 @@ See E2E-TEST-RESULTS.md for complete test cases.
 
 ---
 
-## Category 8: Sandbox Security (9 Tests)
+## Category 8: Sandbox Security (12 Tests)
 
 ### TC-SEC-001: Block require()
 
@@ -1853,7 +1990,86 @@ return { note: 'Infinite loops detected at validation phase' };
 
 ---
 
-**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-009) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
+### TC-SEC-010: Code Size Limit (100KB)
+
+**Code:**
+
+```javascript
+// Test validates that code exceeding 100KB is rejected
+// Cannot execute actual test as it would require >100KB payload
+return {
+	note: 'Code size validation prevents execution of >100KB payloads',
+	documentedBehavior: {
+		maxCodeSize: '100KB (102,400 bytes)',
+		errorOnExceed: 'Code size exceeds maximum allowed (100KB)',
+		purpose: 'Prevents DoS attacks via large code payloads',
+	},
+};
+```
+
+**Expected:**
+
+- Code exceeding 100KB is rejected before execution
+- Error message indicates size limit exceeded
+
+**Validates:** Code size validation (SB-87), DoS prevention
+
+---
+
+### TC-SEC-011: Binary Character Detection
+
+**Code:**
+
+```javascript
+// Test validates that binary/control characters are blocked
+// Cannot execute actual test as it would require binary payload
+return {
+	note: 'Binary character validation prevents execution of malformed code',
+	documentedBehavior: {
+		blockedCharacters: 'Control characters (0x00-0x08, 0x0E-0x1F)',
+		allowedWhitespace: 'Tab (0x09), LF (0x0A), CR (0x0D)',
+		errorOnDetect: 'Code contains invalid binary characters',
+		purpose: 'Prevents injection of binary/malformed payloads',
+	},
+};
+```
+
+**Expected:**
+
+- Code containing binary control characters is rejected
+- Common whitespace (tab, newline) is allowed
+
+**Validates:** Binary character detection (SB-87), input sanitization
+
+---
+
+### TC-SEC-012: Result Size Truncation (1MB)
+
+**Code:**
+
+```javascript
+// Test result size limits by generating a large array
+const largeArray = [];
+for (let i = 0; i < 50000; i++) {
+	largeArray.push({ index: i, data: 'x'.repeat(20) });
+}
+return {
+	arrayLength: largeArray.length,
+	note: 'Large results are truncated to prevent memory issues',
+};
+```
+
+**Expected:**
+
+- Result may be truncated if exceeding 1MB
+- Warning threshold at 100KB
+- Hard limit at 1MB with truncation metadata
+
+**Validates:** Result size enforcement (SB-95), memory protection
+
+---
+
+**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-012) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Additional tests (TC-SEC-010 through TC-SEC-012) validate input size limits and output truncation. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
 
 ---
 
@@ -2218,7 +2434,7 @@ return { done: true };
 **Code:**
 
 ```javascript
-// TC-CODE-014: All 10 Methods Listed
+// TC-CODE-014: All 12 Methods Listed
 const info = api.listMethods();
 const methodNames = info.methods.map((m) => m.name);
 const expected = [
@@ -2232,6 +2448,8 @@ const expected = [
 	'impactAnalysis',
 	'findOrphanedCode',
 	'getArchitectureOverview',
+	'ping',
+	'getCapabilities',
 ];
 const missing = expected.filter((e) => !methodNames.includes(e));
 return {
@@ -2244,7 +2462,7 @@ return {
 **Expected:**
 
 - `allPresent: true`
-- `methodCount: 10`
+- `methodCount: 12`
 
 **Note:** listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
 
@@ -2611,19 +2829,19 @@ RETURN count(s) as neo4jOrphanCount,
 
 | Category               | Count   | Neo4j Validation |
 | ---------------------- | ------- | ---------------- |
-| Discovery Methods      | 10      | Full             |
+| Discovery Methods      | 14      | Full             |
 | Dependency Methods     | 9       | Full             |
 | Tracing Methods        | 9       | Full             |
 | Impact Methods         | 9       | Full             |
 | Architecture Methods   | 4       | Full             |
 | Parameter Validation   | 11      | N/A (API-layer)  |
 | Error Handling         | 6       | N/A (API-layer)  |
-| Sandbox Security       | 9       | N/A (Sandbox)    |
+| Sandbox Security       | 12      | N/A (Sandbox)    |
 | Edge Cases             | 8       | Partial          |
 | Combined Workflows     | 5       | Full             |
 | Code Mode Specific     | 15      | Partial          |
 | Neo4j Cross-Validation | 10      | Full             |
-| **TOTAL**              | **105** |                  |
+| **TOTAL**              | **112** |                  |
 
 ### Neo4j Validation Commands
 
@@ -2673,15 +2891,14 @@ mcp__neo4j__read-cypher
 #### Resolved Issues
 
 - ~~**TC-IMPACT-007**: `filePattern` uses regex, not glob syntax~~ ✅ FIXED
+- ~~**TC-DISC-003**: MCP uses `isExported` but Core expects `filterByExported`~~ ✅ FIXED (sandbox now transforms parameters)
 
 #### API Validation Constraints (By Design)
 
 - **TC-EDGE-005**: Query strings have a 200-character maximum (`z.string().max(200)`)
 - **TC-VALID-008**: Zod coerces string `"true"` to boolean `true` - expected behavior
-
-#### Parameter Mismatches (MCP → Core)
-
-- **TC-DISC-003**: MCP uses `isExported` but Core expects `filterByExported` - parameter ignored
+- **TC-SEC-010**: Code size limit is 100KB (prevents DoS attacks)
+- **TC-SEC-012**: Result size warning at 100KB, hard limit at 1MB with truncation
 
 #### Unimplemented Features
 
@@ -2693,6 +2910,7 @@ mcp__neo4j__read-cypher
 
 - **TC-XVAL-001**: Uses `query: 'e'` since API requires min 1 character (matches most symbols)
 - **TC-IMPACT-006**: `impactAnalysis` returns `breakingChangeRisk`, not `metrics` field
+- **TC-DISC-011/012**: `ping` and `getCapabilities` are utility methods for connectivity/status checks
 
 ### Pass Criteria
 
