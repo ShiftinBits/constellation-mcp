@@ -16,10 +16,16 @@
 			"mcp__context7__*",
 			"mcp__tree-sitter__*",
 			"mcp__memory__*",
-			"mcp__sequential-thinking__*"
+			"mcp__sequential-thinking__*",
+			"mcp__plugin_linear_linear__*",
+			"mcp__plugin_constellation_constellation__execute_code"
 		],
 		"deny": [],
 		"ask": []
 	},
-	"enableAllProjectMcpServers": true
+	"enableAllProjectMcpServers": true,
+	"enabledPlugins": {
+		"linear@claude-plugins-official": true,
+		"constellation@constellation-plugins": true
+	}
 }

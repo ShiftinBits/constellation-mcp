@@ -1,9 +1,5 @@
 {
 	"mcpServers": {
-		"constellation": {
-			"type": "stdio",
-			"command": "mcp-constellation"
-		},
 		"neo4j": {
 			"type": "stdio",
 			"command": "neo4j-mcp",
