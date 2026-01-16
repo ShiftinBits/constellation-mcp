@@ -317,9 +317,6 @@ return {
 		// Call graph (2)
 		'what calls this',
 		'find all usages',
-		// Connectivity (2)
-		'check connection',
-		'verify auth',
 	],
 
 	sinceVersion: '0.1.0',
