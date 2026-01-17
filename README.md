@@ -57,9 +57,6 @@ flowchart LR
     a1@{ animation: fast }
     a2@{ animation: fast }
 
-    click cli "https://www.github.com/shiftinbits/constellation-cli" "Go to CLI project repository"
-    click mcp "https://www.github.com/shiftinbits/constellation-mcp" "Go to MCP project repository"
-
     style local fill:#1F1F28
     style cloud fill:#1F1F28,stroke:#4A90E2
     style cli stroke:#4A90E2
