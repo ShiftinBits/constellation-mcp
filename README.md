@@ -10,7 +10,7 @@ Give your AI coding assistant instant, intelligent access to your entire codebas
 
 Add the Constellation MCP server to your AI assistant project-level config (or system-level if your tooling doesn't support project-level configuration):
 
-```json filename=".mcp.json"
+```json
 {
   "mcpServers": {
     "constellation": {
