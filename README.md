@@ -12,13 +12,13 @@ Add the Constellation MCP server to your AI assistant project-level config (or s
 
 ```json filename=".mcp.json"
 {
-	"mcpServers": {
-		"constellation": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@constellationdev/mcp@latest"]
-		}
-	}
+  "mcpServers": {
+    "constellation": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@constellationdev/mcp@latest"]
+    }
+  }
 }
 ```
 

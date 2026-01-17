@@ -1,7 +1,15 @@
 {
-  "singleQuote": true,
-  "trailingComma": "all",
-  "useTabs": true,
-  "tabWidth": 2,
-  "endOfLine": "lf"
+	"singleQuote": true,
+	"trailingComma": "all",
+	"useTabs": true,
+	"tabWidth": 2,
+	"endOfLine": "lf",
+	"overrides": [
+		{
+			"files": "*.md",
+			"options": {
+				"embeddedLanguageFormatting": "off"
+			}
+		}
+	]
 }
