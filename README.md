@@ -2,7 +2,7 @@
 
 [![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](https://vscode.dev/redirect/mcp/install?name=Constellation%20MCP&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%22%5D%7D) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20Claude%20Code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
 
-**Connecting the stars in your code into intelligent patters**
+**Connecting the stars in your code into intelligent patterns**
 
 Give your AI coding assistant instant, intelligent access to your entire codebase's structure, dependencies, and relationships without transmitting any source code. Constellation provides code intelligence as a service to AI coding assistant tools.
 
