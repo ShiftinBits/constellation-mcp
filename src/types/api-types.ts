@@ -612,3 +612,60 @@ export interface PingResult {
 	/** Always true on success - indicates connectivity verified */
 	pong: true;
 }
+
+/**
+ * Indexing Response Types
+ * Mirrors constellation-core/apps/client-api/src/interfaces/indexing.interface.ts
+ */
+
+/**
+ * Represents a file that failed to index during processing.
+ */
+export interface FileFailure {
+	file: string;
+	error: string;
+}
+
+/**
+ * Represents a file with relationship creation failures.
+ * Tracks which files had issues creating graph relationships.
+ */
+export interface RelationshipFailure {
+	file: string;
+	failedCount: number;
+	createdCount: number;
+	/** Whether failures were due to transient errors (retryable) */
+	isTransient: boolean;
+}
+
+/**
+ * Summary of relationship creation results.
+ */
+export interface RelationshipSummary {
+	totalCreated: number;
+	totalFailed: number;
+	/** Files that had at least one relationship failure */
+	filesWithFailures: RelationshipFailure[];
+}
+
+/**
+ * Response from AST indexing operations.
+ *
+ * Note: This response reflects Pass 1 (node creation) and Pass 2 (relationship
+ * creation) results only. Pass 3 (cross-file symbol resolution) runs asynchronously
+ * AFTER this response is sent.
+ */
+export interface IndexingResponse {
+	/** Number of files successfully processed in Pass 1 */
+	processed: number;
+	/** Number of files that failed in Pass 1 */
+	failed: number;
+	/** Project identifier */
+	projectId: string;
+	/** Git branch name */
+	branchName: string;
+	/** Details of files that failed during Pass 1 (node creation) */
+	failedFiles?: FileFailure[];
+	/** Summary of relationship creation results from Pass 2 (always present) */
+	relationships: RelationshipSummary;
+}
