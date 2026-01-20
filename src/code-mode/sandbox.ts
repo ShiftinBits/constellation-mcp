@@ -113,9 +113,10 @@ export class CodeModeSandbox {
 			});
 
 			// Run script with VM timeout (catches sync hangs) and race with timeout Promise (catches async hangs)
+			// Note: breakOnSigint uses POSIX signals which don't work on Windows
 			const scriptResult = script.runInContext(context, {
 				timeout: timeoutMs,
-				breakOnSigint: true,
+				breakOnSigint: process.platform !== 'win32',
 			});
 
 			try {

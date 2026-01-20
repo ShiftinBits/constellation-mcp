@@ -186,7 +186,7 @@ export class ConstellationClient {
 		for (let i = 1; i <= retries; i++) {
 			try {
 				const controller = new AbortController();
-				let timeoutTimer: NodeJS.Timeout | undefined;
+				let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
 
 				if (timeout > 0) {
 					timeoutTimer = setTimeout(() => controller.abort(), timeout);

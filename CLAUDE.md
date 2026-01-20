@@ -218,8 +218,17 @@ export class ConstellationClient {
 **Environment Variables** (required):
 
 ```bash
+# Unix/Linux/macOS
 export CONSTELLATION_ACCESS_KEY=ak_00000000-...
 export CONSTELLATION_API_URL=http://localhost:3000
+
+# Windows Command Prompt
+set CONSTELLATION_ACCESS_KEY=ak_00000000-...
+set CONSTELLATION_API_URL=http://localhost:3000
+
+# Windows PowerShell
+$env:CONSTELLATION_ACCESS_KEY="ak_00000000-..."
+$env:CONSTELLATION_API_URL="http://localhost:3000"
 ```
 
 **Config Manager**:

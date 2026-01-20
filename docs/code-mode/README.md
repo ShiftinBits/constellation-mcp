@@ -542,8 +542,14 @@ npm run build
 3. Set environment variables:
 
 ```bash
+# Unix/Linux/macOS
 export CONSTELLATION_ACCESS_KEY=your_key
-export CONSTELLATION_API_URL=http://localhost:3000
+
+# Windows Command Prompt
+set CONSTELLATION_ACCESS_KEY=your_key
+
+# Windows PowerShell
+$env:CONSTELLATION_ACCESS_KEY="your_key"
 ```
 
 4. Run the MCP server:

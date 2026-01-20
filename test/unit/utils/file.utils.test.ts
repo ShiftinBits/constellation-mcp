@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import path from 'path';
 import type { Stats } from 'fs';
 
 // Mock fs module before importing FileUtils
@@ -287,6 +288,20 @@ describe('FileUtils', () => {
 		it('should handle complex paths with parent references', () => {
 			const result = FileUtils.isRootDirectory('/home/user/../user/projects');
 
+			expect(result).toBe(false);
+		});
+
+		it('should detect platform root directory', () => {
+			// Get the actual root for the current platform
+			const root = path.parse(process.cwd()).root;
+			const result = FileUtils.isRootDirectory(root);
+			expect(result).toBe(true);
+		});
+
+		it('should detect non-root on current platform', () => {
+			// A path that definitely isn't root on any platform
+			const nonRoot = path.join(path.parse(process.cwd()).root, 'some', 'path');
+			const result = FileUtils.isRootDirectory(nonRoot);
 			expect(result).toBe(false);
 		});
 	});
