@@ -86,6 +86,10 @@ export class CodeModeSandbox {
 		const startTime = Date.now();
 		const logs: string[] = [];
 
+		// FIX: Declare timeoutHandle outside try block so it can be cleaned up in all paths
+		const timeoutMs = this.options.timeout;
+		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
 		try {
 			// Create sandbox context with API bindings
 			const sandbox = this.createSandboxContext(logs);
@@ -104,8 +108,6 @@ export class CodeModeSandbox {
 			// Async code (including our async IIFE wrapper) returns a Promise immediately,
 			// which means infinite async loops would bypass the timeout.
 			// Use Promise.race() to enforce timeout on the entire async execution.
-			const timeoutMs = this.options.timeout;
-			let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 			const timeoutPromise = new Promise<never>((_, reject) => {
 				timeoutHandle = setTimeout(() => {
 					reject(new Error('Script execution timed out'));
@@ -119,25 +121,18 @@ export class CodeModeSandbox {
 				breakOnSigint: process.platform !== 'win32',
 			});
 
-			try {
-				// Race the script result (which may be a Promise) against the timeout
-				const result = await Promise.race([
-					Promise.resolve(scriptResult),
-					timeoutPromise,
-				]);
+			// Race the script result (which may be a Promise) against the timeout
+			const result = await Promise.race([
+				Promise.resolve(scriptResult),
+				timeoutPromise,
+			]);
 
-				return {
-					success: true,
-					result,
-					logs,
-					executionTime: Date.now() - startTime,
-				};
-			} finally {
-				// Clean up timeout to prevent unhandled rejection warnings
-				if (timeoutHandle) {
-					clearTimeout(timeoutHandle);
-				}
-			}
+			return {
+				success: true,
+				result,
+				logs,
+				executionTime: Date.now() - startTime,
+			};
 		} catch (error) {
 			// Create structured error to preserve error type information
 			const structuredError = createStructuredError(error, 'execute');
@@ -149,6 +144,13 @@ export class CodeModeSandbox {
 				logs,
 				executionTime: Date.now() - startTime,
 			};
+		} finally {
+			// FIX: Clean up timeout in ALL paths (success, VM timeout error, or other errors)
+			// This prevents unhandled promise rejections when VM's internal timeout fires
+			// before the Promise-based timeout, leaving the setTimeout dangling
+			if (timeoutHandle) {
+				clearTimeout(timeoutHandle);
+			}
 		}
 	}
 
