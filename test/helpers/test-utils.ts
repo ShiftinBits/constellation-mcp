@@ -2,12 +2,15 @@ import { jest } from '@jest/globals';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import type { McpToolResult } from '../../src/types/mcp-response.js';
 
 /**
  * Create a temporary directory for tests
  */
 export async function createTempDir(): Promise<string> {
-	const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'constellation-mcp-test-'));
+	const tmpDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), 'constellation-mcp-test-'),
+	);
 	return tmpDir;
 }
 
@@ -25,7 +28,11 @@ export async function cleanupTempDir(dirPath: string): Promise<void> {
 /**
  * Create a test file with content
  */
-export async function createTestFile(dirPath: string, fileName: string, content: string): Promise<string> {
+export async function createTestFile(
+	dirPath: string,
+	fileName: string,
+	content: string,
+): Promise<string> {
 	const filePath = path.join(dirPath, fileName);
 	const fileDir = path.dirname(filePath);
 
@@ -39,11 +46,22 @@ export async function createTestFile(dirPath: string, fileName: string, content:
 /**
  * Create a mock Response object
  */
-export function createMockResponse(status: number, ok: boolean, data?: any): any {
+export function createMockResponse(
+	status: number,
+	ok: boolean,
+	data?: any,
+): any {
 	return {
 		ok,
 		status,
-		statusText: status === 200 ? 'OK' : status === 401 ? 'Unauthorized' : status === 404 ? 'Not Found' : 'Error',
+		statusText:
+			status === 200
+				? 'OK'
+				: status === 401
+					? 'Unauthorized'
+					: status === 404
+						? 'Not Found'
+						: 'Error',
 		// @ts-expect-error - Mock data type compatibility
 		json: jest.fn().mockResolvedValue(data),
 		// @ts-expect-error - Mock data type compatibility
@@ -64,12 +82,17 @@ export function createMockResponse(status: number, ok: boolean, data?: any): any
 /**
  * Create a mock McpToolResult
  */
-export function createMockToolResult<T>(success: boolean, data?: T, error?: string): any {
+export function createMockToolResult<T>(
+	success: boolean,
+	data?: T,
+	error?: string,
+): McpToolResult<T> {
 	return {
 		success,
 		data,
 		error,
 		metadata: {
+			toolName: 'mock_tool',
 			executionTime: 123,
 			cached: false,
 			timestamp: '2025-01-22T00:00:00.000Z',
@@ -85,4 +108,3 @@ export function mockGlobalFetch(): jest.Mock {
 	global.fetch = mockFetch as any;
 	return mockFetch;
 }
-

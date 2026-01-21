@@ -10,10 +10,102 @@ import { ConstellationClient } from '../client/constellation-client.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { createStructuredError } from '../client/error-factory.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
+import type { McpToolResult } from '../types/mcp-response.js';
 import {
 	getProjectCapabilities,
 	type ProjectCapabilities,
 } from './capabilities.js';
+
+// Import API types to ensure type safety and establish dependency
+import type {
+	SearchSymbolsParams,
+	SearchSymbolsResult,
+	GetSymbolDetailsParams,
+	GetSymbolDetailsResult,
+	GetDependenciesParams,
+	GetDependenciesResult,
+	GetDependentsParams,
+	GetDependentsResult,
+	FindCircularDependenciesParams,
+	FindCircularDependenciesResult,
+	TraceSymbolUsageParams,
+	TraceSymbolUsageResult,
+	GetCallGraphParams,
+	GetCallGraphResult,
+	FindOrphanedCodeParams,
+	FindOrphanedCodeResult,
+	ImpactAnalysisParams,
+	ImpactAnalysisResult,
+	GetArchitectureOverviewParams,
+	GetArchitectureOverviewResult,
+	PingResult,
+} from '../types/api-types.js';
+
+/**
+ * Method metadata for listMethods() response
+ */
+export interface MethodInfo {
+	name: string;
+	description: string;
+	triggerPhrases: string[];
+	quickExample: string;
+}
+
+/**
+ * Response from api.listMethods()
+ */
+export interface ListMethodsResult {
+	methods: MethodInfo[];
+	usage: string;
+	example: string;
+	decisionGuide: Record<string, string>;
+	tip: string;
+}
+
+/**
+ * Typed interface for the Constellation API exposed in Code Mode sandbox.
+ *
+ * This interface ensures type safety between the sandbox implementation
+ * and the documented API types in api-types.d.ts.
+ */
+export interface ConstellationApi {
+	// Discovery methods
+	searchSymbols(params: SearchSymbolsParams): Promise<SearchSymbolsResult>;
+	getSymbolDetails(
+		params: GetSymbolDetailsParams,
+	): Promise<GetSymbolDetailsResult>;
+
+	// Dependency analysis
+	getDependencies(
+		params: GetDependenciesParams,
+	): Promise<GetDependenciesResult>;
+	getDependents(params: GetDependentsParams): Promise<GetDependentsResult>;
+	findCircularDependencies(
+		params: FindCircularDependenciesParams,
+	): Promise<FindCircularDependenciesResult>;
+
+	// Usage analysis
+	traceSymbolUsage(
+		params: TraceSymbolUsageParams,
+	): Promise<TraceSymbolUsageResult>;
+	getCallGraph(params: GetCallGraphParams): Promise<GetCallGraphResult>;
+
+	// Impact and quality
+	impactAnalysis(params: ImpactAnalysisParams): Promise<ImpactAnalysisResult>;
+	findOrphanedCode(
+		params: FindOrphanedCodeParams,
+	): Promise<FindOrphanedCodeResult>;
+
+	// Architecture
+	getArchitectureOverview(
+		params?: GetArchitectureOverviewParams,
+	): Promise<GetArchitectureOverviewResult>;
+
+	// Utility
+	ping(): Promise<PingResult>;
+	listMethods(): ListMethodsResult;
+	getCapabilities(): Promise<ProjectCapabilities>;
+}
 
 /**
  * Sandbox configuration options
@@ -220,7 +312,7 @@ export class CodeModeSandbox {
 		};
 
 		// Available API methods for listMethods() with enhanced metadata
-		const availableMethods = [
+		const availableMethods: MethodInfo[] = [
 			{
 				name: 'searchSymbols',
 				description: 'Search for symbols by name/pattern',
@@ -360,12 +452,12 @@ export class CodeModeSandbox {
 			return transformed;
 		};
 
-		// Create simple API proxy for Code Mode
-		// Maps method names to tool names
-		const api = new Proxy(
+		// Create typed API proxy for Code Mode
+		// Maps method names to tool names while maintaining type safety
+		const api: ConstellationApi = new Proxy(
 			{
 				// Special method for discoverability with enhanced metadata
-				listMethods: () => ({
+				listMethods: (): ListMethodsResult => ({
 					methods: availableMethods,
 					usage: 'Call any method with: await api.methodName(params)',
 					example: "const result = await api.searchSymbols({ query: 'User' });",
@@ -376,15 +468,15 @@ export class CodeModeSandbox {
 				getCapabilities: async (): Promise<ProjectCapabilities> => {
 					return getProjectCapabilities(client, projectContext);
 				},
-			},
+			} as ConstellationApi,
 			{
 				get(target, prop) {
 					// Handle special methods on target
 					if (prop === 'listMethods') {
-						return (target as any).listMethods;
+						return target.listMethods;
 					}
 					if (prop === 'getCapabilities') {
-						return (target as any).getCapabilities;
+						return target.getCapabilities;
 					}
 
 					if (typeof prop !== 'string') return undefined;
@@ -397,7 +489,8 @@ export class CodeModeSandbox {
 					);
 
 					// Return async function that calls the executor
-					return async (params: any) => {
+					// The type safety is enforced by the ConstellationApi interface
+					return async (params: unknown) => {
 						// Transform params for known mismatches between MCP and Core
 						const transformedParams = transformParams(toolName, params);
 						return executor(toolName, transformedParams);

@@ -62,31 +62,77 @@ See apiReference for methods, methodSelection for when to use vs Grep/Glob.`,
 		required: ['code'],
 	},
 
-	// Condensed API type reference for AI assistants (ordered by typical usage)
+	// Condensed API type reference for AI assistants with nested structure hints
+	// For full TypeScript interfaces, read resource: constellation://types/api
 	apiReference: `
-## Available API Methods
+## Available API Methods (with nested response shapes)
 
 ### Start Here (Entry Points)
-api.searchSymbols({ query, filterByKind?, limit? }) → { symbols[], pagination? }
-api.getSymbolDetails({ symbolId | symbolName+filePath, includeReferences? }) → { symbol, references?, relationships? }
-api.getArchitectureOverview({ includeMetrics?, includeModuleGraph? }) → { metadata, structure, dependencies }
+
+api.searchSymbols({ query, filterByKind?, isExported?, limit?, offset?, includeUsageCount? })
+  → { symbols: [{ id, name, qualifiedName, kind, filePath, line, column?, isExported, signature?, usageCount? }],
+      pagination?: { total, returned, hasMore, nextOffset?, currentOffset } }
+
+api.getSymbolDetails({ symbolId | symbolName+filePath, includeReferences?, includeRelationships?, includeImpactScore? })
+  → { symbol: { id, name, qualifiedName, kind, filePath, line, signature?, modifiers?, decorators?, isDeprecated },
+      references?: [{ filePath, line, usageType, context?, aliasName? }],
+      relationships?: { calls[], calledBy[], inheritsFrom[], inheritedBy[], children[] },
+      impactScore?: { directUsage, transitiveImpact, riskScore, riskLevel } }
+
+api.getArchitectureOverview({ includeMetrics?, includeModuleGraph?, includePackages? })
+  → { metadata: { totalFiles, totalLines?, primaryLanguage, languages: [{ language, fileCount, percentage }], frameworks: [{ name, version?, confidence }] },
+      structure: { files: { total, byType: {ext: count}, byParadigm }, symbols: { total, byKind: {kind: count}, exported, public }, modules: { total, averageSize, largest } },
+      dependencies: { internal: { totalConnections, averagePerFile, mostConnectedFiles: [{ path, incomingCount, outgoingCount }] }, external: { totalPackages, directDependencies, topPackages: [{ name, usageCount, type? }] } },
+      metrics?: { complexity: { average, high }, maintainability: { score, issues[] }, testCoverage?: { percentage, testedFiles, totalFiles } },
+      moduleGraph?: { nodes: [{ id, name, fileCount, type }], edges: [{ from, to, weight }] } }
 
 ### Analysis (After Discovery)
-api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType? }) → { symbol, directUsages[] }
-api.impactAnalysis({ symbolId | symbolName+filePath, depth? }) → { symbol, impactedFiles[], summary, breakingChangeRisk? }
-api.getCallGraph({ symbolId | symbolName+filePath, direction?, depth? }) → { root, callers?, callees? }
+
+api.traceSymbolUsage({ symbolId | symbolName+filePath, filterByUsageType?, includeTransitive?, excludeTests? })
+  → { symbol: { name, kind, filePath },
+      directUsages: [{ filePath, usageType, relationshipType, line?, column?, enclosingSymbol?: { name, kind }, context?, aliasName?, isTest?, importanceWeight? }],
+      transitiveUsages?: [{ filePath, distance, chain[] }] }
+
+api.impactAnalysis({ symbolId | symbolName+filePath, depth?, excludeTests?, analyzeBreakingChanges? })
+  → { symbol: { id, name, qualifiedName, kind, filePath, line, column, isExported? },
+      directDependents?: [{ id, name, qualifiedName, kind, filePath, line, relationshipType, depth }],
+      transitiveDependents?: [...same shape...],
+      impactedFiles: [{ filePath, symbolCount, isTest?, symbols: [{ id, name, kind, line }] }],
+      breakingChangeRisk?: { riskLevel: 'low'|'medium'|'high'|'critical', factors: [{ factor, severity, description }], recommendations[] },
+      summary: { directDependentCount, transitiveDependentCount, impactedFileCount, testFileCount, productionFileCount, maxDepth } }
+
+api.getCallGraph({ symbolId | symbolName+filePath, direction?: 'callers'|'callees'|'both', depth? })
+  → { root: { symbolId, name, filePath, line, column },
+      callers?: [{ symbolId, name, filePath, line, column, depth }],
+      callees?: [{ symbolId, name, filePath, line, column, isAsync, depth }] }
 
 ### Dependencies
-api.getDependencies({ filePath, depth?, includePackages? }) → { directDependencies[], transitiveDependencies? }
-api.getDependents({ filePath, depth? }) → { directDependents[], transitiveDependents? }
-api.findCircularDependencies({ filePath?, maxDepth? }) → { cycles[], totalCycles }
+
+api.getDependencies({ filePath, depth?, includePackages?, includeSymbols? })
+  → { file, directDependencies: [{ filePath, importedSymbols?, isDefault, isNamespace }],
+      transitiveDependencies?: [{ filePath, distance, path[] }],
+      packages?: [{ name, version?, type }] }
+
+api.getDependents({ filePath, depth?, includeSymbols?, includeImpactMetrics? })
+  → { file, directDependents: [{ filePath, usedSymbols? }],
+      transitiveDependents?: [{ filePath, distance, path[] }],
+      detailedMetrics?: { byDepth: {depth: count}, criticalPaths[][], mostImpactedFiles[] } }
+
+api.findCircularDependencies({ filePath?, maxDepth? })
+  → { cycles: [{ cycle: string[], length }], totalCycles }
 
 ### Code Quality
-api.findOrphanedCode({ filePattern?, filterByKind? }) → { orphanedSymbols[], orphanedFiles[] }
+
+api.findOrphanedCode({ filePattern?, filterByKind?, exportedOnly?, excludeTests?, includeReasons?, includeConfidence? })
+  → { orphanedSymbols: [{ symbolId, name, kind, filePath, isExported, reason, confidence }],
+      orphanedFiles: [{ filePath, reason, lastUpdated, confidence }] }
 
 ### Utility
-api.ping() → { pong: true }  // Verify auth & connectivity (no Neo4j)
+
+api.ping() → { pong: true }  // Verify auth & connectivity
 api.listMethods() → { methods[], usage, example }
+
+For complete TypeScript interfaces: read resource constellation://types/api
 `,
 
 	// Decision tree for when to use Constellation vs other tools

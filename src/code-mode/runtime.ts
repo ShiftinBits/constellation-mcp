@@ -17,9 +17,9 @@ const RESULT_SIZE_WARNING_THRESHOLD = 100 * 1024; // 100KB - warn user
 const RESULT_SIZE_HARD_LIMIT = 1024 * 1024; // 1MB - enforce truncation
 
 /**
- * Code Mode execution request
+ * Code Mode execution request (internal only)
  */
-export interface CodeModeRequest {
+interface CodeModeRequest {
 	code: string;
 	timeout?: number;
 	projectContext?: {

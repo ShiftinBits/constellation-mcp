@@ -36,9 +36,23 @@ try {
 	fs.chmodSync(filePath, 0o755);
 
 	console.log(
-		'Successfully added shebang to dist/index.js and made it executable',
+		'✓ Successfully added shebang to dist/index.js and made it executable',
 	);
+
+	// Copy api-types.d.ts to dist for MCP Resource access
+	const srcTypesPath = path.join(__dirname, '../src/types/api-types.d.ts');
+	const distTypesDir = path.join(__dirname, '../dist/types');
+	const distTypesPath = path.join(distTypesDir, 'api-types.d.ts');
+
+	// Ensure dist/types directory exists
+	if (!fs.existsSync(distTypesDir)) {
+		fs.mkdirSync(distTypesDir, { recursive: true });
+	}
+
+	// Copy the TypeScript declaration file
+	fs.copyFileSync(srcTypesPath, distTypesPath);
+	console.log('✓ Successfully copied api-types.d.ts to dist/types/');
 } catch (error) {
-	console.error('Error processing dist/index.js:', error.message);
+	console.error('Error in postbuild:', error.message);
 	process.exit(1);
 }

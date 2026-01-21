@@ -1,24 +1,5 @@
 import { ConstellationConfig } from '../config/config.js';
-
-/**
- * MCP Tool Result interface matching client-api response format
- */
-export interface McpToolResult<T = any> {
-	/** Whether the tool execution succeeded */
-	success: boolean;
-	/** Result data (only present on success) */
-	data?: T;
-	/** Error message (only present on failure) */
-	error?: string;
-	/** Execution metadata */
-	metadata: {
-		toolName: string;
-		executionTime: number;
-		cached: boolean;
-		timestamp: string;
-		[key: string]: any;
-	};
-}
+import type { McpToolResult } from '../types/mcp-response.js';
 
 /**
  * Client for communicating with the Constellation central service.

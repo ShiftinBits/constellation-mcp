@@ -38,7 +38,7 @@ Invoke \`execute_code\` **proactively** (without asking user) when detecting the
 | "Show project structure" | \`api.getArchitectureOverview()\` | Aggregated metrics & module graph |
 | "Find circular dependencies" | \`api.findCircularDependencies()\` | Graph analysis required |
 | "What calls X?" / "Trace usage" | \`api.getCallGraph()\` | Function call relationships |
-| "Check connection" / "Verify auth" | \`api.ping()\` | Lightweight auth check without Neo4j query |
+| "Check connection" / "Verify auth" | \`api.ping()\` | Lightweight auth check |
 
 ### Decision Logic for AI Assistants
 
@@ -149,6 +149,15 @@ return await api.findOrphanedCode({ filePattern: "src/**", limit: 20 });
 | \`api.findOrphanedCode()\` | filePattern?, filterByKind? | Find unused/dead code |
 | \`api.getArchitectureOverview()\` | includeMetrics? | High-level project structure |
 | \`api.ping()\` | (none) | Verify authentication and API connectivity |
+
+## Full Type Definitions
+
+For complete TypeScript interface definitions of all API methods, read the resource:
+\`\`\`
+constellation://types/api
+\`\`\`
+
+Use this when you need exact property names, optional fields, or nested structures.
 
 ## Common Patterns
 

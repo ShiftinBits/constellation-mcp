@@ -1,6 +1,9 @@
+import { readFileSync } from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createRequire } from 'module';
 import { getConfigContext, initializeConfig } from './config/config-manager.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { getToolRegistry } from './registry/ToolRegistry.js';
@@ -93,6 +96,36 @@ async function startServer() {
 		// Register tools manually (no auto-discovery with official SDK)
 		console.error('[CONSTELLATION] Registering tools...');
 		registerExecuteCodeTool(server);
+
+		// Register API types resource for AI assistants
+		// Provides full TypeScript interfaces on-demand via constellation://types/api
+		console.error('[CONSTELLATION] Registering resources...');
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = path.dirname(__filename);
+		const apiTypesPath = path.join(__dirname, 'types', 'api-types.d.ts');
+
+		server.resource(
+			'api-types',
+			'constellation://types/api',
+			{
+				description:
+					'Full TypeScript interfaces for all Constellation API method parameters and responses. ' +
+					'Read this when you need exact property names, optional fields, or nested structures.',
+				mimeType: 'text/typescript',
+			},
+			async () => ({
+				contents: [
+					{
+						uri: 'constellation://types/api',
+						mimeType: 'text/typescript',
+						text: readFileSync(apiTypesPath, 'utf-8'),
+					},
+				],
+			}),
+		);
+		console.error(
+			'[CONSTELLATION] Registered resource: constellation://types/api',
+		);
 
 		// Validate that tool registry matches registered tools
 		console.error('[CONSTELLATION] Validating tool registry...');
