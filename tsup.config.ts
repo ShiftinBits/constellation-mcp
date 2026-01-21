@@ -45,6 +45,7 @@ export default defineConfig({
 		'src/codegen/**/*.ts',
 		'src/code-mode/**/*.ts',
 		'src/types/**/*.ts',
+		'src/constants/**/*.ts',
 	],
 	format: ['esm'],
 	platform: 'node',
