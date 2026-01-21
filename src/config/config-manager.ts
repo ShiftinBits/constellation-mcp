@@ -7,6 +7,7 @@
 
 import { ConstellationConfig } from './config.js';
 import { ConfigLoader } from './config.loader.js';
+import { DOCS_URLS } from '../constants/urls.js';
 
 /**
  * Configuration context
@@ -81,7 +82,7 @@ class ConfigurationManager {
 					'2. Run: constellation init\n' +
 					'3. Run: constellation auth\n' +
 					'4. Run: constellation index\n\n' +
-					'For more information, visit: https://docs.constellationdev.io/';
+					`For more information, visit: ${DOCS_URLS.root}`;
 
 				// Use defaults to allow server to start
 				config = ConstellationConfig.createDefault();
@@ -106,7 +107,7 @@ class ConfigurationManager {
 				'2. Run: constellation init (to recreate)\n' +
 				'3. Run: constellation auth\n' +
 				'4. Run: constellation index\n\n' +
-				'For more information, visit: https://docs.constellationdev.io/';
+				`For more information, visit: ${DOCS_URLS.root}`;
 
 			// Use defaults to allow server to start
 			config = ConstellationConfig.createDefault();

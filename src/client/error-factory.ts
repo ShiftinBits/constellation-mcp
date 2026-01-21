@@ -13,6 +13,7 @@ import {
 } from '../types/mcp-errors.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { mapErrorToMessage } from './error-mapper.js';
+import { DOCS_URLS } from '../constants/urls.js';
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -83,7 +84,7 @@ export function createStructuredError(
 					'Check that your access key has not expired',
 				],
 				context: baseContext,
-				docs: 'https://docs.constellationdev.io/auth',
+				docs: DOCS_URLS.auth,
 			},
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
@@ -104,7 +105,7 @@ export function createStructuredError(
 					'Check that you are targeting the correct project',
 				],
 				context: baseContext,
-				docs: 'https://docs.constellationdev.io/auth#permissions',
+				docs: DOCS_URLS.authPermissions,
 			},
 			formattedMessage: formatAuthorizationError(baseContext),
 		};
@@ -125,7 +126,7 @@ export function createStructuredError(
 					'Run: constellation index',
 				],
 				context: baseContext,
-				docs: 'https://docs.constellationdev.io/setup',
+				docs: DOCS_URLS.setup,
 			},
 			formattedMessage:
 				error.message ||
@@ -184,7 +185,7 @@ export function createStructuredError(
 					'Refer to documentation for available tools',
 				],
 				context: baseContext,
-				docs: 'https://docs.constellationdev.io/tools',
+				docs: DOCS_URLS.tools,
 			},
 			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
 		};
@@ -203,7 +204,7 @@ export function createStructuredError(
 				'Check that the branch has been indexed',
 			],
 			context: baseContext,
-			docs: 'https://docs.constellationdev.io/getting-started',
+			docs: DOCS_URLS.gettingStarted,
 		};
 
 		// FIX SB-88: Only include detailed API suggestions when authenticated
@@ -530,6 +531,6 @@ Your access key does not have permission for this operation.
 2. Contact your organization admin to request access
 3. Check that you are targeting the correct project
 
-For more information, visit: https://docs.constellationdev.io/auth#permissions
+For more information, visit: ${DOCS_URLS.authPermissions}
 `;
 }

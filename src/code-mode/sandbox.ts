@@ -41,13 +41,21 @@ import type {
 	PingResult,
 } from '../types/api-types.js';
 
+/** Maximum size of objects to fully serialize in console output */
+const MAX_CONSOLE_OBJECT_SIZE = 500;
+
 /**
- * Method metadata for listMethods() response
+ * Method metadata for listMethods() response.
+ * Provides discoverability information for AI assistants.
  */
 export interface MethodInfo {
+	/** Method name (e.g., "searchSymbols") */
 	name: string;
+	/** Human-readable description of what the method does */
 	description: string;
+	/** User intent phrases that map to this method */
 	triggerPhrases: string[];
+	/** Example code snippet showing typical usage */
 	quickExample: string;
 }
 
@@ -108,14 +116,55 @@ export interface ConstellationApi {
 }
 
 /**
- * Sandbox configuration options
+ * Configuration options for the Code Mode sandbox execution environment.
+ *
+ * @example
+ * ```typescript
+ * const sandbox = new CodeModeSandbox({
+ *   timeout: 60000,      // 60 second timeout
+ *   allowConsole: true,  // Enable console.log
+ *   maxApiCalls: 100,    // Higher limit for complex operations
+ * });
+ * ```
  */
 export interface SandboxOptions {
-	timeout?: number; // Maximum execution time in milliseconds
-	memoryLimit?: number; // Memory limit in MB (future enhancement)
-	allowConsole?: boolean; // Allow console.log/error in sandbox
-	allowTimers?: boolean; // Allow setTimeout/setInterval
-	maxApiCalls?: number; // Maximum API calls per execution (rate limiting)
+	/**
+	 * Maximum execution time in milliseconds.
+	 * @default 30000 (30 seconds)
+	 */
+	timeout?: number;
+
+	/**
+	 * Memory limit in MB (reserved for future enhancement).
+	 * @default 128
+	 */
+	memoryLimit?: number;
+
+	/**
+	 * Whether to allow console methods (log, warn, error, info).
+	 * Logs are captured and returned in SandboxResult.logs.
+	 * @default true
+	 */
+	allowConsole?: boolean;
+
+	/**
+	 * Whether to allow timer functions (setTimeout, setInterval).
+	 * Generally disabled for security.
+	 * @default false
+	 */
+	allowTimers?: boolean;
+
+	/**
+	 * Maximum number of API calls allowed per execution.
+	 * Prevents DoS via excessive API requests.
+	 * @default 50
+	 */
+	maxApiCalls?: number;
+
+	/**
+	 * Project context for API calls.
+	 * Defaults to values from ConfigContext.
+	 */
 	projectContext?: {
 		projectId: string;
 		branchName: string;
@@ -123,15 +172,30 @@ export interface SandboxOptions {
 }
 
 /**
- * Sandbox execution result
+ * Result of sandbox code execution.
+ *
+ * @example
+ * ```typescript
+ * const result = await sandbox.execute(code);
+ * if (result.success) {
+ *   console.log('Result:', result.result);
+ * } else {
+ *   console.error('Error:', result.error);
+ * }
+ * ```
  */
 export interface SandboxResult {
+	/** Whether execution completed without errors */
 	success: boolean;
+	/** Return value of executed code (if successful) */
 	result?: any;
+	/** Error message (if execution failed) */
 	error?: string;
-	/** Structured error for AI consumption (preserves error type information) */
+	/** Structured error for programmatic handling */
 	structuredError?: McpErrorResponse;
+	/** Console output captured during execution */
 	logs?: string[];
+	/** Execution time in milliseconds */
 	executionTime: number;
 }
 
@@ -582,19 +646,17 @@ export class CodeModeSandbox {
 
 		// Conditionally add console with size-optimized output
 		if (this.options.allowConsole) {
-			const MAX_OBJECT_SIZE = 500;
-
 			const formatArg = (arg: any): string => {
 				if (typeof arg !== 'object' || arg === null) {
 					return String(arg);
 				}
 				try {
 					const json = JSON.stringify(arg, null, 2);
-					if (json.length > MAX_OBJECT_SIZE) {
+					if (json.length > MAX_CONSOLE_OBJECT_SIZE) {
 						// Use compact format for large objects
 						const compact = JSON.stringify(arg);
-						if (compact.length > MAX_OBJECT_SIZE) {
-							return compact.substring(0, MAX_OBJECT_SIZE - 3) + '...';
+						if (compact.length > MAX_CONSOLE_OBJECT_SIZE) {
+							return compact.substring(0, MAX_CONSOLE_OBJECT_SIZE - 3) + '...';
 						}
 						return compact;
 					}

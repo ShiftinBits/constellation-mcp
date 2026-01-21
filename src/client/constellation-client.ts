@@ -1,6 +1,21 @@
 import { ConstellationConfig } from '../config/config.js';
 import type { McpToolResult } from '../types/mcp-response.js';
 
+/** Default HTTP request timeout in milliseconds */
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/** Default number of retry attempts for failed requests */
+const DEFAULT_RETRIES = 3;
+
+/** Base delay between retries in milliseconds (before exponential backoff) */
+const DEFAULT_RETRY_DELAY_MS = 1000;
+
+/** Maximum random jitter added to retry delay in milliseconds */
+const DEFAULT_RETRY_JITTER_MS = 250;
+
+/** Maximum total retry delay in milliseconds (cap for exponential backoff) */
+const MAX_RETRY_DELAY_MS = 30000;
+
 /**
  * Client for communicating with the Constellation central service.
  * Adapted from CLI for MCP server use - focuses on MCP tool execution.
@@ -159,10 +174,10 @@ export class ConstellationClient {
 		data: any,
 		method: string,
 		additionalHeaders: Record<string, string> = {},
-		timeout = 30000, // 30 second default timeout
-		retries = 3,
-		delay = 1000,
-		jitter = 250,
+		timeout = DEFAULT_TIMEOUT_MS,
+		retries = DEFAULT_RETRIES,
+		delay = DEFAULT_RETRY_DELAY_MS,
+		jitter = DEFAULT_RETRY_JITTER_MS,
 	): Promise<Response> {
 		for (let i = 1; i <= retries; i++) {
 			try {
@@ -238,8 +253,8 @@ export class ConstellationClient {
 					// Add jitter to prevent thundering herd
 					const jitteredDelay =
 						backoffDelay + Math.floor(Math.random() * jitter);
-					// Cap maximum delay at 30 seconds
-					const cappedDelay = Math.min(jitteredDelay, 30000);
+					// Cap maximum delay
+					const cappedDelay = Math.min(jitteredDelay, MAX_RETRY_DELAY_MS);
 					await new Promise((resolve) => setTimeout(resolve, cappedDelay));
 				} else {
 					throw error;

@@ -256,24 +256,6 @@ export class CodeModeRuntime {
 
 		return JSON.stringify(output, null, 2);
 	}
-
-	/**
-	 * Format a value for display
-	 */
-	private formatValue(value: any): string {
-		if (value === null) return 'null';
-		if (value === undefined) return 'undefined';
-
-		if (typeof value === 'object') {
-			try {
-				return JSON.stringify(value, null, 2);
-			} catch {
-				return String(value);
-			}
-		}
-
-		return String(value);
-	}
 }
 
 /**

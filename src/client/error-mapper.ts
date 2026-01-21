@@ -11,6 +11,7 @@ import {
 	NotFoundError,
 	ToolNotFoundError,
 } from './constellation-client.js';
+import { DOCS_URLS } from '../constants/urls.js';
 
 /**
  * Map an error to a helpful message with actionable guidance
@@ -59,7 +60,7 @@ Set up authentication using the CLI:
 
 This will configure your API key properly.
 
-For more information, visit: https://docs.constellationdev.io/
+For more information, visit: ${DOCS_URLS.root}
 `;
 }
 
@@ -89,7 +90,7 @@ The tool "${toolName}" cannot find your project in the Constellation index.
 **Note:** Each branch maintains a separate index. If you switched branches,
 you'll need to index the new branch first.
 
-For more information, visit: https://docs.constellationdev.io/getting-started
+For more information, visit: ${DOCS_URLS.gettingStarted}
 `;
 }
 
@@ -110,7 +111,7 @@ ${message}
 **To see all available tools:**
   Query the tool catalog through the MCP interface or API
 
-For more information, visit: https://docs.constellationdev.io/tools
+For more information, visit: ${DOCS_URLS.tools}
 `;
 }
 

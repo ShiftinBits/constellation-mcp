@@ -4,6 +4,8 @@
  * Provides consistent, helpful error messages across all MCP tools
  */
 
+import { DOCS_URLS } from '../constants/urls.js';
+
 export const standardErrors = {
 	/**
 	 * Standard message when no data is found
@@ -152,7 +154,7 @@ I cannot execute this tool because constellation.json is not found in your git r
 4. Index your project: \`constellation index\`
 
 **Need help?**
-Documentation: https://docs.constellationdev.io/setup
+Documentation: ${DOCS_URLS.setup}
 
 **Technical details:**
 ${workingDir ? `Working directory: ${workingDir}\n` : ''}Error: ${errorDetails}
