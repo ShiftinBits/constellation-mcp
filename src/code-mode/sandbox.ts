@@ -178,6 +178,23 @@ export class CodeModeSandbox {
 		const startTime = Date.now();
 		const logs: string[] = [];
 
+		// Self-protective validation (defense in depth)
+		// Even if validation happens externally (runtime.ts), we validate here too
+		// to protect against direct instantiation bypassing external checks
+		const validation = this.validateCode(code);
+		if (!validation.valid) {
+			return {
+				success: false,
+				error: `Security validation failed: ${validation.errors?.join(', ')}`,
+				logs: validation.warnings?.map((w) => `[WARN] ${w}`) || [],
+				executionTime: Date.now() - startTime,
+			};
+		}
+		// Include warnings in logs if validation passed
+		if (validation.warnings) {
+			logs.push(...validation.warnings.map((w) => `[WARN] ${w}`));
+		}
+
 		// FIX: Declare timeoutHandle outside try block so it can be cleaned up in all paths
 		const timeoutMs = this.options.timeout;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -244,6 +261,33 @@ export class CodeModeSandbox {
 				clearTimeout(timeoutHandle);
 			}
 		}
+	}
+
+	/**
+	 * Create isolated built-in constructors to prevent prototype pollution.
+	 * By running constructors from a separate VM context, any modifications
+	 * to prototypes (e.g., Array.prototype.polluted = true) are isolated
+	 * to that context and don't affect the host environment.
+	 */
+	private createIsolatedBuiltins(): Record<string, unknown> {
+		const isolatedContext = vm.createContext({});
+		return vm.runInContext(
+			`({
+			Promise,
+			Array,
+			Object,
+			String,
+			Number,
+			Boolean,
+			Date,
+			JSON,
+			Math,
+			RegExp,
+			Map,
+			Set,
+		})`,
+			isolatedContext,
+		);
 	}
 
 	/**
@@ -499,24 +543,14 @@ export class CodeModeSandbox {
 			},
 		);
 
-		// Build sandbox context
+		// Build sandbox context with isolated built-ins to prevent prototype pollution
+		const isolatedBuiltins = this.createIsolatedBuiltins();
 		const sandbox: any = {
 			// Core API
 			api,
 
-			// Standard JavaScript features
-			Promise,
-			Array,
-			Object,
-			String,
-			Number,
-			Boolean,
-			Date,
-			JSON,
-			Math,
-			RegExp,
-			Map,
-			Set,
+			// Standard JavaScript features (isolated to prevent prototype pollution)
+			...isolatedBuiltins,
 		};
 
 		// Conditionally add console with size-optimized output
@@ -635,6 +669,13 @@ ${code}
 			/fs\./, // No file system access
 			/net\./, // No network access
 			/http\./, // No HTTP module
+			// Additional escape vectors
+			/\.constructor\s*(?:\[|\.|\()/, // Block [].constructor.constructor
+			/\bglobalThis\b/, // Block globalThis access
+			/\bwith\s*\(/, // Block with statement
+			/Symbol\s*\.\s*unscopables/, // Block Symbol.unscopables
+			/\bReflect\s*\./, // Block Reflect API
+			/\bnew\s+Proxy\s*\(/, // Block direct Proxy construction
 		];
 
 		for (const pattern of dangerousPatterns) {

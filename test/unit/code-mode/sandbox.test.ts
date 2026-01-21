@@ -426,9 +426,195 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.valid).toBe(true);
 		});
+
+		// Issue 3: Tests for additional escape vector patterns
+		describe('additional escape vectors', () => {
+			it('should reject .constructor escape via bracket notation', () => {
+				const code = '[].constructor["constructor"]("return 1")()';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('constructor');
+			});
+
+			it('should reject .constructor escape via dot notation', () => {
+				const code = '[].constructor.constructor("return process")()';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('constructor');
+			});
+
+			it('should reject .constructor escape via function call', () => {
+				const code = '"".constructor.constructor("return this")()';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('constructor');
+			});
+
+			it('should reject globalThis access', () => {
+				const code = 'return globalThis.foo';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('globalThis');
+			});
+
+			it('should reject with statement', () => {
+				const code = 'with (obj) { x = 1; }';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('with');
+			});
+
+			it('should reject Symbol.unscopables manipulation', () => {
+				const code = 'Symbol.unscopables';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('Symbol');
+			});
+
+			it('should reject Reflect API usage', () => {
+				const code = 'Reflect.get(target, prop)';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('Reflect');
+			});
+
+			it('should reject direct Proxy construction', () => {
+				const code = 'new Proxy({}, handler)';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(false);
+				expect(result.errors![0]).toContain('Proxy');
+			});
+
+			it('should allow legitimate constructor keyword in variable names', () => {
+				// Should NOT block: const myConstructor = {}
+				const code = 'const myConstructor = {};';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+			});
+
+			it('should allow legitimate code with global variables', () => {
+				// Should NOT block: global in variable name
+				const code = 'const globalValue = 42;';
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+			});
+		});
 	});
 
 	describe('sandbox security', () => {
+		// Issue 1: Internal validation in execute() (defense in depth)
+		describe('internal validation enforcement', () => {
+			it('should block dangerous code when execute() called directly', async () => {
+				const result = await sandbox.execute('require("fs")');
+
+				expect(result.success).toBe(false);
+				expect(result.error).toContain('Security validation failed');
+			});
+
+			it('should block code evaluation via execute() directly', async () => {
+				// Note: Testing that dangerous patterns are blocked
+				const result = await sandbox.execute('eval("1+1")');
+
+				expect(result.success).toBe(false);
+				expect(result.error).toContain('Security validation failed');
+			});
+
+			it('should include warnings in logs for valid code with issues', async () => {
+				// Code without return statement triggers warning
+				mockClient.executeMcpTool.mockResolvedValue(
+					createMockResult({ symbols: [] }),
+				);
+
+				const result = await sandbox.execute(
+					'const x = await api.searchSymbols({ query: "test" });',
+				);
+
+				expect(result.success).toBe(true);
+				expect(result.logs).toBeDefined();
+				expect(result.logs!.some((log) => log.includes('[WARN]'))).toBe(true);
+				expect(
+					result.logs!.some((log) => log.includes('No return statement')),
+				).toBe(true);
+			});
+
+			it('should block globalThis access via execute()', async () => {
+				const result = await sandbox.execute('return globalThis');
+
+				expect(result.success).toBe(false);
+				expect(result.error).toContain('Security validation failed');
+			});
+
+			it('should block .constructor escape via execute()', async () => {
+				const result = await sandbox.execute(
+					'[].constructor.constructor("return 1")()',
+				);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toContain('Security validation failed');
+			});
+		});
+
+		// Issue 2: Prototype isolation tests
+		describe('prototype isolation', () => {
+			it('should not allow Object.prototype pollution to affect host', async () => {
+				// Execute code that tries to pollute Object.prototype
+				await sandbox.execute('Object.prototype.polluted = true; return 1;');
+
+				// Verify host Object.prototype is not polluted
+				expect((Object.prototype as any).polluted).toBeUndefined();
+			});
+
+			it('should not allow Array.prototype pollution to affect host', async () => {
+				await sandbox.execute(
+					'Array.prototype.evilMethod = function() { return "evil"; }; return 1;',
+				);
+
+				// Verify host Array.prototype is not polluted
+				expect((Array.prototype as any).evilMethod).toBeUndefined();
+			});
+
+			it('should not allow String.prototype pollution to affect host', async () => {
+				await sandbox.execute('String.prototype.compromised = true; return 1;');
+
+				expect((String.prototype as any).compromised).toBeUndefined();
+			});
+
+			it('should preserve Array operations despite isolation', async () => {
+				const result = await sandbox.execute('return [1,2,3].map(x => x * 2);');
+
+				expect(result.success).toBe(true);
+				expect(result.result).toEqual([2, 4, 6]);
+			});
+
+			it('should preserve Object operations despite isolation', async () => {
+				const result = await sandbox.execute(
+					'return Object.keys({ a: 1, b: 2 });',
+				);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toEqual(['a', 'b']);
+			});
+
+			it('should preserve JSON operations despite isolation', async () => {
+				const result = await sandbox.execute(
+					'return JSON.stringify({ test: 123 });',
+				);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toBe('{"test":123}');
+			});
+		});
+
 		it('should not allow access to Node.js globals', async () => {
 			const code = 'return typeof require;';
 			const result = await sandbox.execute(code);
