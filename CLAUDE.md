@@ -1,393 +1,153 @@
 # constellation-mcp
 
-**Role**: Model Context Protocol server bridging AI assistants to constellation-core.
-**See**: `../CLAUDE.md` for workspace architecture, `../ADR.md` for MCP rationale.
+MCP server bridging AI assistants to constellation-core for code intelligence.
 
-## Purpose
+**See**: `../CLAUDE.md` for workspace architecture, type sync checklist.
 
-Provide Code Mode MCP interface for AI assistants → Query constellation-core:3000 → Return code intelligence.
+## Quick Reference
+
+| Task          | Command                                 |
+| ------------- | --------------------------------------- |
+| Build         | `npm run build`                         |
+| Dev watch     | `npm run watch`                         |
+| Test          | `npm test`                              |
+| Coverage      | `npm run test:coverage` (70%+ required) |
+| Lint          | `npm run lint:fix`                      |
+| MCP Inspector | `npm run inspector`                     |
+| Type check    | `npm run type-check`                    |
+
+**Engines**: Node.js 24+, npm 11+
 
 ## Architecture
 
 ```
-AI Assistant → MCP Client → execute_code tool → JavaScript sandbox → HTTP POST → constellation-core:3000/api/v1/mcp/execute → Neo4j → Response
-                                    ↑
-                              CodeModeSandbox
-                              ConstellationClient
+AI Assistant → MCP (stdio) → execute_code → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-## Code Mode (Single Tool, 10 API Methods)
-
-The MCP server exposes **one tool** (`execute_code`) that runs JavaScript code with access to an `api` object:
-
-```javascript
-// Example: Find a function and analyze its impact
-const search = await api.searchSymbols({ query: 'handleAuth' });
-const impact = await api.impactAnalysis({ symbolId: search.symbols[0].id });
-return { search, impact };
-```
-
-### Available API Methods
-
-**Discovery** (2):
-
-- `searchSymbols` - Find symbols by name/pattern
-- `getSymbolDetails` - Get detailed symbol info
-
-**Dependencies** (3):
-
-- `getDependencies` - What a file depends on
-- `getDependents` - What depends on a file
-- `findCircularDependencies` - Detect circular refs
-
-**Tracing** (2):
-
-- `traceSymbolUsage` - Find all symbol usages
-- `getCallGraph` - Function call relationships
-
-**Impact** (2):
-
-- `impactAnalysis` - Assess change impact
-- `findOrphanedCode` - Find unused/dead code
-
-**Architecture** (1):
-
-- `getArchitectureOverview` - High-level project structure
+**Single tool design**: One `execute_code` tool executes JavaScript with `api` object providing 12 methods.
 
 ## Key Files
 
 ```
 src/
-├── index.ts                      MCP server entry point
-├── tools/
-│   └── execute-code-tool.ts      Single Code Mode tool
+├── index.ts                     Entry point, registers tool + resource
+├── tools/execute-code-tool.ts   MCP tool handler
 ├── code-mode/
-│   ├── sandbox.ts                JavaScript execution sandbox
-│   └── runtime.ts                API runtime for sandbox
+│   ├── sandbox.ts               VM execution with dual timeout
+│   ├── runtime.ts               API method metadata
+│   └── capabilities.ts          Project state detection
 ├── client/
-│   ├── constellation-client.ts   HTTP client to Core
-│   ├── error-factory.ts          Structured error creation
-│   └── error-mapper.ts           Error translation
+│   ├── constellation-client.ts  HTTP client with retry/backoff
+│   ├── error-factory.ts         Structured error creation
+│   └── error-mapper.ts          Error translation
 ├── config/
-│   ├── config-manager.ts         Env config management
-│   └── config.loader.ts          Load + validate config
-├── registry/
-│   ├── ToolRegistry.ts           Tool metadata registry
-│   └── tool-definitions/         11 definition files (metadata)
-├── prompts/
-│   └── constellation-guide-prompt.ts  AI assistant guide
+│   ├── config-manager.ts        Singleton config access
+│   ├── config.loader.ts         Load constellation.json
+│   └── config.ts                ConstellationConfig class
 ├── types/
-│   └── api-types.ts              Mirrors Core DTOs (MANUAL sync)
-└── codegen/
-    └── api-generator.ts          TypeScript type generation
+│   ├── api-types.d.ts           API method type definitions (mirror Core DTOs)
+│   └── mcp-errors.ts            Error codes & structured errors
+└── registry/                    Tool metadata registry
 ```
 
-## Code Mode Sandbox
+## API Methods (12 total)
 
-**JavaScript Execution**:
-
-```typescript
-// src/code-mode/sandbox.ts
-export class CodeModeSandbox {
-	private client: ConstellationClient;
-
-	async execute(code: string, options?: ExecuteOptions): Promise<ExecuteResult> {
-		// Validate code
-		const validation = this.validateCode(code);
-
-		// Create sandboxed context with api object
-		const context = this.createSandboxContext();
-
-		// Execute with timeout
-		const result = await this.runInSandbox(code, context, options?.timeout);
-
-		return result;
-	}
-
-	private createSandboxContext() {
-		return {
-			api: {
-				searchSymbols: (params) => this.client.executeMcpTool('search_symbols', params, this.context),
-				getSymbolDetails: (params) => this.client.executeMcpTool('get_symbol_details', params, this.context),
-				// ... all 10 API methods
-			},
-			console: { log: ..., error: ..., warn: ... },
-			Promise,
-			// No file system, no network, no dangerous globals
-		};
-	}
-}
-```
-
-## Tool Registry Pattern
-
-**Registration** (metadata only, not execution):
-
-```typescript
-// src/registry/ToolRegistry.ts
-export class ToolRegistry {
-	private tools = new Map<string, McpToolDefinition>();
-
-	register(definition: McpToolDefinition): void {
-		this.tools.set(definition.name, definition);
-	}
-}
-
-// src/index.ts
-const registry = getToolRegistry();
-registry.registerMany(allToolDefinitions); // 11 definitions for metadata
-registerExecuteCodeTool(server); // 1 actual MCP tool
-```
-
-**Tool Definitions** (metadata for AI guidance):
-
-```typescript
-// src/registry/tool-definitions/search-symbols.definition.ts
-export const searchSymbolsDefinition: McpToolDefinition = {
-	name: 'search_symbols',
-	category: 'Discovery',
-	description: 'Search for symbols by name or pattern',
-	inputSchema: { ... },
-	examples: [ ... ],
-	triggerPhrases: [
-		"find function X",
-		"where is X",
-		"show me all Y",
-	],
-};
-```
-
-## Type Sync (MANUAL - CRITICAL)
-
-**MCP types** (`src/types/api-types.ts`) must mirror Core DTOs:
-
-```typescript
-// Core: constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
-export interface SearchSymbolsParams {
-	query: string;
-	types?: string[];
-}
-
-// MCP: constellation-mcp/src/types/api-types.ts (MUST MATCH)
-// Mirrors constellation-core/apps/client-api/src/mcp/dto/search-symbols.dto.ts
-export interface SearchSymbolsParams {
-	query: string;
-	types?: string[];
-}
-```
-
-**Check sync** (see workspace CLAUDE.md Section 3).
-
-## Constellation Client
-
-**HTTP Client to Core**:
-
-```typescript
-// src/client/constellation-client.ts
-export class ConstellationClient {
-	async executeMcpTool<TParams, TResult>(
-		toolName: string,
-		parameters: TParams,
-		context: { projectId: string; branchName: string }
-	): Promise<McpToolResult<TResult>> {
-		const response = await this.sendRequest(
-			`mcp/tools/${toolName}`,
-			{ parameters },
-			'POST',
-			{
-				'x-project-id': context.projectId,
-				'x-branch-name': context.branchName,
-			}
-		);
-		return response.json();
-	}
-
-	private async sendRequest(...): Promise<Response> {
-		const requestHeaders: Record<string, string> = {
-			...additionalHeaders,
-			'Content-Type': 'application/json; charset=utf-8',
-			'Authorization': `Bearer ${this.accessKey}`,  // Bearer token format
-		};
-		// ...
-	}
-}
-```
+| Method                     | Purpose                      |
+| -------------------------- | ---------------------------- |
+| `searchSymbols`            | Find symbols by name/pattern |
+| `getSymbolDetails`         | Detailed symbol info         |
+| `getDependencies`          | What a file imports          |
+| `getDependents`            | What imports a file          |
+| `findCircularDependencies` | Detect import cycles         |
+| `traceSymbolUsage`         | Find all symbol usages       |
+| `getCallGraph`             | Function call relationships  |
+| `impactAnalysis`           | Assess change impact         |
+| `findOrphanedCode`         | Find unused/dead code        |
+| `getArchitectureOverview`  | Project structure overview   |
+| `ping`                     | Verify auth + connectivity   |
+| `getCapabilities`          | Check indexing status        |
 
 ## Configuration
 
-**Environment Variables** (required):
+**Priority**: Env vars → `constellation.json` → Defaults
 
-```bash
-# Unix/Linux/macOS
-export CONSTELLATION_ACCESS_KEY=ak_00000000-...
-export CONSTELLATION_API_URL=http://localhost:3000
+| Env Variable               | Purpose                       |
+| -------------------------- | ----------------------------- |
+| `CONSTELLATION_ACCESS_KEY` | API authentication (required) |
+| `CONSTELLATION_API_URL`    | Override API endpoint         |
+| `DEBUG`                    | Enable verbose logging        |
 
-# Windows Command Prompt
-set CONSTELLATION_ACCESS_KEY=ak_00000000-...
-set CONSTELLATION_API_URL=http://localhost:3000
-
-# Windows PowerShell
-$env:CONSTELLATION_ACCESS_KEY="ak_00000000-..."
-$env:CONSTELLATION_API_URL="http://localhost:3000"
-```
-
-**Config Manager**:
-
-```typescript
-// src/config/config-manager.ts
-const apiKey = process.env.CONSTELLATION_ACCESS_KEY || '';
-if (!apiKey) {
-	console.warn('[CONSTELLATION] Warning: CONSTELLATION_ACCESS_KEY not set');
-}
-```
-
-## Commands
-
-**Development**:
-
-```bash
-npm run inspector              # MCP protocol inspector
-npm run build                  # Build TypeScript
-npm run dev                    # Development mode
-npm start                      # Start MCP server
-```
-
-**Testing**:
-
-```bash
-npm test                       # All tests
-npm run test:watch             # Watch mode
-npm run test:coverage          # With coverage (70%+ required)
-```
-
-## MCP Protocol Integration
-
-**Tool Call Flow**:
-
-1. AI assistant calls: `execute_code({ code: "return await api.searchSymbols({query: 'foo'})" })`
-2. MCP server receives request via stdin (JSON-RPC)
-3. CodeModeSandbox validates and executes JavaScript
-4. Sandbox api methods call ConstellationClient
-5. ConstellationClient POSTs to constellation-core
-6. Core executes tool, queries Neo4j, returns result
-7. Sandbox returns result to AI assistant via stdout
-
-**JSON-RPC Format**:
+**Config file** (`constellation.json` at git root):
 
 ```json
 {
-	"method": "tools/call",
-	"params": {
-		"name": "execute_code",
-		"arguments": {
-			"code": "return await api.searchSymbols({ query: 'foo' })"
-		}
-	},
-	"id": 1
+  "apiUrl": "http://localhost:3000",
+  "projectId": "...",
+  "branch": "main",
+  "languages": { "typescript": { "fileExtensions": [".ts", ".tsx"] } }
 }
 ```
+
+## Type Sync (CRITICAL)
+
+`src/types/api-types.d.ts` must mirror Core DTOs. See `../CLAUDE.md` Section 3 for checklist.
+
+**Parameter transformations** (in `sandbox.ts:440-453`):
+
+- MCP `isExported` → Core `filterByExported`
 
 ## Error Handling
 
-**Error Types**:
+**Error codes** (from `mcp-errors.ts`):
 
-- `AuthenticationError`: Invalid CONSTELLATION_ACCESS_KEY
-- `AuthorizationError`: Valid key, insufficient permissions
-- `ToolNotFoundError`: Unknown tool name
-- `ConfigurationError`: Missing or invalid config
-- `TimeoutError`: Execution timeout exceeded
+| Category  | Codes                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                     |
+| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                             |
+| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                        |
+| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT` |
+| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                         |
 
-**Structured Error Response**:
+**Retry logic** (`constellation-client.ts:236-243`): Exponential backoff (1s, 2s, 4s...) with jitter, max 30s, for 5xx errors.
 
-```typescript
-{
-  success: false,
-  error: {
-    code: "SYMBOL_NOT_FOUND",
-    type: "SymbolNotFoundError",
-    message: "Symbol not found in the index",
-    recoverable: true,
-    guidance: [
-      "Verify the symbol name is correct",
-      "Use api.searchSymbols() to find the symbol"
-    ],
-    context: { projectId, branchName, apiMethod }
-  }
-}
-```
+## Sandbox Behavior
 
-## File Conventions
+**Dual timeout** (`sandbox.ts:199-220`):
 
-**Naming**:
+1. VM timeout catches sync hangs
+2. `Promise.race` catches async hangs
 
-```
-{name}.definition.ts       Tool definitions (metadata)
-{name}.test.ts             Tests
-```
+**Code validation** (`sandbox.ts:619-689`):
 
-**Imports**:
+- Blocks dangerous patterns (require, eval, process, fs, etc.)
+- Warns on missing `return` or `await` (common mistakes)
 
-```typescript
-// Correct
-import { ConstellationClient } from '../client/constellation-client.js';
-import { getConfigContext } from '../config/config-manager.js';
-
-// Incorrect
-import { X } from 'src/lib/X'; // No absolute from src/
-```
-
-## Key Patterns
-
-**Code Style** (AI assistant optimized):
-
-```typescript
-// NEVER use emojis or decorative characters
-// Clean, parsable output only
-// Professional, technical tone
-```
-
-**Validation**: Zod everywhere
-
-```typescript
-const schema = z.object({
-	query: z.string(),
-	types: z.array(z.string()).optional(),
-});
-```
-
-**Logging**: console.error to stderr (MCP uses stdout for protocol)
-
-## Extended Docs
-
-- `../CLAUDE.md` - Workspace architecture, type sync checklist
-- `../TROUBLESHOOTING.md` - Error codes: AUTH_ERROR, VALIDATION_ERROR, NETWORK_ERROR
-- `../COMMANDS.md` - Full MCP command reference, inspector usage
-- `../ADR.md` - ADR-004 (MCP for Neo4j), ADR-009 (Zod validation)
-- `docs/code-mode/README.md` - Code Mode usage guide
+**Allowed in sandbox**: `api`, `Promise`, `Array`, `Object`, `String`, `Number`, `Boolean`, `Date`, `JSON`, `Math`, `RegExp`, `Map`, `Set`, `console.*`
 
 ## Testing
 
-**MCP Inspector**:
-
 ```bash
-npm run inspector
-# Interactive UI to test execute_code tool
-# Validates request/response formats
-# Checks protocol compliance
+npm test                    # All tests
+npm run test:watch          # Watch mode
+npm run test:coverage       # 70%+ required
+npm run inspector           # Interactive MCP validation
 ```
 
-**Unit Tests**:
+Test structure mirrors `src/`: `test/unit/{module}/{file}.test.ts`
 
-```typescript
-// test/unit/code-mode/sandbox.test.ts
-describe('CodeModeSandbox', () => {
-	it('should execute code and return result', async () => {
-		const sandbox = new CodeModeSandbox(mockClient, mockContext);
-		const result = await sandbox.execute('return 1 + 1');
-		expect(result.success).toBe(true);
-		expect(result.result).toBe(2);
-	});
-});
-```
+## Gotchas
 
-**Coverage**: 70%+ required for all modules.
+- **Logging**: Use `console.error` (MCP uses stdout for protocol)
+- **ESM imports**: Must include `.js` extension (`from './config.js'`)
+- **Build tool**: Uses `tsup` (not tsc directly)
+- **Windows**: `breakOnSigint` disabled on Windows (`sandbox.ts:213`)
+
+## Extended Docs
+
+| Path                       | Content                           |
+| -------------------------- | --------------------------------- |
+| `../CLAUDE.md`             | Workspace architecture, type sync |
+| `../TROUBLESHOOTING.md`    | Error codes, debug commands       |
+| `../COMMANDS.md`           | Full command reference            |
+| `../ADR.md`                | Architecture decisions            |
+| `docs/code-mode/README.md` | Code Mode usage guide             |
