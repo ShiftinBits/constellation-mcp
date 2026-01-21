@@ -11,9 +11,11 @@ import { z } from 'zod';
 import { CodeModeRuntime, CodeModeResponse } from '../code-mode/runtime.js';
 import { getConfigContext } from '../config/config-manager.js';
 import { standardErrors } from '../utils/error-messages.js';
-import { createStructuredError } from '../client/error-factory.js';
+import {
+	createStructuredError,
+	ValidationError,
+} from '../client/error-factory.js';
 import { ConfigurationError } from '../client/constellation-client.js';
-import { ErrorCode } from '../types/mcp-errors.js';
 
 /**
  * Input validation constants
@@ -147,29 +149,24 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					console.error(
 						`[execute_code] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
 					);
+					const error = new ValidationError(
+						`Code size (${code.length} bytes) exceeds maximum allowed (${MAX_CODE_SIZE} bytes / 100KB)`,
+						{
+							actualSize: code.length,
+							maxSize: MAX_CODE_SIZE,
+							guidance: [
+								'Reduce code size by removing unnecessary code',
+								'Break large operations into smaller steps',
+								'Move data to API calls instead of embedding in code',
+							],
+						},
+					);
+					const structuredError = createStructuredError(error, 'execute_code');
 					return {
 						content: [
 							{
 								type: 'text',
-								text: JSON.stringify(
-									{
-										success: false,
-										error: {
-											code: ErrorCode.VALIDATION_ERROR,
-											type: 'ValidationError',
-											message: `Code size (${code.length} bytes) exceeds maximum allowed (${MAX_CODE_SIZE} bytes / 100KB)`,
-											recoverable: true,
-											guidance: [
-												'Reduce code size by removing unnecessary code',
-												'Break large operations into smaller steps',
-												'Move data to API calls instead of embedding in code',
-											],
-										},
-										formattedMessage: `Code too large: ${code.length} bytes exceeds ${MAX_CODE_SIZE} byte limit`,
-									},
-									null,
-									2,
-								),
+								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
 						isError: true,
@@ -181,31 +178,23 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					console.error(
 						'[execute_code] Code contains invalid binary characters',
 					);
+					const error = new ValidationError(
+						'Code contains invalid binary or control characters',
+						{
+							reason: 'binary_chars_detected',
+							guidance: [
+								'Ensure code is valid UTF-8 text',
+								'Remove any binary data or control characters',
+								'Check for encoding issues in your code editor',
+							],
+						},
+					);
+					const structuredError = createStructuredError(error, 'execute_code');
 					return {
 						content: [
 							{
 								type: 'text',
-								text: JSON.stringify(
-									{
-										success: false,
-										error: {
-											code: ErrorCode.VALIDATION_ERROR,
-											type: 'ValidationError',
-											message:
-												'Code contains invalid binary or control characters',
-											recoverable: true,
-											guidance: [
-												'Ensure code is valid UTF-8 text',
-												'Remove any binary data or control characters',
-												'Check for encoding issues in your code editor',
-											],
-										},
-										formattedMessage:
-											'Code contains invalid binary characters - only text is allowed',
-									},
-									null,
-									2,
-								),
+								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
 						isError: true,

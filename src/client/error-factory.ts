@@ -23,6 +23,20 @@ import {
 } from './constellation-client.js';
 
 /**
+ * Validation error with optional details for structured error responses.
+ * Use this for input validation failures (code size, binary chars, malformed input).
+ */
+export class ValidationError extends Error {
+	constructor(
+		message: string,
+		public readonly details?: Record<string, unknown>,
+	) {
+		super(message);
+		this.name = 'ValidationError';
+	}
+}
+
+/**
  * FIX SB-88: Check if user has configured authentication (has API key set)
  * Used to conditionally include detailed API suggestions in error responses
  */
@@ -116,6 +130,39 @@ export function createStructuredError(
 			formattedMessage:
 				error.message ||
 				'Configuration error - run constellation init to set up',
+		};
+	}
+
+	// Validation Error (input validation failures)
+	if (
+		error instanceof ValidationError ||
+		(error instanceof Error && error.name === 'ValidationError')
+	) {
+		const validationError = error as ValidationError;
+		// Use custom guidance from details if provided, otherwise use defaults
+		const guidance = Array.isArray(validationError.details?.guidance)
+			? (validationError.details.guidance as string[])
+			: [
+					'Check the input data meets requirements',
+					'Review size limits and encoding requirements',
+					'Break large operations into smaller steps',
+				];
+		// Extract non-guidance details for context
+		const { guidance: _, ...otherDetails } = validationError.details || {};
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.VALIDATION_ERROR,
+				type: 'ValidationError',
+				message: validationError.message,
+				recoverable: true,
+				guidance,
+				context: {
+					...baseContext,
+					...otherDetails,
+				},
+			},
+			formattedMessage: validationError.message,
 		};
 	}
 

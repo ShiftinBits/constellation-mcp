@@ -199,6 +199,8 @@ class ConfigurationManager {
 	 * Reset configuration (for testing)
 	 */
 	reset(): void {
+		// FIX: Clear ConfigLoader cache to prevent stale config after reset → re-initialize
+		ConfigLoader.clearCache();
 		this.configContext = null;
 		this.initialized = false;
 	}

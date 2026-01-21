@@ -115,6 +115,7 @@ export interface SandboxOptions {
 	memoryLimit?: number; // Memory limit in MB (future enhancement)
 	allowConsole?: boolean; // Allow console.log/error in sandbox
 	allowTimers?: boolean; // Allow setTimeout/setInterval
+	maxApiCalls?: number; // Maximum API calls per execution (rate limiting)
 	projectContext?: {
 		projectId: string;
 		branchName: string;
@@ -158,6 +159,7 @@ export class CodeModeSandbox {
 			memoryLimit: options.memoryLimit || 128, // 128MB default
 			allowConsole: options.allowConsole !== false,
 			allowTimers: options.allowTimers || false,
+			maxApiCalls: options.maxApiCalls || 50, // Default 50 API calls per execution
 			projectContext: options.projectContext || {
 				projectId: configContext.projectId,
 				branchName: configContext.branchName,
@@ -198,6 +200,8 @@ export class CodeModeSandbox {
 		// FIX: Declare timeoutHandle outside try block so it can be cleaned up in all paths
 		const timeoutMs = this.options.timeout;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+		// FIX: Guard flag to prevent double rejection when both VM timeout and Promise timeout fire
+		let hasTimedOut = false;
 
 		try {
 			// Create sandbox context with API bindings
@@ -219,7 +223,11 @@ export class CodeModeSandbox {
 			// Use Promise.race() to enforce timeout on the entire async execution.
 			const timeoutPromise = new Promise<never>((_, reject) => {
 				timeoutHandle = setTimeout(() => {
-					reject(new Error('Script execution timed out'));
+					// FIX: Only reject if not already handled (prevents double rejection)
+					if (!hasTimedOut) {
+						hasTimedOut = true;
+						reject(new Error('Script execution timed out'));
+					}
 				}, timeoutMs);
 			});
 
@@ -243,6 +251,9 @@ export class CodeModeSandbox {
 				executionTime: Date.now() - startTime,
 			};
 		} catch (error) {
+			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
+			hasTimedOut = true;
+
 			// Create structured error to preserve error type information
 			const structuredError = createStructuredError(error, 'execute');
 
@@ -254,6 +265,9 @@ export class CodeModeSandbox {
 				executionTime: Date.now() - startTime,
 			};
 		} finally {
+			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
+			hasTimedOut = true;
+
 			// FIX: Clean up timeout in ALL paths (success, VM timeout error, or other errors)
 			// This prevents unhandled promise rejections when VM's internal timeout fires
 			// before the Promise-based timeout, leaving the setTimeout dangling
@@ -312,8 +326,21 @@ export class CodeModeSandbox {
 			}
 		};
 
+		// FIX: Rate limiting counter to prevent DoS via excessive API calls
+		let apiCallCount = 0;
+		const maxApiCalls = this.options.maxApiCalls;
+
 		// Create API executor that calls through to our client with enhanced error context
 		const executor = async (toolName: string, params: any) => {
+			// FIX: Check rate limit before making API call
+			apiCallCount++;
+			if (apiCallCount > maxApiCalls) {
+				throw new Error(
+					`API call limit exceeded: maximum ${maxApiCalls} calls per execution. ` +
+						`Consider batching operations or using more specific queries.`,
+				);
+			}
+
 			const startTime = Date.now();
 
 			try {
