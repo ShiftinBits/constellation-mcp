@@ -28,7 +28,7 @@
 		"postinstall": "node -e \"if(!process.env.CI) try { require('child_process').execFileSync('npm', ['link', '@constellationdev/types'], {stdio: 'inherit'}) } catch(e) { console.log('Note: @constellationdev/types not linked globally, using GitHub version') }\""
 	},
 	"dependencies": {
-		"@constellationdev/types": "^1.0.0",
+		"@constellationdev/types": "github:ShiftinBits/constellation-types",
 		"@modelcontextprotocol/sdk": "^1.22.0",
 		"zod": "^3.23.8"
 	},
