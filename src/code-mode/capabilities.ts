@@ -131,7 +131,7 @@ export async function getProjectCapabilities(
 			message.includes('network')
 		) {
 			return createNotIndexedCapabilities(
-				'Cannot connect to Constellation API - check that constellation-core is running',
+				'Connection failure to Constellation API - check Constellation service connectivity with `await api.ping()`',
 			);
 		}
 

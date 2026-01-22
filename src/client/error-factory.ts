@@ -5,23 +5,18 @@
  * machine-readable error codes and actionable guidance for AI assistants.
  */
 
-import {
-	ErrorCode,
-	type ErrorCodeType,
-	type McpErrorResponse,
-	isRecoverableError,
-} from '../types/mcp-errors.js';
 import { getConfigContext } from '../config/config-manager.js';
-import { mapErrorToMessage } from './error-mapper.js';
 import { DOCS_URLS } from '../constants/urls.js';
+import { ErrorCode, type McpErrorResponse } from '../types/mcp-errors.js';
 import {
 	AuthenticationError,
 	AuthorizationError,
-	NotFoundError,
-	ToolNotFoundError,
 	ConfigurationError,
+	NotFoundError,
 	TimeoutError,
+	ToolNotFoundError,
 } from './constellation-client.js';
+import { mapErrorToMessage } from './error-mapper.js';
 
 /**
  * Validation error with optional details for structured error responses.
@@ -272,11 +267,11 @@ const result = await api.searchSymbols({
 		error: {
 			code: ErrorCode.INTERNAL_ERROR,
 			type: 'UnknownError',
-			message: 'An unexpected error occurred',
+			message: error ? String(error) : 'An unexpected error occurred',
 			recoverable: false,
 			guidance: [
-				'Try the operation again',
-				'Check constellation-core is running',
+				'Review the error message and try the operation again',
+				'Check Constellation service connectivity with `await api.ping()`',
 				'Report this issue if it persists',
 			],
 			context: baseContext,
@@ -314,7 +309,7 @@ function createErrorFromMessage(
 				message: 'Cannot connect to Constellation API',
 				recoverable: true,
 				guidance: [
-					'Check that constellation-core is running',
+					'Check Constellation service connectivity with `await api.ping()`',
 					'Verify network connectivity',
 					'Check CONSTELLATION_API_URL is correct',
 				],
@@ -403,7 +398,7 @@ function createErrorFromMessage(
 				recoverable: true,
 				guidance: [
 					'Wait a moment and try again',
-					'Check constellation-core status',
+					'Check Constellation service connectivity with `await api.ping()`',
 					'Check system resources',
 				],
 				context: baseContext,

@@ -104,7 +104,7 @@ export const standardErrors = {
 		message += `Try:\n`;
 		message += `- Checking your network connection\n`;
 		message += `- Verifying the API service is running\n`;
-		message += `- Checking the constellation-core logs`;
+		message += `- Checking Constellation service connectivity with \`await api.ping()\``;
 		return message;
 	},
 

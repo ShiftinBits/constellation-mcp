@@ -130,7 +130,16 @@ api.findOrphanedCode({ filePattern?, filterByKind?, exportedOnly?, excludeTests?
 ### Utility
 
 api.ping() → { pong: true }  // Verify auth & connectivity
-api.listMethods() → { methods[], usage, example }
+
+api.listMethods() → {
+  methods: [{ name, description, triggerPhrases[], quickExample }],
+  usage: string,
+  example: string,
+  decisionGuide: { "user intent phrase": "methodName", ... },
+  tip: string
+}
+// Note: Returns an object with a 'methods' array, not an array directly
+// Example: const result = api.listMethods(); result.methods.forEach(m => ...)
 
 For complete TypeScript interfaces: read resource constellation://types/api
 `,

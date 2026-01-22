@@ -5,12 +5,12 @@
  * understand project state before making queries.
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { ConstellationClient } from '../../../src/client/constellation-client.js';
 import {
 	getProjectCapabilities,
 	ProjectCapabilities,
 } from '../../../src/code-mode/capabilities.js';
-import { ConstellationClient } from '../../../src/client/constellation-client.js';
 
 // Mock ConstellationClient
 jest.mock('../../../src/client/constellation-client.js');
@@ -281,7 +281,7 @@ describe('capabilities', () => {
 
 				expect(result.isIndexed).toBe(false);
 				expect(result.limitations).toContain(
-					'Cannot connect to Constellation API - check that constellation-core is running',
+					'Connection failure to Constellation API - check Constellation service connectivity with `await api.ping()`',
 				);
 			});
 
@@ -294,7 +294,7 @@ describe('capabilities', () => {
 
 				expect(result.isIndexed).toBe(false);
 				expect(result.limitations).toContain(
-					'Cannot connect to Constellation API - check that constellation-core is running',
+					'Connection failure to Constellation API - check Constellation service connectivity with `await api.ping()`',
 				);
 			});
 
@@ -307,7 +307,7 @@ describe('capabilities', () => {
 
 				expect(result.isIndexed).toBe(false);
 				expect(result.limitations).toContain(
-					'Cannot connect to Constellation API - check that constellation-core is running',
+					'Connection failure to Constellation API - check Constellation service connectivity with `await api.ping()`',
 				);
 			});
 
