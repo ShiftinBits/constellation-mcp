@@ -11,6 +11,11 @@
 	"files": [
 		"dist"
 	],
+	"sideEffects": false,
+	"exports": {
+		".": "./dist/index.js",
+		"./*": "./dist/*"
+	},
 	"scripts": {
 		"build": "rimraf dist && tsup && node utils/postbuild.js",
 		"watch": "tsc --watch",
