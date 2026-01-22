@@ -39,19 +39,51 @@ try {
 		'✓ Successfully added shebang to dist/index.js and made it executable',
 	);
 
-	// Copy api-types.d.ts to dist for MCP Resource access
-	const srcTypesPath = path.join(__dirname, '../src/types/api-types.d.ts');
+	// Copy type definitions to dist for MCP Resource access (LLMs read this)
 	const distTypesDir = path.join(__dirname, '../dist/types');
-	const distTypesPath = path.join(distTypesDir, 'api-types.d.ts');
 
 	// Ensure dist/types directory exists
 	if (!fs.existsSync(distTypesDir)) {
 		fs.mkdirSync(distTypesDir, { recursive: true });
 	}
 
-	// Copy the TypeScript declaration file
-	fs.copyFileSync(srcTypesPath, distTypesPath);
-	console.log('✓ Successfully copied api-types.d.ts to dist/types/');
+	// Copy MCP-specific type definitions for LLM consumption
+	// Uses mcp-api.d.ts which excludes CLI-to-Core indexing types (SerializedAST, etc.)
+	// that LLMs don't need and would waste tokens
+	const sharedTypesPath = path.join(
+		__dirname,
+		'../node_modules/@constellationdev/types/dist/mcp-api.d.ts',
+	);
+	const distTypesPath = path.join(distTypesDir, 'api-types.d.ts');
+
+	if (fs.existsSync(sharedTypesPath)) {
+		// Add header comment explaining the source
+		const typesContent = fs.readFileSync(sharedTypesPath, 'utf8');
+		const headerComment = `/**
+ * Constellation API Type Definitions
+ *
+ * Auto-copied from @constellationdev/types during build.
+ * This file is served to AI assistants via constellation://types/api resource.
+ *
+ * DO NOT EDIT - changes will be overwritten on build.
+ * Edit the source at: constellation-types/src/
+ *
+ * @packageDocumentation
+ */
+
+`;
+		fs.writeFileSync(distTypesPath, headerComment + typesContent, 'utf8');
+		console.log(
+			'✓ Successfully copied @constellationdev/types definitions to dist/types/api-types.d.ts',
+		);
+	} else {
+		// Fallback: copy source file if shared types not found
+		const srcTypesPath = path.join(__dirname, '../src/types/api-types.d.ts');
+		fs.copyFileSync(srcTypesPath, distTypesPath);
+		console.warn(
+			'⚠ @constellationdev/types not found, copied source api-types.d.ts instead',
+		);
+	}
 } catch (error) {
 	console.error('Error in postbuild:', error.message);
 	process.exit(1);

@@ -16,12 +16,12 @@ import {
 	type ProjectCapabilities,
 } from './capabilities.js';
 
-// Import API types to ensure type safety and establish dependency
+// Import API types from shared package - single source of truth
 import type {
 	SearchSymbolsParams,
 	SearchSymbolsResult,
 	GetSymbolDetailsParams,
-	GetSymbolDetailsResult,
+	SymbolDetailsResult,
 	GetDependenciesParams,
 	GetDependenciesResult,
 	GetDependentsParams,
@@ -39,7 +39,7 @@ import type {
 	GetArchitectureOverviewParams,
 	GetArchitectureOverviewResult,
 	PingResult,
-} from '../types/api-types.js';
+} from '@constellationdev/types';
 
 /** Maximum size of objects to fully serialize in console output */
 const MAX_CONSOLE_OBJECT_SIZE = 500;
@@ -81,7 +81,7 @@ export interface ConstellationApi {
 	searchSymbols(params: SearchSymbolsParams): Promise<SearchSymbolsResult>;
 	getSymbolDetails(
 		params: GetSymbolDetailsParams,
-	): Promise<GetSymbolDetailsResult>;
+	): Promise<SymbolDetailsResult>;
 
 	// Dependency analysis
 	getDependencies(
