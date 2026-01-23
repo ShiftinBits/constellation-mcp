@@ -29,6 +29,7 @@ import {
 	getProjectCapabilities,
 	type ProjectCapabilities,
 } from './capabilities.js';
+import { validateAst } from './validators/index.js';
 import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	DEFAULT_MEMORY_LIMIT_MB,
@@ -852,8 +853,26 @@ ${code}
 			errors.push('Potential infinite loop detected: for(;;)');
 		}
 
+		// === Phase 2: AST-based validation (SB-101) ===
+		// Catches bypass vectors that regex can miss (computed property access, etc.)
+		const astResult = validateAst(code);
+
+		if (!astResult.valid) {
+			for (const err of astResult.errors) {
+				const location = err.location
+					? ` at line ${err.location.line}, column ${err.location.column}`
+					: '';
+				errors.push(`[AST] ${err.message}${location}`);
+			}
+		}
+
 		// === Warnings for common mistakes (informational, don't block execution) ===
 		const warnings: string[] = [];
+
+		// Add parse warning if AST couldn't parse (syntax error - VM will catch it)
+		if (astResult.parseError) {
+			warnings.push(astResult.parseError);
+		}
 
 		// Check for missing return statement (common mistake)
 		const hasApiCall = /api\.\w+\s*\(/.test(code);
