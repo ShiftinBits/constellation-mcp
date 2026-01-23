@@ -21,12 +21,12 @@ import {
 	ValidationError,
 } from '../client/error-factory.js';
 import { ConfigurationError } from '../client/constellation-client.js';
-
-/**
- * Input validation constants
- * FIX SB-87: Prevent DoS via large code submissions
- */
-const MAX_CODE_SIZE = 100 * 1024; // 100KB limit for code input
+import {
+	MAX_CODE_SIZE,
+	DEFAULT_EXECUTION_TIMEOUT_MS,
+	MIN_EXECUTION_TIMEOUT_MS,
+	MAX_EXECUTION_TIMEOUT_MS,
+} from '../constants/index.js';
 
 /**
  * Regex to detect invalid binary/control characters in code
@@ -135,12 +135,12 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					),
 				timeout: z
 					.number()
-					.min(1000)
-					.max(60000)
+					.min(MIN_EXECUTION_TIMEOUT_MS)
+					.max(MAX_EXECUTION_TIMEOUT_MS)
 					.optional()
-					.default(30000)
+					.default(DEFAULT_EXECUTION_TIMEOUT_MS)
 					.describe(
-						'Maximum execution time in milliseconds (default: 30000, max: 60000)',
+						`Maximum execution time in milliseconds (default: ${DEFAULT_EXECUTION_TIMEOUT_MS}, max: ${MAX_EXECUTION_TIMEOUT_MS})`,
 					),
 				cwd: z
 					.string()
@@ -285,7 +285,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 
 				// Create runtime with configuration
 				const runtime = new CodeModeRuntime({
-					timeout: timeout || 30000,
+					timeout: timeout || DEFAULT_EXECUTION_TIMEOUT_MS,
 					allowConsole: true,
 					allowTimers: false,
 					configContext,

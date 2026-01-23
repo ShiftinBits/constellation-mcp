@@ -1,8 +1,22 @@
 /**
  * Code Mode Sandbox
  *
- * Provides a secure sandboxed environment for executing user-generated
- * JavaScript code with access to the Constellation API.
+ * Provides an isolated execution environment for user-generated JavaScript code
+ * with access to the Constellation API.
+ *
+ * ## Security Model
+ *
+ * This sandbox provides **convenience isolation** to prevent accidental damage:
+ * - Timeout enforcement prevents infinite loops
+ * - Memory limits prevent exhaustion
+ * - Pattern validation blocks common dangerous patterns
+ * - Isolated built-ins prevent prototype pollution
+ *
+ * **WARNING**: This is NOT a security boundary against malicious code. The Node.js
+ * vm module has known limitations. For production deployments, run in a container
+ * or VM with appropriate OS-level isolation.
+ *
+ * See docs/code-mode/SANDBOX-SECURITY.md for full threat model and deployment recommendations.
  */
 
 import vm from 'vm';
@@ -15,6 +29,13 @@ import {
 	getProjectCapabilities,
 	type ProjectCapabilities,
 } from './capabilities.js';
+import {
+	DEFAULT_EXECUTION_TIMEOUT_MS,
+	DEFAULT_MEMORY_LIMIT_MB,
+	DEFAULT_MAX_API_CALLS,
+	PARAM_SUMMARY_MAX_LENGTH,
+	MAX_CONSOLE_OBJECT_SIZE,
+} from '../constants/index.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -40,9 +61,6 @@ import type {
 	GetArchitectureOverviewResult,
 	PingResult,
 } from '@constellationdev/types';
-
-/** Maximum size of objects to fully serialize in console output */
-const MAX_CONSOLE_OBJECT_SIZE = 500;
 
 /**
  * Method metadata for listMethods() response.
@@ -228,11 +246,11 @@ export class CodeModeSandbox {
 		}
 
 		this.options = {
-			timeout: options.timeout || 30000, // 30 seconds default
-			memoryLimit: options.memoryLimit || 128, // 128MB default
+			timeout: options.timeout || DEFAULT_EXECUTION_TIMEOUT_MS,
+			memoryLimit: options.memoryLimit || DEFAULT_MEMORY_LIMIT_MB,
 			allowConsole: options.allowConsole !== false,
 			allowTimers: options.allowTimers || false,
-			maxApiCalls: options.maxApiCalls || 50, // Default 50 API calls per execution
+			maxApiCalls: options.maxApiCalls || DEFAULT_MAX_API_CALLS,
 			projectContext: options.projectContext || {
 				projectId: configContext.projectId,
 				branchName: configContext.branchName,
@@ -289,6 +307,9 @@ export class CodeModeSandbox {
 			});
 
 			const context = vm.createContext(sandbox);
+
+			// Freeze prototypes in the sandbox to prevent prototype pollution attacks (SB-102)
+			this.freezeSandboxPrototypes(context);
 
 			// FIX SB-85: VM timeout only applies to synchronous execution.
 			// Async code (including our async IIFE wrapper) returns a Promise immediately,
@@ -356,29 +377,60 @@ export class CodeModeSandbox {
 	}
 
 	/**
-	 * Create isolated built-in constructors to prevent prototype pollution.
-	 * By running constructors from a separate VM context, any modifications
-	 * to prototypes (e.g., Array.prototype.polluted = true) are isolated
-	 * to that context and don't affect the host environment.
+	 * Freeze built-in prototypes in the sandbox context to prevent prototype pollution.
+	 * Must be called AFTER vm.createContext() since that creates isolated copies.
+	 *
+	 * Security note: vm.createContext() creates isolated prototype copies, so freezing
+	 * them only affects the sandbox and doesn't impact the host environment.
 	 */
-	private createIsolatedBuiltins(): Record<string, unknown> {
-		const isolatedContext = vm.createContext({});
-		return vm.runInContext(
-			`({
-			Promise,
-			Array,
-			Object,
-			String,
-			Number,
-			Boolean,
-			Date,
-			JSON,
-			Math,
-			RegExp,
-			Map,
-			Set,
-		})`,
-			isolatedContext,
+	private freezeSandboxPrototypes(context: vm.Context): void {
+		vm.runInContext(
+			`
+			// Freeze all built-in prototypes to prevent prototype pollution
+			Object.freeze(Object.prototype);
+			Object.freeze(Array.prototype);
+			Object.freeze(String.prototype);
+			Object.freeze(Number.prototype);
+			Object.freeze(Boolean.prototype);
+			Object.freeze(Date.prototype);
+			Object.freeze(RegExp.prototype);
+			Object.freeze(Map.prototype);
+			Object.freeze(Set.prototype);
+			Object.freeze(Promise.prototype);
+			Object.freeze(Function.prototype);
+
+			// Freeze constructors to prevent modification of static methods
+			Object.freeze(Object);
+			Object.freeze(Array);
+			Object.freeze(String);
+			Object.freeze(Number);
+			Object.freeze(Boolean);
+			Object.freeze(Date);
+			Object.freeze(RegExp);
+			Object.freeze(Map);
+			Object.freeze(Set);
+			Object.freeze(Promise);
+			Object.freeze(Function);
+
+			// Freeze utility objects
+			Object.freeze(JSON);
+			Object.freeze(Math);
+
+			// Make global constructor bindings non-writable to prevent reassignment
+			// This prevents attacks like: Array = function() { return 'hacked'; }
+			const constructorNames = [
+				'Object', 'Array', 'String', 'Number', 'Boolean',
+				'Date', 'RegExp', 'Map', 'Set', 'Promise', 'Function',
+				'JSON', 'Math'
+			];
+			for (const name of constructorNames) {
+				Object.defineProperty(this, name, {
+					writable: false,
+					configurable: false
+				});
+			}
+		`,
+			context,
 		);
 	}
 
@@ -395,8 +447,8 @@ export class CodeModeSandbox {
 		const summarizeParams = (params: any): string => {
 			try {
 				const json = JSON.stringify(params);
-				if (json.length > 100) {
-					return json.substring(0, 97) + '...';
+				if (json.length > PARAM_SUMMARY_MAX_LENGTH) {
+					return json.substring(0, PARAM_SUMMARY_MAX_LENGTH - 3) + '...';
 				}
 				return json;
 			} catch {
@@ -648,14 +700,13 @@ export class CodeModeSandbox {
 			},
 		);
 
-		// Build sandbox context with isolated built-ins to prevent prototype pollution
-		const isolatedBuiltins = this.createIsolatedBuiltins();
+		// Build sandbox context for code execution
+		// Note: vm.createContext() provides isolated built-in prototypes automatically,
+		// so we don't need to spread isolatedBuiltins here. The freeze happens after
+		// context creation to freeze the context's own built-in prototypes.
 		const sandbox: any = {
 			// Core API
 			api,
-
-			// Standard JavaScript features (isolated to prevent prototype pollution)
-			...isolatedBuiltins,
 		};
 
 		// Conditionally add console with size-optimized output
@@ -687,7 +738,8 @@ export class CodeModeSandbox {
 				}
 			};
 
-			sandbox.console = {
+			// Freeze console object to prevent modification (SB-102)
+			sandbox.console = Object.freeze({
 				log: (...args: any[]) => {
 					const message = args.map(formatArg).join(' ');
 					logs.push(message);
@@ -704,7 +756,7 @@ export class CodeModeSandbox {
 					const message = args.map(formatArg).join(' ');
 					logs.push(`[INFO] ${message}`);
 				},
-			};
+			});
 		}
 
 		// Conditionally add timers (generally not recommended for security)
@@ -715,7 +767,8 @@ export class CodeModeSandbox {
 			sandbox.clearInterval = clearInterval;
 		}
 
-		return sandbox;
+		// Freeze the sandbox object to prevent adding/removing properties (SB-102)
+		return Object.freeze(sandbox);
 	}
 
 	/**
@@ -726,12 +779,15 @@ export class CodeModeSandbox {
 		const trimmed = code.trim();
 
 		// If it's already an async function or IIFE, use as-is
+		// Note: We still prepend "use strict" to ensure frozen prototype protection
 		if (trimmed.startsWith('(async') || trimmed.startsWith('async function')) {
-			return code;
+			return `"use strict";\n${code}`;
 		}
 
 		// Wrap in async IIFE for top-level await support
-		return `(async () => {
+		// "use strict" ensures modifications to frozen objects throw errors (SB-102)
+		return `"use strict";
+(async () => {
 ${code}
 })()`;
 	}

@@ -517,13 +517,26 @@ console.log(
 
 ## Security
 
-Code execution happens in a sandboxed environment:
+Code execution happens in a sandboxed environment with multiple protection layers:
 
-- No file system access
-- No network access (except through the API)
-- Timeout protection (30-60 seconds)
-- Memory limits
-- No process access (can't spawn processes or access system)
+### Protections Enabled
+
+- **No file system access** - `fs`, `path` modules blocked
+- **No network access** - Except through the Constellation API
+- **Timeout protection** - 30-60 seconds default
+- **Memory limits** - 128MB default
+- **Rate limiting** - 50 API calls per execution
+- **No process access** - Can't spawn processes or access system
+- **Pattern validation** - Blocks `require`, `import`, `eval`, `Function`, etc.
+
+### Important Limitations
+
+> **Note**: This sandbox is designed for **convenience isolation**, not **security
+> isolation**. It prevents accidental misuse but cannot protect against intentionally
+> malicious code crafted to escape the sandbox.
+
+For details on the security model and production deployment recommendations,
+see [SANDBOX-SECURITY.md](./SANDBOX-SECURITY.md).
 
 ## Setup
 

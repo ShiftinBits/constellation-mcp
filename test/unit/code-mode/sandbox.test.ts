@@ -590,24 +590,35 @@ describe('CodeModeSandbox', () => {
 		describe('prototype isolation', () => {
 			it('should not allow Object.prototype pollution to affect host', async () => {
 				// Execute code that tries to pollute Object.prototype
-				await sandbox.execute('Object.prototype.polluted = true; return 1;');
+				// With SB-102 freezing, this now fails - which is correct behavior
+				const result = await sandbox.execute(
+					'Object.prototype.polluted = true; return 1;',
+				);
 
+				// Execution should fail due to frozen prototype (SB-102)
+				expect(result.success).toBe(false);
 				// Verify host Object.prototype is not polluted
 				expect((Object.prototype as any).polluted).toBeUndefined();
 			});
 
 			it('should not allow Array.prototype pollution to affect host', async () => {
-				await sandbox.execute(
+				const result = await sandbox.execute(
 					'Array.prototype.evilMethod = function() { return "evil"; }; return 1;',
 				);
 
+				// Execution should fail due to frozen prototype (SB-102)
+				expect(result.success).toBe(false);
 				// Verify host Array.prototype is not polluted
 				expect((Array.prototype as any).evilMethod).toBeUndefined();
 			});
 
 			it('should not allow String.prototype pollution to affect host', async () => {
-				await sandbox.execute('String.prototype.compromised = true; return 1;');
+				const result = await sandbox.execute(
+					'String.prototype.compromised = true; return 1;',
+				);
 
+				// Execution should fail due to frozen prototype (SB-102)
+				expect(result.success).toBe(false);
 				expect((String.prototype as any).compromised).toBeUndefined();
 			});
 
@@ -634,6 +645,350 @@ describe('CodeModeSandbox', () => {
 
 				expect(result.success).toBe(true);
 				expect(result.result).toBe('{"test":123}');
+			});
+		});
+
+		// SB-102: Prototype freezing tests - validates that prototype pollution throws errors
+		describe('prototype freezing (SB-102)', () => {
+			it('should throw when modifying Object.prototype', async () => {
+				const code = `
+					Object.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				// In strict mode (async IIFE), modifying frozen prototype throws TypeError
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Array.prototype', async () => {
+				const code = `
+					Array.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying String.prototype', async () => {
+				const code = `
+					String.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Number.prototype', async () => {
+				const code = `
+					Number.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Function.prototype', async () => {
+				const code = `
+					Function.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Promise.prototype', async () => {
+				const code = `
+					Promise.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Map.prototype', async () => {
+				const code = `
+					Map.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should throw when modifying Set.prototype', async () => {
+				const code = `
+					Set.prototype.polluted = 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|Cannot create property|object is not extensible/,
+				);
+			});
+
+			it('should still allow normal object operations', async () => {
+				const code = `
+					const obj = { a: 1, b: 2 };
+					const arr = [1, 2, 3];
+					arr.push(4);
+					obj.c = 3;
+					return { obj, arr };
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.arr).toEqual([1, 2, 3, 4]);
+				expect(result.result.obj).toEqual({ a: 1, b: 2, c: 3 });
+			});
+
+			it('should allow Array methods on instances', async () => {
+				const code = `
+					const result = [1, 2, 3].map(x => x * 2);
+					return result;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toEqual([2, 4, 6]);
+			});
+
+			it('should allow Array filter and reduce operations', async () => {
+				const code = `
+					const arr = [1, 2, 3, 4, 5];
+					const filtered = arr.filter(x => x > 2);
+					const sum = arr.reduce((acc, x) => acc + x, 0);
+					return { filtered, sum };
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.filtered).toEqual([3, 4, 5]);
+				expect(result.result.sum).toBe(15);
+			});
+
+			it('should allow String methods on instances', async () => {
+				const code = `
+					const str = 'hello world';
+					return {
+						upper: str.toUpperCase(),
+						split: str.split(' '),
+						includes: str.includes('world')
+					};
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.upper).toBe('HELLO WORLD');
+				expect(result.result.split).toEqual(['hello', 'world']);
+				expect(result.result.includes).toBe(true);
+			});
+
+			it('should allow Date operations', async () => {
+				const code = `
+					const date = new Date('2024-01-15T10:30:00Z');
+					return {
+						year: date.getUTCFullYear(),
+						month: date.getUTCMonth(),
+						day: date.getUTCDate()
+					};
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.year).toBe(2024);
+				expect(result.result.month).toBe(0); // January is 0
+				expect(result.result.day).toBe(15);
+			});
+
+			it('should allow Map and Set operations', async () => {
+				const code = `
+					const map = new Map();
+					map.set('key1', 'value1');
+					map.set('key2', 'value2');
+
+					const set = new Set();
+					set.add(1);
+					set.add(2);
+					set.add(2); // duplicate
+
+					return {
+						mapSize: map.size,
+						mapValue: map.get('key1'),
+						setSize: set.size,
+						setHas: set.has(1)
+					};
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.mapSize).toBe(2);
+				expect(result.result.mapValue).toBe('value1');
+				expect(result.result.setSize).toBe(2);
+				expect(result.result.setHas).toBe(true);
+			});
+
+			it('should allow Promise operations', async () => {
+				const code = `
+					const result = await Promise.all([
+						Promise.resolve(1),
+						Promise.resolve(2),
+						Promise.resolve(3)
+					]);
+					return result;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toEqual([1, 2, 3]);
+			});
+
+			it('should allow RegExp operations', async () => {
+				const code = `
+					const pattern = /\\w+/g;
+					const str = 'hello world';
+					const matches = str.match(pattern);
+					return matches;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toEqual(['hello', 'world']);
+			});
+
+			it('should not affect host environment', async () => {
+				// Attempt pollution (will fail due to freeze, but verify host isolation)
+				await sandbox.execute(`
+					try { Object.prototype.hostLeak = 'leaked'; } catch {}
+					return true;
+				`);
+
+				// Host environment must be unaffected
+				const hostObj: any = {};
+				expect(hostObj.hostLeak).toBeUndefined();
+			});
+
+			it('should isolate prototype pollution attempts between executions', async () => {
+				// First execution - attempt fails due to freeze
+				await sandbox.execute(`
+					try { Object.prototype.cross = 'polluted'; } catch {}
+					return true;
+				`);
+
+				// Second execution should start clean (and also have frozen prototypes)
+				const result = await sandbox.execute(`
+					const obj = {};
+					return obj.cross;
+				`);
+
+				expect(result.success).toBe(true);
+				expect(result.result).toBeUndefined();
+			});
+
+			it('should prevent overwriting built-in constructors', async () => {
+				// Note: Since sandbox is frozen, attempting to reassign Array will fail
+				// The frozen prototypes prevent the attack vector regardless
+				const code = `
+					try {
+						Array = function() { return 'hacked'; };
+						return 'reassigned';
+					} catch (e) {
+						return 'blocked: ' + e.message;
+					}
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				// Should be blocked - either throws or assignment is silently ignored
+				expect(result.result).not.toBe('reassigned');
+			});
+
+			it('should prevent modifying JSON object', async () => {
+				const code = `
+					JSON.malicious = () => 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|object is not extensible/,
+				);
+			});
+
+			it('should prevent modifying Math object', async () => {
+				const code = `
+					Math.malicious = () => 'hacked';
+					return true;
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.error).toMatch(
+					/Cannot add property|object is not extensible/,
+				);
+			});
+
+			it('should allow JSON.stringify and JSON.parse', async () => {
+				const code = `
+					const obj = { a: 1, b: [2, 3] };
+					const json = JSON.stringify(obj);
+					const parsed = JSON.parse(json);
+					return { json, parsed };
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.json).toBe('{"a":1,"b":[2,3]}');
+				expect(result.result.parsed).toEqual({ a: 1, b: [2, 3] });
+			});
+
+			it('should allow Math operations', async () => {
+				const code = `
+					return {
+						max: Math.max(1, 5, 3),
+						min: Math.min(1, 5, 3),
+						floor: Math.floor(3.7),
+						ceil: Math.ceil(3.2),
+						abs: Math.abs(-5)
+					};
+				`;
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(true);
+				expect(result.result.max).toBe(5);
+				expect(result.result.min).toBe(1);
+				expect(result.result.floor).toBe(3);
+				expect(result.result.ceil).toBe(4);
+				expect(result.result.abs).toBe(5);
 			});
 		});
 

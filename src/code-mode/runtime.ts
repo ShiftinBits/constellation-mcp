@@ -8,6 +8,13 @@
 import { CodeModeSandbox, SandboxOptions, SandboxResult } from './sandbox.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
+import {
+	RESULT_SIZE_WARNING_THRESHOLD,
+	RESULT_SIZE_HARD_LIMIT,
+	TRUNCATED_ARRAY_PREVIEW_ITEMS,
+	TRUNCATED_OBJECT_PREVIEW_KEYS,
+	TRUNCATED_STRING_PREVIEW_LENGTH,
+} from '../constants/index.js';
 
 /**
  * Options for CodeModeRuntime
@@ -19,13 +26,6 @@ export interface CodeModeRuntimeOptions extends SandboxOptions {
 	 */
 	configContext: ConfigContext;
 }
-
-/**
- * Result size thresholds
- * FIX SB-95: Add hard limit to prevent memory issues and MCP protocol failures
- */
-const RESULT_SIZE_WARNING_THRESHOLD = 100 * 1024; // 100KB - warn user
-const RESULT_SIZE_HARD_LIMIT = 1024 * 1024; // 1MB - enforce truncation
 
 /**
  * Code Mode execution request (internal only)
@@ -90,7 +90,7 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 	if (Array.isArray(result)) {
 		// For arrays, show first few items and count
 		const itemCount = result.length;
-		const previewItems = result.slice(0, 5);
+		const previewItems = result.slice(0, TRUNCATED_ARRAY_PREVIEW_ITEMS);
 		preview = {
 			type: 'array',
 			totalItems: itemCount,
@@ -101,11 +101,11 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 		// For objects, show keys and first few values
 		const keys = Object.keys(result);
 		const previewObj: Record<string, unknown> = {};
-		for (const key of keys.slice(0, 10)) {
+		for (const key of keys.slice(0, TRUNCATED_OBJECT_PREVIEW_KEYS)) {
 			const value = (result as Record<string, unknown>)[key];
 			// Only include small values in preview
 			const valueStr = JSON.stringify(value);
-			if (valueStr && valueStr.length < 1000) {
+			if (valueStr && valueStr.length < TRUNCATED_STRING_PREVIEW_LENGTH) {
 				previewObj[key] = value;
 			} else {
 				previewObj[key] = '[truncated]';
@@ -114,8 +114,8 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 		preview = {
 			type: 'object',
 			totalKeys: keys.length,
-			showing: Math.min(keys.length, 10),
-			keys: keys.slice(0, 20),
+			showing: Math.min(keys.length, TRUNCATED_OBJECT_PREVIEW_KEYS),
+			keys: keys.slice(0, TRUNCATED_OBJECT_PREVIEW_KEYS * 2),
 			sample: previewObj,
 		};
 	} else if (typeof result === 'string') {
@@ -123,8 +123,8 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 		preview = {
 			type: 'string',
 			totalLength: result.length,
-			showing: 1000,
-			content: result.slice(0, 1000) + '...',
+			showing: TRUNCATED_STRING_PREVIEW_LENGTH,
+			content: result.slice(0, TRUNCATED_STRING_PREVIEW_LENGTH) + '...',
 		};
 	}
 
