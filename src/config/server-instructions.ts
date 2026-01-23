@@ -83,6 +83,7 @@ return { search, impact };
 2. **Always \`return\` results** - Otherwise output is undefined
 3. **Use \`Promise.all()\`** - For parallel operations (3-10x faster)
 4. **Use symbolId from search results** - More precise than name+path
+5. **No comments in code** - Comments waste tokens and serve no purpose at runtime
 
 ## Core Principle
 
