@@ -279,5 +279,35 @@ return {
 | Find dead code | \`findOrphanedCode\` |
 | Debug circular imports | \`findCircularDependencies\` |
 | Check connectivity | \`ping\` |
+
+## Multi-Project Workspaces
+
+When working in a workspace with multiple Constellation-indexed projects (monorepos, submodules):
+
+**IMPORTANT**: Provide the \`cwd\` parameter to ensure queries target the correct project.
+
+\`\`\`javascript
+// Without cwd - uses server's default project (may be wrong in multi-project setup)
+await api.searchSymbols({ query: "UserService" })
+
+// With cwd - explicitly targets the correct project
+// Pass cwd at the tool level, not in the api call:
+execute_code({
+  code: 'return await api.searchSymbols({ query: "UserService" })',
+  cwd: "/path/to/specific/project"
+})
+\`\`\`
+
+**How it works:**
+1. Provide your current working directory as \`cwd\` in the execute_code call
+2. Server walks upward to find the git repository root
+3. Loads \`constellation.json\` from that git root
+4. Uses that project's configuration for all API calls in that execution
+
+**When to provide cwd:**
+- Working in a monorepo with multiple indexed projects
+- Working in a workspace with git submodules
+- When queries return unexpected results (might be querying wrong project)
+- When you switch between projects in the same session
 `.trim();
 }

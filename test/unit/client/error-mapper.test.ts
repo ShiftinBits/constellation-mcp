@@ -7,15 +7,20 @@ import {
 } from '../../../src/client/constellation-client.js';
 import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
-// Mock config manager
-jest.mock('../../../src/config/config-manager.js', () => ({
-	getConfigContext: jest.fn(() => ({
-		projectId: 'test-project',
-		branchName: 'main',
-		config: {
-			apiUrl: 'https://api.test.com',
-		},
-	})),
+// Mock config cache
+jest.mock('../../../src/config/config-cache.js', () => ({
+	configCache: {
+		getDefaultConfig: jest.fn(() => ({
+			projectId: 'test-project',
+			branchName: 'main',
+			config: {
+				apiUrl: 'https://api.test.com',
+			},
+			apiKey: 'test-api-key',
+			configLoaded: true,
+			gitRoot: '/test/project',
+		})),
+	},
 }));
 
 describe('mapErrorToMessage', () => {

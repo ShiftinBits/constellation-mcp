@@ -5,30 +5,41 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
 import { ConstellationClient } from '../../../src/client/constellation-client.js';
+import { ConstellationConfig } from '../../../src/config/config.js';
+import type { ConfigContext } from '../../../src/config/config-cache.js';
 
 // Mock dependencies
 jest.mock('../../../src/client/constellation-client.js');
-jest.mock('../../../src/config/config-manager.js', () => ({
-	getConfigContext: jest.fn(() => ({
-		projectId: 'test-project',
-		branchName: 'test-branch',
-		namespace: 'test-namespace',
-		config: { apiUrl: 'http://test-api.com' },
-		apiKey: 'test-api-key',
-		initializationError: null,
-	})),
-}));
 
 const MockedConstellationClient = ConstellationClient as jest.MockedClass<
 	typeof ConstellationClient
 >;
 
+// Create a mock config for testing
+const createMockConfigContext = (): ConfigContext => ({
+	config: {
+		apiUrl: 'http://test-api.com',
+		branch: 'test-branch',
+		languages: { typescript: { fileExtensions: ['.ts'] } },
+		projectId: 'test-project',
+		validate: jest.fn(),
+	} as unknown as ConstellationConfig,
+	projectId: 'test-project',
+	branchName: 'test-branch',
+	apiKey: 'test-api-key',
+	configLoaded: true,
+	gitRoot: '/test/project',
+});
+
 describe('CodeModeSandbox', () => {
 	let sandbox: CodeModeSandbox;
 	let mockClient: jest.Mocked<ConstellationClient>;
+	let mockConfigContext: ConfigContext;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+
+		mockConfigContext = createMockConfigContext();
 
 		mockClient = {
 			executeMcpTool: jest.fn(),
@@ -39,6 +50,7 @@ describe('CodeModeSandbox', () => {
 		sandbox = new CodeModeSandbox({
 			timeout: 5000,
 			allowConsole: true,
+			configContext: mockConfigContext,
 		});
 	});
 
@@ -56,29 +68,39 @@ describe('CodeModeSandbox', () => {
 	});
 
 	describe('constructor', () => {
-		it('should create sandbox with default options', () => {
-			const s = new CodeModeSandbox();
+		it('should create sandbox with required configContext', () => {
+			const s = new CodeModeSandbox({ configContext: mockConfigContext });
 			expect(MockedConstellationClient).toHaveBeenCalled();
 		});
 
 		it('should create sandbox with custom timeout', () => {
-			new CodeModeSandbox({ timeout: 10000 });
+			new CodeModeSandbox({ timeout: 10000, configContext: mockConfigContext });
 			expect(MockedConstellationClient).toHaveBeenCalled();
 		});
 
 		it('should create sandbox with allowConsole = false', () => {
-			new CodeModeSandbox({ allowConsole: false });
+			new CodeModeSandbox({
+				allowConsole: false,
+				configContext: mockConfigContext,
+			});
 			expect(MockedConstellationClient).toHaveBeenCalled();
 		});
 
 		it('should create ConstellationClient with config context', () => {
-			new CodeModeSandbox();
+			new CodeModeSandbox({ configContext: mockConfigContext });
 
 			expect(MockedConstellationClient).toHaveBeenCalledWith(
 				expect.objectContaining({
 					apiUrl: 'http://test-api.com',
 				}),
 				'test-api-key',
+			);
+		});
+
+		it('should throw error if configContext is missing apiKey', () => {
+			const badConfig = { ...mockConfigContext, apiKey: '' };
+			expect(() => new CodeModeSandbox({ configContext: badConfig })).toThrow(
+				'Configuration not initialized',
 			);
 		});
 	});
@@ -624,7 +646,10 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should not allow setTimeout when disabled', async () => {
-			const s = new CodeModeSandbox({ allowTimers: false });
+			const s = new CodeModeSandbox({
+				allowTimers: false,
+				configContext: mockConfigContext,
+			});
 			const code = 'return typeof setTimeout;';
 			const result = await s.execute(code);
 
@@ -633,7 +658,10 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should allow setTimeout when enabled', async () => {
-			const s = new CodeModeSandbox({ allowTimers: true });
+			const s = new CodeModeSandbox({
+				allowTimers: true,
+				configContext: mockConfigContext,
+			});
 			const code = 'return typeof setTimeout;';
 			const result = await s.execute(code);
 
@@ -644,7 +672,10 @@ describe('CodeModeSandbox', () => {
 		it('should not add console methods to sandbox when disabled', async () => {
 			// Note: VM context isolation may not completely remove console
 			// This test verifies console is not explicitly added to sandbox
-			const s = new CodeModeSandbox({ allowConsole: false });
+			const s = new CodeModeSandbox({
+				allowConsole: false,
+				configContext: mockConfigContext,
+			});
 			const code =
 				'try { console.log("test"); return "logged"; } catch(e) { return "no console"; }';
 			const result = await s.execute(code);
@@ -704,7 +735,10 @@ describe('CodeModeSandbox', () => {
 
 	describe('timeout handling', () => {
 		it('should timeout long-running code', async () => {
-			const s = new CodeModeSandbox({ timeout: 100 });
+			const s = new CodeModeSandbox({
+				timeout: 100,
+				configContext: mockConfigContext,
+			});
 			// Infinite loop that should timeout
 			const code = 'let i = 0; while(i >= 0) { i++; }';
 			const result = await s.execute(code);
@@ -716,7 +750,10 @@ describe('CodeModeSandbox', () => {
 		}, 10000);
 
 		it('should not timeout fast code', async () => {
-			const s = new CodeModeSandbox({ timeout: 1000 });
+			const s = new CodeModeSandbox({
+				timeout: 1000,
+				configContext: mockConfigContext,
+			});
 			const code = 'return 42;';
 			const result = await s.execute(code);
 
@@ -725,7 +762,10 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should include timeout value in error message', async () => {
-			const s = new CodeModeSandbox({ timeout: 50 });
+			const s = new CodeModeSandbox({
+				timeout: 50,
+				configContext: mockConfigContext,
+			});
 			const code = 'let i = 0; while(i >= 0) { i++; }';
 			const result = await s.execute(code);
 
@@ -818,7 +858,10 @@ describe('CodeModeSandbox', () => {
 		});
 
 		it('should detect timeout errors in structuredError', async () => {
-			const s = new CodeModeSandbox({ timeout: 50 });
+			const s = new CodeModeSandbox({
+				timeout: 50,
+				configContext: mockConfigContext,
+			});
 			const code = 'let i = 0; while(i >= 0) { i++; }';
 			const result = await s.execute(code);
 

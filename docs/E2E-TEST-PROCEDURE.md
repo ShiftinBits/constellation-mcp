@@ -305,7 +305,7 @@ RETURN count(s) as count,
 
 ```javascript
 const result = await api.searchSymbols({
-	query: 'getConfigContext',
+	query: 'getDefaultConfig',
 	includeUsageCount: true,
 	limit: 5,
 });
@@ -330,7 +330,7 @@ return {
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.name CONTAINS 'getConfigContext'
+WHERE s.name CONTAINS 'getDefaultConfig'
   AND s.projectId = 'proj:00000000000040008000000000000033'
   AND s.branch = 'main'
 OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
@@ -1000,7 +1000,7 @@ RETURN count(DISTINCT direct) as directCount,
 
 ```javascript
 const result = await api.getDependents({
-	filePath: 'src/config/config-manager.ts',
+	filePath: 'src/config/config-cache.ts',
 	includeImpactMetrics: true,
 });
 return {
@@ -1019,7 +1019,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/config/config-manager.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/config/config-cache.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
 OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
 RETURN f.path as file,
        count(dependent) as dependentCount,
@@ -1118,7 +1118,7 @@ RETURN count(DISTINCT cyclePaths) as cycleCount,
 **Code:**
 
 ```javascript
-const search = await api.searchSymbols({ query: 'getConfigContext', limit: 1 });
+const search = await api.searchSymbols({ query: 'getDefaultConfig', limit: 1 });
 if (search.symbols?.length === 0) {
 	return { error: 'No symbols found' };
 }
@@ -1142,7 +1142,7 @@ return {
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.name = 'getConfigContext'
+WHERE s.name = 'getDefaultConfig'
   AND s.projectId = 'proj:00000000000040008000000000000033'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
@@ -1527,7 +1527,7 @@ RETURN s.name as rootName,
 **Code:**
 
 ```javascript
-const search = await api.searchSymbols({ query: 'getConfigContext', limit: 1 });
+const search = await api.searchSymbols({ query: 'getDefaultConfig', limit: 1 });
 if (search.symbols?.length === 0) {
 	return { error: 'No symbols found' };
 }
@@ -1556,7 +1556,7 @@ return {
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.name = 'getConfigContext'
+WHERE s.name = 'getDefaultConfig'
   AND s.projectId = 'proj:00000000000040008000000000000033'
   AND s.branch = 'main'
 OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)

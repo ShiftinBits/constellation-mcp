@@ -3,34 +3,44 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import {
-	CodeModeRuntime,
-	createCodeModeRuntime,
-} from '../../../src/code-mode/runtime.js';
+import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
+import { ConstellationConfig } from '../../../src/config/config.js';
+import type { ConfigContext } from '../../../src/config/config-cache.js';
 
 // Mock the sandbox module
 jest.mock('../../../src/code-mode/sandbox.js');
-jest.mock('../../../src/config/config-manager.js', () => ({
-	getConfigContext: jest.fn(() => ({
-		projectId: 'test-project',
-		branchName: 'test-branch',
-		namespace: 'test-namespace',
-		accessKey: 'test-key',
-		initializationError: null,
-	})),
-}));
 
 const MockedCodeModeSandbox = CodeModeSandbox as jest.MockedClass<
 	typeof CodeModeSandbox
 >;
 
+// Create a mock config for testing
+const createMockConfigContext = (): ConfigContext => ({
+	config: {
+		apiUrl: 'http://localhost:3000',
+		branch: 'test-branch',
+		languages: { typescript: { fileExtensions: ['.ts'] } },
+		projectId: 'test-project',
+		validate: jest.fn(),
+	} as unknown as ConstellationConfig,
+	projectId: 'test-project',
+	branchName: 'test-branch',
+	apiKey: 'test-key',
+	configLoaded: true,
+	gitRoot: '/test/project',
+});
+
 describe('CodeModeRuntime', () => {
 	let runtime: CodeModeRuntime;
 	let mockSandbox: jest.Mocked<CodeModeSandbox>;
+	let mockConfigContext: ConfigContext;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+
+		// Create mock config context
+		mockConfigContext = createMockConfigContext();
 
 		// Create mock sandbox instance
 		mockSandbox = {
@@ -44,21 +54,36 @@ describe('CodeModeRuntime', () => {
 		runtime = new CodeModeRuntime({
 			timeout: 5000,
 			allowConsole: true,
+			configContext: mockConfigContext,
 		});
 	});
 
 	describe('constructor', () => {
 		it('should create CodeModeSandbox with provided options', () => {
-			const options = { timeout: 10000, allowConsole: false };
+			const options = {
+				timeout: 10000,
+				allowConsole: false,
+				configContext: mockConfigContext,
+			};
 			new CodeModeRuntime(options);
 
-			expect(MockedCodeModeSandbox).toHaveBeenCalledWith(options);
+			expect(MockedCodeModeSandbox).toHaveBeenCalledWith(
+				expect.objectContaining({
+					timeout: 10000,
+					allowConsole: false,
+					configContext: mockConfigContext,
+				}),
+			);
 		});
 
-		it('should create CodeModeSandbox with default options when none provided', () => {
-			new CodeModeRuntime();
+		it('should pass configContext to CodeModeSandbox', () => {
+			new CodeModeRuntime({ configContext: mockConfigContext });
 
-			expect(MockedCodeModeSandbox).toHaveBeenCalledWith({});
+			expect(MockedCodeModeSandbox).toHaveBeenCalledWith(
+				expect.objectContaining({
+					configContext: mockConfigContext,
+				}),
+			);
 		});
 	});
 
@@ -532,22 +557,8 @@ describe('CodeModeRuntime', () => {
 		});
 	});
 
-	describe('createCodeModeRuntime', () => {
-		it('should create runtime with config context', () => {
-			const runtime = createCodeModeRuntime();
-
-			expect(runtime).toBeInstanceOf(CodeModeRuntime);
-			expect(MockedCodeModeSandbox).toHaveBeenCalledWith({
-				timeout: 30000,
-				allowConsole: true,
-				allowTimers: false,
-				projectContext: {
-					projectId: 'test-project',
-					branchName: 'test-branch',
-				},
-			});
-		});
-	});
+	// Note: createCodeModeRuntime was removed - callers must now provide configContext explicitly
+	// This supports multi-project workspaces where config is resolved per-call.
 
 	describe('structuredError passthrough', () => {
 		it('should pass structuredError from sandbox to response', async () => {

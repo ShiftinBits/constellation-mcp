@@ -41,8 +41,9 @@ src/
 │   ├── error-factory.ts         Structured error creation
 │   └── error-mapper.ts          Error translation
 ├── config/
-│   ├── config-manager.ts        Singleton config access
+│   ├── config-cache.ts          Multi-project config resolution & caching
 │   ├── config.loader.ts         Load constellation.json
+│   ├── server-instructions.ts   AI assistant guidance
 │   └── config.ts                ConstellationConfig class
 ├── types/
 │   ├── api-types.d.ts           API method type definitions (mirror Core DTOs)

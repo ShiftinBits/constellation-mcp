@@ -4,13 +4,18 @@
  * Registers the execute_code tool with the MCP server.
  * This is the only tool in Code Mode, providing access to all Constellation API capabilities
  * through JavaScript code execution.
+ *
+ * Supports multi-project workspaces via optional `cwd` parameter for dynamic config resolution.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { CodeModeRuntime, CodeModeResponse } from '../code-mode/runtime.js';
-import { getConfigContext } from '../config/config-manager.js';
-import { standardErrors } from '../utils/error-messages.js';
+import {
+	configCache,
+	ConfigCacheError,
+	type ConfigContext,
+} from '../config/config-cache.js';
 import {
 	createStructuredError,
 	ValidationError,
@@ -68,6 +73,41 @@ function toSchemaCompliantOutput(
 }
 
 /**
+ * Resolve configuration context for the given cwd.
+ *
+ * If cwd is provided, resolves config by finding the git root and loading
+ * constellation.json. If cwd is not provided, uses the default config
+ * from server startup (if available).
+ *
+ * @param cwd Optional working directory to resolve config from
+ * @returns Configuration context
+ * @throws Error if no config can be resolved
+ */
+async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
+	if (cwd) {
+		// Resolve config from provided cwd
+		return configCache.getConfigForPath(cwd);
+	}
+
+	// Fall back to default config
+	const defaultConfig = configCache.getDefaultConfig();
+	if (!defaultConfig) {
+		throw new ConfigCacheError(
+			'No project context available. ' +
+				'Provide the "cwd" parameter with your working directory to specify which project to query.',
+			'NO_CONFIG',
+			[
+				'Provide cwd parameter with the path to your project',
+				'Example: execute_code({ code: "...", cwd: "/path/to/project" })',
+				'Run the MCP server from within a git repository with constellation.json',
+			],
+		);
+	}
+
+	return defaultConfig;
+}
+
+/**
  * Register the execute_code tool with the MCP server
  *
  * @param server - The McpServer instance to register the tool with
@@ -79,9 +119,10 @@ export function registerExecuteCodeTool(server: McpServer): void {
 			title: 'Execute JavaScript Code',
 			description:
 				'THE ONLY AVAILABLE TOOL. Execute JavaScript code to interact with Constellation. ' +
-				'You MUST use this tool for ALL operations - searching, analyzing dependencies, getting details, etc. ' +
-				'Write JavaScript code using the api object: api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
-				'This is a Code Mode-only server. There are NO other tools. Always write JavaScript code.',
+				'You MUST use this tool for ALL operations. Write JavaScript using the api object: ' +
+				'api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
+				'This is a Code Mode-only server. There are NO other tools. Always write JavaScript code. ' +
+				'For multi-project workspaces, provide "cwd" parameter to target the correct project.',
 			inputSchema: {
 				code: z
 					.string()
@@ -101,6 +142,15 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					.describe(
 						'Maximum execution time in milliseconds (default: 30000, max: 60000)',
 					),
+				cwd: z
+					.string()
+					.optional()
+					.describe(
+						'Working directory context for multi-project workspaces. ' +
+							'Used to locate the correct constellation.json by finding the git repository root. ' +
+							"If omitted, uses the server's startup directory. " +
+							'Provide this when working in monorepos or workspaces with multiple indexed projects.',
+					),
 			},
 			outputSchema: {
 				success: z.boolean(),
@@ -116,12 +166,35 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				openWorldHint: false,
 			},
 		},
-		async ({ code, timeout }) => {
+		async ({ code, timeout, cwd }) => {
 			console.error('[execute_code] Executing code mode script');
+			if (cwd) {
+				console.error(`[execute_code] Using cwd: ${cwd}`);
+			}
+
+			// Resolve configuration context
+			let configContext: ConfigContext;
+			try {
+				configContext = await resolveConfigContext(cwd);
+			} catch (error) {
+				console.error('[execute_code] Config resolution failed:', error);
+
+				// Create structured error for config resolution failures
+				const structuredError = createStructuredError(error, 'execute_code');
+
+				return {
+					content: [
+						{
+							type: 'text',
+							text: JSON.stringify(structuredError, null, 2),
+						},
+					],
+					isError: true,
+				};
+			}
 
 			try {
-				// Check for configuration errors first
-				const configContext = getConfigContext();
+				// Check for configuration errors (e.g., missing constellation.json)
 				if (configContext.initializationError) {
 					console.error(
 						'[execute_code] Configuration error detected, returning setup instructions',
@@ -131,6 +204,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					const structuredError = createStructuredError(
 						new ConfigurationError(configContext.initializationError),
 						'execute_code',
+						configContext,
 					);
 
 					return {
@@ -161,7 +235,11 @@ export function registerExecuteCodeTool(server: McpServer): void {
 							],
 						},
 					);
-					const structuredError = createStructuredError(error, 'execute_code');
+					const structuredError = createStructuredError(
+						error,
+						'execute_code',
+						configContext,
+					);
 					return {
 						content: [
 							{
@@ -189,7 +267,11 @@ export function registerExecuteCodeTool(server: McpServer): void {
 							],
 						},
 					);
-					const structuredError = createStructuredError(error, 'execute_code');
+					const structuredError = createStructuredError(
+						error,
+						'execute_code',
+						configContext,
+					);
 					return {
 						content: [
 							{
@@ -206,6 +288,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					timeout: timeout || 30000,
 					allowConsole: true,
 					allowTimers: false,
+					configContext,
 				});
 
 				// Execute the code
@@ -248,7 +331,11 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				console.error('[execute_code] Execution error:', error);
 
 				// Create structured error for unexpected errors
-				const structuredError = createStructuredError(error, 'execute_code');
+				const structuredError = createStructuredError(
+					error,
+					'execute_code',
+					configContext,
+				);
 
 				return {
 					content: [

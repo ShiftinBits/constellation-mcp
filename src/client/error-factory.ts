@@ -5,7 +5,11 @@
  * machine-readable error codes and actionable guidance for AI assistants.
  */
 
-import { getConfigContext } from '../config/config-manager.js';
+import {
+	configCache,
+	ConfigCacheError,
+	type ConfigContext,
+} from '../config/config-cache.js';
 import { DOCS_URLS } from '../constants/urls.js';
 import { ErrorCode, type McpErrorResponse } from '../types/mcp-errors.js';
 import {
@@ -37,8 +41,8 @@ export class ValidationError extends Error {
  * Used to conditionally include detailed API suggestions in error responses
  */
 function hasApiKeyConfigured(): boolean {
-	const context = getConfigContext();
-	return Boolean(context.apiKey);
+	const context = configCache.getDefaultConfig();
+	return Boolean(context?.apiKey);
 }
 
 /**
@@ -51,18 +55,39 @@ function hasApiKeyConfigured(): boolean {
  *
  * @param error - The error to convert
  * @param apiMethod - Optional name of the API method being called
+ * @param configContext - Optional config context for accurate project/branch info in multi-project scenarios
  * @returns Structured error response with code, guidance, and formatted message
  */
 export function createStructuredError(
 	error: unknown,
 	apiMethod?: string,
+	configContext?: ConfigContext,
 ): McpErrorResponse {
-	const context = getConfigContext();
+	// Use provided configContext for accurate error reporting in multi-project scenarios,
+	// fall back to default config if not provided
+	const context = configContext || configCache.getDefaultConfig();
 	const baseContext = {
-		projectId: context.projectId,
-		branchName: context.branchName,
+		projectId: context?.projectId || 'unknown',
+		branchName: context?.branchName || 'unknown',
 		apiMethod,
 	};
+
+	// ConfigCacheError - issues with config resolution
+	if (error instanceof ConfigCacheError) {
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.NOT_CONFIGURED,
+				type: 'ConfigCacheError',
+				message: `[${error.code}] ${error.message}`,
+				recoverable: true,
+				guidance: error.guidance,
+				context: baseContext,
+				docs: DOCS_URLS.setup,
+			},
+			formattedMessage: error.message,
+		};
+	}
 
 	// Authentication Error (401)
 	if (error instanceof AuthenticationError) {

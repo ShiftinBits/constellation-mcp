@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { getConfigContext, initializeConfig } from './config/config-manager.js';
+import { configCache } from './config/config-cache.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { getToolRegistry } from './registry/ToolRegistry.js';
 import { allToolDefinitions } from './registry/tool-definitions/index.js';
@@ -25,10 +25,9 @@ async function startServer() {
 		);
 		console.error(`  Working directory: ${process.cwd()}`);
 
-		// Initialize configuration FIRST (before creating MCPServer)
-		// The mcp-framework creates tool instances during MCPServer construction,
-		// so configuration must be ready before that happens
-		await initializeConfig(process.cwd());
+		// Initialize configuration cache with default from startup directory
+		// This is non-fatal - if it fails, server will require cwd parameter on each call
+		await configCache.trySetDefaultFromStartup(process.cwd());
 
 		// Initialize Tool Registry with enhanced definitions
 		console.error('[CONSTELLATION] Initializing Tool Registry...');
@@ -61,24 +60,31 @@ async function startServer() {
 			`  Average examples per tool: ${stats.averageExamplesPerTool.toFixed(1)}`,
 		);
 
-		const context = getConfigContext();
+		// Report configuration status
+		const defaultConfig = configCache.getDefaultConfig();
+		if (defaultConfig) {
+			if (defaultConfig.initializationError) {
+				console.error(
+					'[CONSTELLATION] WARNING: Server starting in degraded mode',
+				);
+				console.error(
+					'[CONSTELLATION] Configuration error:',
+					defaultConfig.initializationError,
+				);
+				console.error(
+					'[CONSTELLATION] Tools will return setup instructions when called',
+				);
+			}
 
-		if (context.initializationError) {
+			console.error('[CONSTELLATION] Default configuration loaded:');
+			console.error(`  Git root: ${defaultConfig.gitRoot}`);
+			console.error(`  Project: ${defaultConfig.projectId}`);
+			console.error(`  Branch: ${defaultConfig.branchName}`);
+		} else {
 			console.error(
-				'[CONSTELLATION]  WARNING: Server starting in degraded mode',
-			);
-			console.error(
-				'[CONSTELLATION] Configuration error:',
-				context.initializationError,
-			);
-			console.error(
-				'[CONSTELLATION] Tools will return setup instructions when called',
+				'[CONSTELLATION] No default configuration (will require cwd parameter)',
 			);
 		}
-
-		console.error('[CONSTELLATION] Configuration loaded:');
-		console.error(`  Project: ${context.projectId}`);
-		console.error(`  Branch: ${context.branchName}`);
 
 		// Create and configure MCP server with official SDK
 		// Instructions are passed here and returned during MCP initialization

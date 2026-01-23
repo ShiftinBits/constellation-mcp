@@ -7,7 +7,7 @@
 
 import vm from 'vm';
 import { ConstellationClient } from '../client/constellation-client.js';
-import { getConfigContext } from '../config/config-manager.js';
+import type { ConfigContext } from '../config/config-cache.js';
 import { createStructuredError } from '../client/error-factory.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import type { McpToolResult } from '../types/mcp-response.js';
@@ -124,10 +124,17 @@ export interface ConstellationApi {
  *   timeout: 60000,      // 60 second timeout
  *   allowConsole: true,  // Enable console.log
  *   maxApiCalls: 100,    // Higher limit for complex operations
+ *   configContext,       // Required: configuration context
  * });
  * ```
  */
 export interface SandboxOptions {
+	/**
+	 * Configuration context for this execution.
+	 * Required - provides API credentials and project context.
+	 */
+	configContext: ConfigContext;
+
 	/**
 	 * Maximum execution time in milliseconds.
 	 * @default 30000 (30 seconds)
@@ -163,7 +170,7 @@ export interface SandboxOptions {
 
 	/**
 	 * Project context for API calls.
-	 * Defaults to values from ConfigContext.
+	 * Defaults to values from configContext.
 	 */
 	projectContext?: {
 		projectId: string;
@@ -203,13 +210,15 @@ export interface SandboxResult {
  * Code Mode Sandbox for secure code execution
  */
 export class CodeModeSandbox {
-	private options: Required<SandboxOptions>;
+	private options: Required<Omit<SandboxOptions, 'configContext'>> & {
+		projectContext: { projectId: string; branchName: string };
+	};
 	private client: ConstellationClient;
+	private configContext: ConfigContext;
 
-	constructor(options: SandboxOptions = {}) {
-		// FIX SB-83: Get config context first to fail-fast if not initialized
-		// This prevents race conditions where client operations fail later with confusing errors
-		const configContext = getConfigContext();
+	constructor(options: SandboxOptions) {
+		const { configContext } = options;
+		this.configContext = configContext;
 
 		// Validate config is properly initialized before proceeding
 		if (!configContext.config || !configContext.apiKey) {
@@ -230,7 +239,7 @@ export class CodeModeSandbox {
 			},
 		};
 
-		// Initialize constellation client with validated config
+		// Initialize constellation client with provided config
 		this.client = new ConstellationClient(
 			configContext.config,
 			configContext.apiKey,
@@ -319,7 +328,12 @@ export class CodeModeSandbox {
 			hasTimedOut = true;
 
 			// Create structured error to preserve error type information
-			const structuredError = createStructuredError(error, 'execute');
+			// Pass configContext for accurate project/branch info in multi-project scenarios
+			const structuredError = createStructuredError(
+				error,
+				'execute',
+				this.configContext,
+			);
 
 			return {
 				success: false,

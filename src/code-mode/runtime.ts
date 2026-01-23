@@ -6,8 +6,19 @@
  */
 
 import { CodeModeSandbox, SandboxOptions, SandboxResult } from './sandbox.js';
-import { getConfigContext } from '../config/config-manager.js';
+import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
+
+/**
+ * Options for CodeModeRuntime
+ */
+export interface CodeModeRuntimeOptions extends SandboxOptions {
+	/**
+	 * Configuration context to use for this execution.
+	 * Required - must be provided by the caller.
+	 */
+	configContext: ConfigContext;
+}
 
 /**
  * Result size thresholds
@@ -133,8 +144,12 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 export class CodeModeRuntime {
 	private sandbox: CodeModeSandbox;
 
-	constructor(options: SandboxOptions = {}) {
-		this.sandbox = new CodeModeSandbox(options);
+	constructor(options: CodeModeRuntimeOptions) {
+		// Pass the configContext to the sandbox
+		this.sandbox = new CodeModeSandbox({
+			...options,
+			configContext: options.configContext,
+		});
 	}
 
 	/**
@@ -258,19 +273,6 @@ export class CodeModeRuntime {
 	}
 }
 
-/**
- * Create a Code Mode runtime with default configuration
- */
-export function createCodeModeRuntime(): CodeModeRuntime {
-	const configContext = getConfigContext();
-
-	return new CodeModeRuntime({
-		timeout: 30000, // 30 seconds
-		allowConsole: true,
-		allowTimers: false,
-		projectContext: {
-			projectId: configContext.projectId,
-			branchName: configContext.branchName,
-		},
-	});
-}
+// Note: The previous createCodeModeRuntime() convenience function has been removed.
+// Callers must now provide configContext explicitly to CodeModeRuntime constructor.
+// This supports multi-project workspaces where config is resolved per-call.

@@ -11,17 +11,11 @@ export const executeCodeDefinition: McpToolDefinition = {
 	name: 'execute_code',
 	category: 'Discovery', // Using Discovery as it's the most general category for Code Mode
 
-	description: `Execute JavaScript to query Constellation's code intelligence graph. Use the \`api\` object with async/await.
-
-Args: code (string, required), timeout (number, optional, default: 30000ms)
-Returns: { success, result?, logs?, executionTime, error?, structuredError? }
-
-Constraints:
-- READ-ONLY: Cannot modify files
-- Must \`return\` a value and \`await\` api.* calls
-- Sandboxed: No fs/network beyond api object
-
-See apiReference for methods, methodSelection for when to use vs Grep/Glob.`,
+	description:
+		'Execute JavaScript to query Constellation code intelligence graph using the api object with async/await. ' +
+		'Args: code (required), timeout (optional), cwd (optional for multi-project workspaces). ' +
+		'Constraints: READ-ONLY, must return a value and await api.* calls, sandboxed (no fs/network). ' +
+		'See apiReference for methods, methodSelection for when to use vs Grep/Glob.',
 
 	shortDescription:
 		'Execute JavaScript to query code intelligence (search, dependencies, impact)',
@@ -33,6 +27,7 @@ See apiReference for methods, methodSelection for when to use vs Grep/Glob.`,
 		'Complex analysis: chain multiple API calls with custom logic',
 		'Parallel execution: use Promise.all() for concurrent API calls',
 		'Composite workflows: combine search, analysis, and computation in ONE call',
+		'Multi-project workspace: provide cwd parameter to target correct project',
 	],
 
 	relatedTools: ['execute_code'], // Self-reference to satisfy validation (only tool available)
@@ -57,6 +52,13 @@ See apiReference for methods, methodSelection for when to use vs Grep/Glob.`,
 				default: 30000,
 				description:
 					'Maximum execution time in milliseconds. Default 30000 (30 seconds), max 60000 (1 minute).',
+			},
+			cwd: {
+				type: 'string',
+				description:
+					'Working directory context for multi-project workspaces. ' +
+					'Used to locate the correct constellation.json by finding the git repository root. ' +
+					'Provide this when working in monorepos or workspaces with multiple indexed projects.',
 			},
 		},
 		required: ['code'],
@@ -340,6 +342,7 @@ return {
 		'MISTAKE: Using Grep to find function definitions → DO: api.searchSymbols() returns location + metadata instantly',
 		'MISTAKE: Using Grep/Read loops to trace usage → DO: api.traceSymbolUsage() provides cross-file graph',
 		'MISTAKE: Manual exploration to understand codebase → DO: api.getArchitectureOverview() gives instant structure',
+		'MISTAKE: Wrong project results in multi-repo workspace → DO: Provide cwd parameter with your working directory',
 	],
 
 	// Trigger phrases for organic AI recognition (max 20 per schema)

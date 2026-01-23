@@ -11,16 +11,30 @@ import {
 import { ErrorCode } from '../../../src/types/mcp-errors.js';
 import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
-// Mock config manager - include apiKey to simulate authenticated state
-jest.mock('../../../src/config/config-manager.js', () => ({
-	getConfigContext: jest.fn(() => ({
-		projectId: 'test-project',
-		branchName: 'main',
-		apiKey: 'test-api-key', // FIX SB-88: Include apiKey for authenticated tests
-		config: {
-			apiUrl: 'https://api.test.com',
-		},
-	})),
+// Mock config cache - include apiKey to simulate authenticated state
+jest.mock('../../../src/config/config-cache.js', () => ({
+	configCache: {
+		getDefaultConfig: jest.fn(() => ({
+			projectId: 'test-project',
+			branchName: 'main',
+			apiKey: 'test-api-key', // FIX SB-88: Include apiKey for authenticated tests
+			config: {
+				apiUrl: 'https://api.test.com',
+			},
+			configLoaded: true,
+			gitRoot: '/test/project',
+		})),
+	},
+	ConfigCacheError: class ConfigCacheError extends Error {
+		constructor(
+			message: string,
+			public readonly code: string,
+			public readonly guidance: string[],
+		) {
+			super(message);
+			this.name = 'ConfigCacheError';
+		}
+	},
 }));
 
 describe('createStructuredError', () => {

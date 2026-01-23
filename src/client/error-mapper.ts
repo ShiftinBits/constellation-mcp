@@ -4,7 +4,7 @@
  * Maps HTTP errors and API responses into user-friendly guidance
  */
 
-import { getConfigContext } from '../config/config-manager.js';
+import { configCache } from '../config/config-cache.js';
 import { standardErrors } from '../utils/error-messages.js';
 import {
 	AuthenticationError,
@@ -12,6 +12,17 @@ import {
 	ToolNotFoundError,
 } from './constellation-client.js';
 import { DOCS_URLS } from '../constants/urls.js';
+
+/**
+ * Get project context from config cache with fallbacks
+ */
+function getProjectContext(): { projectId: string; branchName: string } {
+	const config = configCache.getDefaultConfig();
+	return {
+		projectId: config?.projectId ?? 'unknown',
+		branchName: config?.branchName ?? 'unknown',
+	};
+}
 
 /**
  * Map an error to a helpful message with actionable guidance
@@ -47,7 +58,7 @@ export function mapErrorToMessage(error: unknown, toolName: string): string {
  * Format authentication error with helpful guidance
  */
 function formatAuthenticationError(): string {
-	const context = getConfigContext();
+	const context = getProjectContext();
 
 	return `Authentication Failed
 
@@ -68,7 +79,7 @@ For more information, visit: ${DOCS_URLS.root}
  * Format not found error (project not indexed)
  */
 function formatNotFoundError(toolName: string): string {
-	const context = getConfigContext();
+	const context = getProjectContext();
 
 	return `Project Not Indexed
 
@@ -119,7 +130,7 @@ For more information, visit: ${DOCS_URLS.tools}
  * Format generic error with context
  */
 function formatGenericError(toolName: string, error: Error): string {
-	const context = getConfigContext();
+	const context = getProjectContext();
 
 	// FIX SB-89: Check error.code first (standard Node.js pattern), then fall back to message
 	const errorWithCode = error as Error & { code?: string };

@@ -5,17 +5,55 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { registerExecuteCodeTool } from '../../../src/tools/execute-code-tool.js';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
+import { ConstellationConfig } from '../../../src/config/config.js';
+import type { ConfigContext } from '../../../src/config/config-cache.js';
+
+// Create a mock config for testing
+const createMockConfigContext = (): ConfigContext => ({
+	config: {
+		apiUrl: 'http://localhost:3000',
+		branch: 'test-branch',
+		languages: { typescript: { fileExtensions: ['.ts'] } },
+		projectId: 'test-project',
+		validate: jest.fn(),
+	} as unknown as ConstellationConfig,
+	projectId: 'test-project',
+	branchName: 'test-branch',
+	apiKey: 'test-key',
+	configLoaded: true,
+	gitRoot: '/test/project',
+});
 
 // Mock dependencies
 jest.mock('../../../src/code-mode/runtime.js');
-jest.mock('../../../src/config/config-manager.js', () => ({
-	getConfigContext: jest.fn(() => ({
-		projectId: 'test-project',
-		branchName: 'test-branch',
-		namespace: 'test-namespace',
-		accessKey: 'test-key',
-		initializationError: null,
-	})),
+jest.mock('../../../src/config/config-cache.js', () => ({
+	configCache: {
+		getConfigForPath: jest.fn(),
+		getDefaultConfig: jest.fn(() => ({
+			config: {
+				apiUrl: 'http://localhost:3000',
+				branch: 'test-branch',
+				languages: { typescript: { fileExtensions: ['.ts'] } },
+				projectId: 'test-project',
+			},
+			projectId: 'test-project',
+			branchName: 'test-branch',
+			apiKey: 'test-key',
+			configLoaded: true,
+			gitRoot: '/test/project',
+		})),
+		hasDefaultConfig: jest.fn(() => true),
+	},
+	ConfigCacheError: class ConfigCacheError extends Error {
+		constructor(
+			message: string,
+			public readonly code: string,
+			public readonly guidance: string[],
+		) {
+			super(message);
+			this.name = 'ConfigCacheError';
+		}
+	},
 }));
 
 const MockedCodeModeRuntime = CodeModeRuntime as jest.MockedClass<
@@ -125,11 +163,14 @@ describe('registerExecuteCodeTool', () => {
 				timeout: 10000,
 			});
 
-			expect(MockedCodeModeRuntime).toHaveBeenCalledWith({
-				timeout: 10000,
-				allowConsole: true,
-				allowTimers: false,
-			});
+			expect(MockedCodeModeRuntime).toHaveBeenCalledWith(
+				expect.objectContaining({
+					timeout: 10000,
+					allowConsole: true,
+					allowTimers: false,
+					configContext: expect.any(Object),
+				}),
+			);
 		});
 
 		it('should use default timeout when not provided', async () => {
@@ -233,15 +274,23 @@ describe('registerExecuteCodeTool', () => {
 
 	describe('configuration error handling', () => {
 		it('should return setup instructions when config has initialization error', async () => {
-			// Re-mock getConfigContext to return error
-			const { getConfigContext } = await import(
-				'../../../src/config/config-manager.js'
-			);
-			(getConfigContext as jest.Mock).mockReturnValue({
+			// Import the mocked configCache
+			const { configCache } =
+				await import('../../../src/config/config-cache.js');
+
+			// Mock configCache to return config with initialization error
+			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
+				config: {
+					apiUrl: 'http://localhost:3000',
+					branch: '',
+					languages: {},
+					projectId: '',
+				},
 				projectId: '',
 				branchName: '',
-				namespace: '',
-				accessKey: '',
+				apiKey: '',
+				configLoaded: false,
+				gitRoot: '/test/project',
 				initializationError: 'Configuration file not found',
 			});
 
@@ -262,12 +311,18 @@ describe('registerExecuteCodeTool', () => {
 			expect(mockRuntime.execute).not.toHaveBeenCalled();
 
 			// Restore original mock
-			(getConfigContext as jest.Mock).mockReturnValue({
+			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
+				config: {
+					apiUrl: 'http://localhost:3000',
+					branch: 'test-branch',
+					languages: { typescript: { fileExtensions: ['.ts'] } },
+					projectId: 'test-project',
+				},
 				projectId: 'test-project',
 				branchName: 'test-branch',
-				namespace: 'test-namespace',
-				accessKey: 'test-key',
-				initializationError: null,
+				apiKey: 'test-key',
+				configLoaded: true,
+				gitRoot: '/test/project',
 			});
 		});
 	});
@@ -662,15 +717,23 @@ describe('registerExecuteCodeTool', () => {
 		});
 
 		it('should return structured JSON for config initialization error', async () => {
-			// Re-mock getConfigContext to return error
-			const { getConfigContext } = await import(
-				'../../../src/config/config-manager.js'
-			);
-			(getConfigContext as jest.Mock).mockReturnValue({
+			// Import the mocked configCache
+			const { configCache } =
+				await import('../../../src/config/config-cache.js');
+
+			// Mock configCache to return config with initialization error
+			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
+				config: {
+					apiUrl: 'http://localhost:3000',
+					branch: '',
+					languages: {},
+					projectId: '',
+				},
 				projectId: '',
 				branchName: '',
-				namespace: '',
-				accessKey: '',
+				apiKey: '',
+				configLoaded: false,
+				gitRoot: '/test/project',
 				initializationError: 'constellation.json not found',
 			});
 
@@ -696,12 +759,18 @@ describe('registerExecuteCodeTool', () => {
 			expect(parsed.error.recoverable).toBe(true);
 
 			// Restore original mock
-			(getConfigContext as jest.Mock).mockReturnValue({
+			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
+				config: {
+					apiUrl: 'http://localhost:3000',
+					branch: 'test-branch',
+					languages: { typescript: { fileExtensions: ['.ts'] } },
+					projectId: 'test-project',
+				},
 				projectId: 'test-project',
 				branchName: 'test-branch',
-				namespace: 'test-namespace',
-				accessKey: 'test-key',
-				initializationError: null,
+				apiKey: 'test-key',
+				configLoaded: true,
+				gitRoot: '/test/project',
 			});
 		});
 
