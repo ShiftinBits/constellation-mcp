@@ -39,5 +39,9 @@
 		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
 	},
 	"javascript.referencesCodeLens.enabled": true,
-	"typescript.preferences.importModuleSpecifier": "shortest"
+	"typescript.preferences.importModuleSpecifier": "shortest",
+	"jest.runMode": {
+		"type": "on-demand",
+		"runAllTestsOnStartup": false
+	}
 }
