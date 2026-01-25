@@ -30,7 +30,7 @@
 		"test:ci": "jest --ci --coverage --maxWorkers=2",
 		"type-check": "tsc --noEmit -p tsconfig.build.json",
 		"prepare": "husky",
-		"postinstall": "node -e \"if(process.env.CI) { console.log('Using github sourced @constellationdev/types') } else { try { require('child_process').execFileSync('npm', ['link', '@constellationdev/types'], {stdio: 'inherit'}); console.log('Using locally linked @constellationdev/types') } catch(e) { console.log('Note: @constellationdev/types not linked globally, using GitHub version') } }\""
+		"postinstall": "node -e \"if(process.env.CI) { console.log('Using github sourced @constellationdev/types') } else { try { require('child_process').execSync('npm link @constellationdev/types', {stdio: 'inherit'}); console.log('Using locally linked @constellationdev/types') } catch(e) { console.log('Note: @constellationdev/types not linked globally, using GitHub version') } }\""
 	},
 	"dependencies": {
 		"@constellationdev/types": "github:ShiftinBits/constellation-types#main",
