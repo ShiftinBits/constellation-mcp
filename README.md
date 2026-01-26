@@ -34,7 +34,7 @@ For further instructions regarding authentication, project setup, and configurat
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#4A90E2', 'primaryTextColor': '#EEEEEE', 'primaryBorderColor': '#2B2C34', 'lineColor': '#4A90E2', 'secondaryColor': '#1F1F28', 'tertiaryColor': '#0B0C10', 'edgeLabelBackground': '#1F1F28' }}}%%
 flowchart LR
-    subgraph local["🔒 Your Environment"]
+    subgraph local["💻 Your Environment"]
         direction TB
         code["📂 Source Code"]
         cli["⚙️ Constellation CLI"]
@@ -43,7 +43,7 @@ flowchart LR
         code --> cli
     end
 
-    subgraph cloud["☁️ Constellation Service"]
+    subgraph cloud["✨ Constellation Service"]
         direction TB
         api["🔌  API"]
         graphdb[("🧠 Knowledge Graph")]
