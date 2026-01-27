@@ -1361,6 +1361,21 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(true);
 			expect(result.result).toBe(true);
 		});
+
+		it('should return compositionPatterns array with 4 patterns', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toHaveProperty('compositionPatterns');
+			expect(result.result.compositionPatterns).toBeInstanceOf(Array);
+			expect(result.result.compositionPatterns).toHaveLength(4);
+			expect(result.result.compositionPatterns[0]).toHaveProperty('name');
+			expect(result.result.compositionPatterns[0]).toHaveProperty(
+				'description',
+			);
+			expect(result.result.compositionPatterns[0]).toHaveProperty('code');
+		});
 	});
 
 	describe('API error context formatting', () => {

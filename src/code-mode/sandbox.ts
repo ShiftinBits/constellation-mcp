@@ -79,6 +79,19 @@ export interface MethodInfo {
 }
 
 /**
+ * Composition pattern for listMethods() response.
+ * Provides recipes for combining API methods effectively.
+ */
+export interface CompositionPattern {
+	/** Pattern name (e.g., "Sequential Chain") */
+	name: string;
+	/** Description of what this pattern achieves */
+	description: string;
+	/** Example code demonstrating the pattern */
+	code: string;
+}
+
+/**
  * Response from api.listMethods()
  */
 export interface ListMethodsResult {
@@ -86,6 +99,7 @@ export interface ListMethodsResult {
 	usage: string;
 	example: string;
 	decisionGuide: Record<string, string>;
+	compositionPatterns: CompositionPattern[];
 	tip: string;
 }
 
@@ -633,6 +647,46 @@ export class CodeModeSandbox {
 			'verify access': 'ping',
 		};
 
+		// Composition patterns for teaching LLMs how to combine API methods
+		const compositionPatterns: CompositionPattern[] = [
+			{
+				name: 'Sequential Chain',
+				description: 'Find a symbol, get details, then analyze impact',
+				code: `const search = await api.searchSymbols({ query: "UserService" });
+const details = await api.getSymbolDetails({ symbolId: search.symbols[0].id });
+const impact = await api.impactAnalysis({ symbolId: search.symbols[0].id });
+return { search, details, impact };`,
+			},
+			{
+				name: 'Parallel Queries',
+				description: 'Get related data in one round-trip (3-10x faster)',
+				code: `const [deps, dependents] = await Promise.all([
+  api.getDependencies({ filePath: "src/service.ts" }),
+  api.getDependents({ filePath: "src/service.ts" })
+]);
+return { imports: deps.directDependencies, usedBy: dependents.directDependents };`,
+			},
+			{
+				name: 'Conditional Flow',
+				description: 'Handle empty results gracefully',
+				code: `const search = await api.searchSymbols({ query: "Config", limit: 1 });
+if (search.symbols.length === 0) return { error: "Not found" };
+return await api.getSymbolDetails({ symbolId: search.symbols[0].id });`,
+			},
+			{
+				name: 'Refactoring Safety Check',
+				description: 'Full analysis before modifying code',
+				code: `const search = await api.searchSymbols({ query: "processOrder", limit: 1 });
+const symbol = search.symbols[0];
+const [usage, impact, callGraph] = await Promise.all([
+  api.traceSymbolUsage({ symbolId: symbol.id }),
+  api.impactAnalysis({ symbolId: symbol.id }),
+  api.getCallGraph({ symbolId: symbol.id })
+]);
+return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingChangeRisk, callGraph };`,
+			},
+		];
+
 		// Capture references for use in closures
 		const client = this.client;
 		const projectContext = this.options.projectContext;
@@ -664,7 +718,8 @@ export class CodeModeSandbox {
 					usage: 'Call any method with: await api.methodName(params)',
 					example: "const result = await api.searchSymbols({ query: 'User' });",
 					decisionGuide,
-					tip: 'Use decisionGuide to match user intent to the right method',
+					compositionPatterns,
+					tip: 'Use Promise.all() for parallel queries. Always return results.',
 				}),
 				// Capability check method - allows AI to verify project state
 				getCapabilities: async (): Promise<ProjectCapabilities> => {

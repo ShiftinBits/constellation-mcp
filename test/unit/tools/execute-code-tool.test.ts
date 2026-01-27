@@ -2,11 +2,11 @@
  * Execute Code Tool Registration Tests
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { registerExecuteCodeTool } from '../../../src/tools/execute-code-tool.js';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
-import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
+import { ConstellationConfig } from '../../../src/config/config.js';
+import { registerExecuteCodeTool } from '../../../src/tools/execute-code-tool.js';
 
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
@@ -93,7 +93,9 @@ describe('registerExecuteCodeTool', () => {
 				'execute_code',
 				expect.objectContaining({
 					title: expect.stringContaining('Execute JavaScript Code'),
-					description: expect.stringContaining('THE ONLY AVAILABLE TOOL'),
+					description: expect.stringContaining(
+						'Use when you need to understand code structure',
+					),
 				}),
 				expect.any(Function),
 			);

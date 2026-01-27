@@ -85,6 +85,17 @@ return { search, impact };
 4. **Use symbolId from search results** - More precise than name+path
 5. **No comments in code** - Comments waste tokens and serve no purpose at runtime
 
+### Discovery Pattern
+
+When uncertain which method to use, start with \`api.listMethods()\`:
+\`\`\`javascript
+const guide = api.listMethods();
+// Returns: methods[], decisionGuide, compositionPatterns[]
+return guide;
+\`\`\`
+
+This returns method metadata, intent-to-method mapping, and composition recipes.
+
 ## Core Principle
 
 **Constellation = Code Metadata & Relationships | Read tool = Source Code**

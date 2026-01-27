@@ -21,13 +21,18 @@ export const executeCodeDefinition: McpToolDefinition = {
 		'Execute JavaScript to query code intelligence (search, dependencies, impact)',
 
 	whenToUse: [
+		// Problem-oriented (primary recognition)
+		'Use when you need to understand code structure, trace dependencies, assess change risk, or find code quality issues',
+		// Category mapping (secondary)
+		'Discovery: find symbol, where is X defined, show classes, locate function',
+		'Dependencies: what imports X, what does X use, dependency tree, who uses this',
+		'Impact: safe to change, blast radius, what breaks, breaking changes',
+		'Quality: dead code, unused exports, orphaned code, can I delete this',
+		'Architecture: project structure, codebase overview, how is this organized',
+		// Entry point hint
+		'Start with api.listMethods() for composition patterns and method discovery',
+		// Core rule
 		'ALWAYS use this tool - it is the only one available',
-		'PREFER over Grep/Glob: searchSymbols for location, traceSymbolUsage for usage, getArchitectureOverview for structure',
-		'Simple query: return await api.searchSymbols({ query: "X" })',
-		'Complex analysis: chain multiple API calls with custom logic',
-		'Parallel execution: use Promise.all() for concurrent API calls',
-		'Composite workflows: combine search, analysis, and computation in ONE call',
-		'Multi-project workspace: provide cwd parameter to target correct project',
 	],
 
 	relatedTools: ['execute_code'], // Self-reference to satisfy validation (only tool available)

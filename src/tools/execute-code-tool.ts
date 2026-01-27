@@ -10,22 +10,22 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { CodeModeRuntime, CodeModeResponse } from '../code-mode/runtime.js';
+import { ConfigurationError } from '../client/constellation-client.js';
+import {
+	createStructuredError,
+	ValidationError,
+} from '../client/error-factory.js';
+import { CodeModeResponse, CodeModeRuntime } from '../code-mode/runtime.js';
 import {
 	configCache,
 	ConfigCacheError,
 	type ConfigContext,
 } from '../config/config-cache.js';
 import {
-	createStructuredError,
-	ValidationError,
-} from '../client/error-factory.js';
-import { ConfigurationError } from '../client/constellation-client.js';
-import {
-	MAX_CODE_SIZE,
 	DEFAULT_EXECUTION_TIMEOUT_MS,
-	MIN_EXECUTION_TIMEOUT_MS,
+	MAX_CODE_SIZE,
 	MAX_EXECUTION_TIMEOUT_MS,
+	MIN_EXECUTION_TIMEOUT_MS,
 } from '../constants/index.js';
 
 /**
@@ -118,11 +118,19 @@ export function registerExecuteCodeTool(server: McpServer): void {
 		{
 			title: 'Execute JavaScript Code',
 			description:
-				'THE ONLY AVAILABLE TOOL. Execute JavaScript code to interact with Constellation. ' +
-				'You MUST use this tool for ALL operations. Write JavaScript using the api object: ' +
-				'api.searchSymbols(), api.getDependencies(), api.traceSymbolUsage(), etc. ' +
-				'This is a Code Mode-only server. There are NO other tools. Always write JavaScript code. ' +
-				'For multi-project workspaces, provide "cwd" parameter to target the correct project.',
+				'Use when you need to understand code structure, trace dependencies, assess change risk, ' +
+				'or find code quality issues.\n\n' +
+				'Intent mapping:\n' +
+				'• Discovery: find symbol, where is X defined, show classes, locate function\n' +
+				'• Dependencies: what imports X, what does X use, dependency tree, who uses this\n' +
+				'• Impact: safe to change, blast radius, what breaks if I modify, breaking changes\n' +
+				'• Quality: dead code, unused exports, orphaned code, can I delete this\n' +
+				'• Architecture: project structure, codebase overview, how is this organized\n\n' +
+				'Examples: "show architecture", "what uses UserService", "find unused exports"\n\n' +
+				'Execute JavaScript using the api object. Start with api.listMethods() for ' +
+				'composition patterns. Available: searchSymbols, getSymbolDetails, getDependencies, ' +
+				'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
+				'impactAnalysis, findOrphanedCode, getArchitectureOverview, ping, getCapabilities',
 			inputSchema: {
 				code: z
 					.string()
