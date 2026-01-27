@@ -200,8 +200,8 @@ export const McpToolDefinitionSchema = z.object({
 	whenToUse: z
 		.array(z.string().min(10).max(200))
 		.min(3)
-		.max(7)
-		.describe('3-7 use case bullet points'),
+		.max(10)
+		.describe('3-10 use case bullet points'),
 
 	relatedTools: z
 		.array(z.string())
