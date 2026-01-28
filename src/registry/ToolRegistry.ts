@@ -224,7 +224,7 @@ export class ToolRegistry {
 	 * primarily validates that the registry is ready to provide metadata
 	 * for tools that should be registered with the server.
 	 *
-	 * Note: In Code Mode, we only have one tool (query_code), so this
+	 * Note: In Code Mode, we only have one tool (query_code_graph), so this
 	 * validation is mostly for consistency and logging.
 	 *
 	 * @param server - The McpServer instance (for type checking)
@@ -251,10 +251,10 @@ export class ToolRegistry {
 		}
 
 		// Validate that we have metadata for expected tools
-		// In Code Mode, we should have query_code
-		const hasQueryCode = this.tools.has('query_code');
+		// In Code Mode, we should have query_code_graph
+		const hasQueryCode = this.tools.has('query_code_graph');
 		if (!hasQueryCode) {
-			warnings.push('Missing metadata for query_code tool');
+			warnings.push('Missing metadata for query_code_graph tool');
 		}
 
 		return {

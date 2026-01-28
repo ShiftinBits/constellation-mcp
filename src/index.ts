@@ -11,7 +11,7 @@ import { configCache } from './config/config-cache.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { getToolRegistry } from './registry/ToolRegistry.js';
 import { allToolDefinitions } from './registry/tool-definitions/index.js';
-import { registerExecuteCodeTool } from './tools/query-code-tool.js';
+import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
 import {
 	METHOD_SUMMARIES,
 	resolveMethodName,
@@ -108,7 +108,7 @@ async function startServer() {
 
 		// Register tools manually (no auto-discovery with official SDK)
 		console.error('[CONSTELLATION] Registering tools...');
-		registerExecuteCodeTool(server);
+		registerQueryCodeGraphTool(server);
 
 		// Register API types resource for AI assistants
 		// Provides full TypeScript interfaces on-demand via constellation://types/api

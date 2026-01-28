@@ -2,27 +2,29 @@
  * Tool Definitions Index - Code Mode Only
  *
  * This MCP server exclusively uses Code Mode.
- * All interactions happen through the query_code tool.
+ * All interactions happen through the query_code_graph tool.
  */
 
 // Code Mode Tool - The only tool we need!
-export { queryCodeDefinition } from './query-code.definition.js';
+export { queryCodeGraphDefinition } from './query-code-graph.definition.js';
 
 import { McpToolDefinition } from '../McpToolDefinition.interface.js';
-import { queryCodeDefinition } from './query-code.definition.js';
+import { queryCodeGraphDefinition } from './query-code-graph.definition.js';
 
 /**
  * Array of all tool definitions
  * Code Mode only - single tool for all operations
  */
-export const allToolDefinitions: McpToolDefinition[] = [queryCodeDefinition];
+export const allToolDefinitions: McpToolDefinition[] = [
+	queryCodeGraphDefinition,
+];
 
 /**
  * Get tool definitions by category
  * Code Mode spans all categories through code execution
  */
 export const toolDefinitionsByCategory = {
-	CodeMode: [queryCodeDefinition],
+	CodeMode: [queryCodeGraphDefinition],
 };
 
 /**

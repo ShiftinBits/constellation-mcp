@@ -21,9 +21,9 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('# Constellation Code Mode');
 		});
 
-		it('should reference query_code tool and api object', () => {
+		it('should reference query_code_graph tool and api object', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('query_code');
+			expect(instructions).toContain('query_code_graph');
 			expect(instructions).toContain('api');
 		});
 
@@ -114,10 +114,15 @@ describe('server-instructions', () => {
 			expect(instructions).not.toContain('FIXME');
 		});
 
-		it('should be concise (under 3500 chars)', () => {
+		it('should include recipes section', () => {
 			const instructions = getServerInstructions();
-			// Enhanced instructions with return shapes and decision heuristic
-			expect(instructions.length).toBeLessThan(3500);
+			expect(instructions).toContain('## Recipes');
+		});
+
+		it('should be concise (under 5000 chars)', () => {
+			const instructions = getServerInstructions();
+			// Enhanced instructions with return shapes, decision heuristic, recipes, and availability guidance
+			expect(instructions.length).toBeLessThan(5000);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});

@@ -25,7 +25,7 @@ This document provides a complete, reproducible test procedure for validating th
    ```
 
 4. **MCP servers** connected to Claude Code:
-   - **Constellation MCP** (`mcp__plugin_constellation_constellation__query_code`) - For API tests
+   - **Constellation MCP** (`mcp__plugin_constellation_constellation__query_code_graph`) - For API tests
    - **Neo4j MCP** (`mcp__neo4j__read-cypher`) - For validation queries
 
 ### Test Context
@@ -34,7 +34,7 @@ This document provides a complete, reproducible test procedure for validating th
 - **Project ID:** `proj:00000000000040008000000000000033`
 - **Branch:** main
 - **MCP Tools:**
-  - `query_code` (Constellation API tests)
+  - `query_code_graph` (Constellation API tests)
   - `read-cypher` (Neo4j validation queries)
 
 > **Note:** The Project ID above is environment-specific. If running tests against a different Constellation instance, update the project ID in all Neo4j validation queries throughout this document. You can find your project ID by running `constellation status` or checking the Constellation web interface.
@@ -56,7 +56,7 @@ This command parses the codebase, extracts AST intelligence, and uploads it to c
 
 ## Test Execution Method
 
-All tests are executed via the `query_code` MCP tool. Each test case provides:
+All tests are executed via the `query_code_graph` MCP tool. Each test case provides:
 
 - **Code**: JavaScript to execute in the sandbox
 - **Expected**: What the result should contain
@@ -72,7 +72,7 @@ Claude Code executes tests using both MCP servers in a two-phase process:
 
 ### Phase 1: Execute Constellation API Test
 
-Claude calls `mcp__plugin_constellation_constellation__query_code` with the test JavaScript code and captures the result.
+Claude calls `mcp__plugin_constellation_constellation__query_code_graph` with the test JavaScript code and captures the result.
 
 ### Phase 2: Execute Neo4j Validation Query
 
@@ -2921,6 +2921,6 @@ mcp__neo4j__read-cypher
 ### Running the Full Test Suite
 
 1. Ensure prerequisites are met (constellation-core running, project indexed)
-2. Execute each test case via the `query_code` MCP tool
+2. Execute each test case via the `query_code_graph` MCP tool
 3. Compare results against expected values
 4. Document any deviations in the test results file

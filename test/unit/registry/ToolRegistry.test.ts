@@ -356,17 +356,19 @@ describe('ToolRegistry', () => {
 			);
 		});
 
-		it('should return warning if query_code missing', () => {
+		it('should return warning if query_code_graph missing', () => {
 			registry.register(createMockToolDefinition({ name: 'other_tool' }));
 			registry.markInitialized();
 
 			const result = registry.validateWithMcpServer(mockServer);
 
-			expect(result.warnings).toContain('Missing metadata for query_code tool');
+			expect(result.warnings).toContain(
+				'Missing metadata for query_code_graph tool',
+			);
 		});
 
 		it('should return valid=true when all checks pass', () => {
-			registry.register(createMockToolDefinition({ name: 'query_code' }));
+			registry.register(createMockToolDefinition({ name: 'query_code_graph' }));
 			registry.markInitialized();
 
 			const result = registry.validateWithMcpServer(mockServer);

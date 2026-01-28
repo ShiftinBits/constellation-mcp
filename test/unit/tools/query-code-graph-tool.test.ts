@@ -1,12 +1,12 @@
 /**
- * Query Code Tool Registration Tests
+ * Query Code Graph Tool Registration Tests
  */
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
-import { registerExecuteCodeTool } from '../../../src/tools/query-code-tool.js';
+import { registerQueryCodeGraphTool } from '../../../src/tools/query-code-graph-tool.js';
 
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
@@ -60,7 +60,7 @@ const MockedCodeModeRuntime = CodeModeRuntime as jest.MockedClass<
 	typeof CodeModeRuntime
 >;
 
-describe('registerExecuteCodeTool', () => {
+describe('registerQueryCodeGraphTool', () => {
 	let mockServer: any;
 	let mockRuntime: jest.Mocked<CodeModeRuntime>;
 	let registeredHandler: any;
@@ -84,13 +84,13 @@ describe('registerExecuteCodeTool', () => {
 		};
 
 		// Register the tool
-		registerExecuteCodeTool(mockServer);
+		registerQueryCodeGraphTool(mockServer);
 	});
 
 	describe('tool registration', () => {
-		it('should register query_code tool with server', () => {
+		it('should register query_code_graph tool with server', () => {
 			expect(mockServer.registerTool).toHaveBeenCalledWith(
-				'query_code',
+				'query_code_graph',
 				expect.objectContaining({
 					title: expect.stringContaining('Query Code Intelligence'),
 					description: expect.stringContaining(
@@ -302,7 +302,7 @@ describe('registerExecuteCodeTool', () => {
 					registeredHandler = handler;
 				}),
 			} as any;
-			registerExecuteCodeTool(newServer);
+			registerQueryCodeGraphTool(newServer);
 
 			const result = await registeredHandler({
 				code: 'return 42;',
@@ -745,7 +745,7 @@ describe('registerExecuteCodeTool', () => {
 					registeredHandler = handler;
 				}),
 			} as any;
-			registerExecuteCodeTool(newServer);
+			registerQueryCodeGraphTool(newServer);
 
 			const result = await registeredHandler({
 				code: 'return 42;',

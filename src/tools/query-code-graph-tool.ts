@@ -1,7 +1,7 @@
 /**
- * Query Code Tool Registration
+ * Query Code Graph Tool Registration
  *
- * Registers the query_code tool with the MCP server.
+ * Registers the query_code_graph tool with the MCP server.
  * This is the only tool in Code Mode, providing access to all Constellation API capabilities
  * through JavaScript code execution.
  *
@@ -98,7 +98,7 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 			'NO_CONFIG',
 			[
 				'Provide cwd parameter with the path to your project',
-				'Example: query_code({ code: "...", cwd: "/path/to/project" })',
+				'Example: query_code_graph({ code: "...", cwd: "/path/to/project" })',
 				'Run the MCP server from within a git repository with constellation.json',
 			],
 		);
@@ -108,28 +108,29 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 }
 
 /**
- * Register the query_code tool with the MCP server
+ * Register the query_code_graph tool with the MCP server
  *
  * @param server - The McpServer instance to register the tool with
  */
-export function registerExecuteCodeTool(server: McpServer): void {
+export function registerQueryCodeGraphTool(server: McpServer): void {
 	server.registerTool(
-		'query_code',
+		'query_code_graph',
 		{
 			title: 'Query Code Intelligence',
 			description:
 				'Query codebase structure and relationships via AST-based code intelligence graph. ' +
 				'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks.\n\n' +
+				'DECISION RULE: Use this for code structure (definitions, callers, dependencies, impact). Use Grep/Glob for literal strings, config values, log messages.\n\n' +
 				'USE THIS TOOL WHEN:\n' +
-				'• Finding symbol definitions: "where is X defined", "find function Y"\n' +
-				'• Tracing usage: "what calls X", "what imports this file"\n' +
-				'• Dependency analysis: "what does X depend on", "show import tree"\n' +
-				'• Change impact: "safe to modify X", "blast radius of changing Y"\n' +
-				'• Code quality: "find unused exports", "dead code", "orphaned symbols"\n' +
-				'• Architecture: "project structure", "how is this organized"\n\n' +
-				'Write JavaScript using the `api` object. Start with `api.listMethods()` for all options. ' +
-				'Key methods: searchSymbols, getDependents, getDependencies, impactAnalysis, findOrphanedCode. ' +
-				'Always await. Use Promise.all() for parallel queries. Returns structured metadata—use Read tool for source code.',
+				'• "Where is X defined?" / "Find function Y" → searchSymbols({query})\n' +
+				'• "What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})\n' +
+				'• "What does X depend on?" → getDependencies({filePath})\n' +
+				'• "Safe to modify X?" / "Blast radius?" → impactAnalysis({symbolId})\n' +
+				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n' +
+				'• "Project structure?" → getArchitectureOverview()\n\n' +
+				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
+				'Write JavaScript with the `api` object. Always await. Use Promise.all() for parallel queries. ' +
+				'Returns structured metadata—use Read tool for source code. Supports multi-project workspaces via cwd parameter.',
 			inputSchema: {
 				code: z
 					.string()
@@ -174,9 +175,9 @@ export function registerExecuteCodeTool(server: McpServer): void {
 			},
 		},
 		async ({ code, timeout, cwd }) => {
-			console.error('[query_code] Executing code mode script');
+			console.error('[query_code_graph] Executing code mode script');
 			if (cwd) {
-				console.error(`[query_code] Using cwd: ${cwd}`);
+				console.error(`[query_code_graph] Using cwd: ${cwd}`);
 			}
 
 			// Resolve configuration context
@@ -184,10 +185,13 @@ export function registerExecuteCodeTool(server: McpServer): void {
 			try {
 				configContext = await resolveConfigContext(cwd);
 			} catch (error) {
-				console.error('[query_code] Config resolution failed:', error);
+				console.error('[query_code_graph] Config resolution failed:', error);
 
 				// Create structured error for config resolution failures
-				const structuredError = createStructuredError(error, 'query_code');
+				const structuredError = createStructuredError(
+					error,
+					'query_code_graph',
+				);
 
 				return {
 					content: [
@@ -204,13 +208,13 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				// Check for configuration errors (e.g., missing constellation.json)
 				if (configContext.initializationError) {
 					console.error(
-						'[query_code] Configuration error detected, returning setup instructions',
+						'[query_code_graph] Configuration error detected, returning setup instructions',
 					);
 
 					// Create structured error for configuration issues
 					const structuredError = createStructuredError(
 						new ConfigurationError(configContext.initializationError),
-						'query_code',
+						'query_code_graph',
 						configContext,
 					);
 
@@ -228,7 +232,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				// FIX SB-87: Validate code size to prevent DoS attacks
 				if (code.length > MAX_CODE_SIZE) {
 					console.error(
-						`[query_code] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
+						`[query_code_graph] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
 					);
 					const error = new ValidationError(
 						`Code size (${code.length} bytes) exceeds maximum allowed (${MAX_CODE_SIZE} bytes / 100KB)`,
@@ -244,7 +248,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					);
 					const structuredError = createStructuredError(
 						error,
-						'query_code',
+						'query_code_graph',
 						configContext,
 					);
 					return {
@@ -260,7 +264,9 @@ export function registerExecuteCodeTool(server: McpServer): void {
 
 				// FIX SB-87: Check for binary/control characters
 				if (BINARY_CHAR_PATTERN.test(code)) {
-					console.error('[query_code] Code contains invalid binary characters');
+					console.error(
+						'[query_code_graph] Code contains invalid binary characters',
+					);
 					const error = new ValidationError(
 						'Code contains invalid binary or control characters',
 						{
@@ -274,7 +280,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					);
 					const structuredError = createStructuredError(
 						error,
-						'query_code',
+						'query_code_graph',
 						configContext,
 					);
 					return {
@@ -304,7 +310,9 @@ export function registerExecuteCodeTool(server: McpServer): void {
 
 				// Check if response contains a structured error (from API/sandbox)
 				if (response.structuredError) {
-					console.error('[query_code] Execution returned structured error');
+					console.error(
+						'[query_code_graph] Execution returned structured error',
+					);
 
 					return {
 						content: [
@@ -320,7 +328,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				// Format the result for successful execution
 				const formatted = runtime.formatResult(response);
 
-				console.error('[query_code] Execution successful');
+				console.error('[query_code_graph] Execution successful');
 
 				// Return both text and structured content (schema-compliant)
 				return {
@@ -333,12 +341,12 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					structuredContent: toSchemaCompliantOutput(response),
 				};
 			} catch (error) {
-				console.error('[query_code] Execution error:', error);
+				console.error('[query_code_graph] Execution error:', error);
 
 				// Create structured error for unexpected errors
 				const structuredError = createStructuredError(
 					error,
-					'query_code',
+					'query_code_graph',
 					configContext,
 				);
 
@@ -355,5 +363,5 @@ export function registerExecuteCodeTool(server: McpServer): void {
 		},
 	);
 
-	console.error('[query_code] Tool registered successfully');
+	console.error('[query_code_graph] Tool registered successfully');
 }

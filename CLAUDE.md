@@ -21,17 +21,17 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 ## Architecture
 
 ```
-AI Assistant → MCP (stdio) → query_code → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
+AI Assistant → MCP (stdio) → query_code_graph → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-**Single tool design**: One `query_code` tool executes JavaScript with `api` object providing 12 methods.
+**Single tool design**: One `query_code_graph` tool executes JavaScript with `api` object providing 12 methods.
 
 ## Key Files
 
 ```
 src/
 ├── index.ts                     Entry point, registers tool + resource
-├── tools/execute-code-tool.ts   MCP tool handler
+├── tools/query-code-graph-tool.ts  MCP tool handler
 ├── code-mode/
 │   ├── sandbox.ts               VM execution with dual timeout
 │   ├── runtime.ts               API method metadata

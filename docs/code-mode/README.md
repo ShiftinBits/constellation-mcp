@@ -2,7 +2,7 @@
 
 ## A Revolutionary Approach to MCP
 
-This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `query_code`. The AI writes TypeScript code to interact with the Constellation API.
+This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `query_code_graph`. The AI writes TypeScript code to interact with the Constellation API.
 
 ## Why Code Mode Only?
 

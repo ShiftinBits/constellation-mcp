@@ -1,34 +1,34 @@
 /**
- * Enhanced Tool Definition: query_code
+ * Enhanced Tool Definition: query_code_graph
  *
- * Provides rich metadata for the query_code tool to help AI agents
+ * Provides rich metadata for the query_code_graph tool to help AI agents
  * understand when and how to use Code Mode effectively.
  */
 
 import { McpToolDefinition } from '../McpToolDefinition.interface.js';
 
-export const queryCodeDefinition: McpToolDefinition = {
-	name: 'query_code',
+export const queryCodeGraphDefinition: McpToolDefinition = {
+	name: 'query_code_graph',
 	category: 'Discovery',
 
 	description:
 		'Query codebase structure and relationships via AST-based code intelligence graph. ' +
 		'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks. ' +
-		'Use for: finding definitions, tracing usage, dependency analysis, change impact, finding dead code, understanding architecture.',
+		'Use for code structure (definitions, callers, dependencies, impact). Use Grep/Glob for literal strings, config values, log messages.',
 
 	shortDescription:
 		'Query code structure, dependencies, and relationships via AST-based intelligence graph',
 
 	whenToUse: [
-		'Finding symbol definitions: "where is X defined", "find function Y", "locate class Z"',
-		'Tracing symbol usage: "what calls X", "what uses this function", "who imports this"',
-		'Dependency analysis: "what does X import", "dependency tree", "what does this file depend on"',
-		'Impact assessment: "safe to modify X", "blast radius", "what breaks if I change this"',
-		'Finding dead code: "unused exports", "orphaned symbols", "can I delete this"',
-		'Architecture overview: "project structure", "how is this organized", "codebase layout"',
+		'"Where is X defined?" / "Find function Y" → searchSymbols({query})',
+		'"What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})',
+		'"What does X depend on?" → getDependencies({filePath})',
+		'"Safe to modify X?" / "Blast radius?" → impactAnalysis({symbolId})',
+		'"Find dead code" / "Unused exports?" → findOrphanedCode()',
+		'"Project structure?" → getArchitectureOverview()',
 	],
 
-	relatedTools: ['query_code'],
+	relatedTools: ['query_code_graph'],
 
 	inputSchema: {
 		type: 'object',
