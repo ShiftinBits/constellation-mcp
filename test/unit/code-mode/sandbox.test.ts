@@ -650,7 +650,9 @@ describe('CodeModeSandbox', () => {
 				expect(result.logs).toBeDefined();
 				expect(result.logs!.some((log) => log.includes('[WARN]'))).toBe(true);
 				expect(
-					result.logs!.some((log) => log.includes('No return statement')),
+					result.logs!.some((log) =>
+						log.includes('No explicit return statement detected'),
+					),
 				).toBe(true);
 			});
 
@@ -1552,10 +1554,12 @@ describe('CodeModeSandbox', () => {
 			expect(result.valid).toBe(true);
 			expect(result.warnings).toBeDefined();
 			expect(
-				result.warnings!.some((w) => w.includes('No return statement')),
+				result.warnings!.some((w) =>
+					w.includes('No explicit return statement detected'),
+				),
 			).toBe(true);
 			expect(
-				result.warnings!.some((w) => w.includes('forget to add "return"')),
+				result.warnings!.some((w) => w.includes('Auto-return will be applied')),
 			).toBe(true);
 		});
 
@@ -1625,6 +1629,71 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors!.some((e) => e.includes('require'))).toBe(true);
 			expect(result.warnings).toBeDefined();
 			expect(result.warnings!.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('auto-return (SB-151)', () => {
+		it('should auto-return bare await expression', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [{ name: 'test' }] }),
+			);
+
+			// No explicit return - should be auto-returned
+			const code = 'await api.searchSymbols({ query: "test" })';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toEqual({ symbols: [{ name: 'test' }] });
+		});
+
+		it('should auto-return last expression after variable declaration', async () => {
+			const code = 'const x = 42;\nx';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(42);
+		});
+
+		it('should auto-return variable from const declaration', async () => {
+			const code = 'const x = 42';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(42);
+		});
+
+		it('should not modify code with explicit return', async () => {
+			const code = 'return 42';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(42);
+		});
+
+		it('should auto-return array destructuring result', async () => {
+			const code = 'const [a, b] = [10, 20]';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toEqual([10, 20]);
+		});
+
+		it('should auto-return object destructuring result', async () => {
+			const code = 'const { x, y } = { x: 1, y: 2 }';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toEqual({ x: 1, y: 2 });
+		});
+
+		it('should not modify control flow as last statement', async () => {
+			const code =
+				'const items = [1, 2, 3];\nfor (const item of items) { console.log(item); }';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			// ForOf is control flow, no auto-return, result is undefined
+			expect(result.result).toBeUndefined();
 		});
 	});
 });

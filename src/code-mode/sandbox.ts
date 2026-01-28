@@ -29,6 +29,7 @@ import {
 	getProjectCapabilities,
 	type ProjectCapabilities,
 } from './capabilities.js';
+import { addAutoReturn } from './auto-return.js';
 import { validateAst } from './validators/index.js';
 import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
@@ -719,7 +720,7 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					example: "const result = await api.searchSymbols({ query: 'User' });",
 					decisionGuide,
 					compositionPatterns,
-					tip: 'Use Promise.all() for parallel queries. Always return results.',
+					tip: 'Use Promise.all() for parallel queries. The last expression is auto-returned if no explicit return is present.',
 				}),
 				// Capability check method - allows AI to verify project state
 				getCapabilities: async (): Promise<ProjectCapabilities> => {
@@ -840,11 +841,14 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 			return `"use strict";\n${code}`;
 		}
 
+		// SB-151: Auto-return last expression when no explicit return is present
+		const transformed = addAutoReturn(code);
+
 		// Wrap in async IIFE for top-level await support
 		// "use strict" ensures modifications to frozen objects throw errors (SB-102)
 		return `"use strict";
 (async () => {
-${code}
+${transformed}
 })()`;
 	}
 
@@ -929,13 +933,13 @@ ${code}
 			warnings.push(astResult.parseError);
 		}
 
-		// Check for missing return statement (common mistake)
+		// Check for missing return statement (informational with auto-return)
 		const hasApiCall = /api\.\w+\s*\(/.test(code);
 		const hasReturn = /\breturn\b/.test(code);
 		if (hasApiCall && !hasReturn) {
 			warnings.push(
-				'No return statement detected. Results from api calls will not be returned. ' +
-					'Did you forget to add "return" before your result?',
+				'No explicit return statement detected. Auto-return will be applied to the last expression. ' +
+					'For complex control flow, add an explicit return to ensure correct results.',
 			);
 		}
 

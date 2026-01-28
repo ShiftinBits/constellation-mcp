@@ -137,6 +137,7 @@ export function registerExecuteCodeTool(server: McpServer): void {
 					.min(1)
 					.describe(
 						'JavaScript code to execute. Can use top-level await. ' +
+							'The last expression is auto-returned if no explicit return is present. ' +
 							'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
 							'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
 							'findOrphanedCode, impactAnalysis, getArchitectureOverview',

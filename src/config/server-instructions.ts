@@ -80,7 +80,7 @@ return { search, impact };
 ### Key Principles
 
 1. **Always use \`await\`** - All API methods are async
-2. **Always \`return\` results** - Otherwise output is undefined
+2. **Results are auto-returned** - The last expression is returned automatically. Use explicit \`return\` for complex control flow.
 3. **Use \`Promise.all()\`** - For parallel operations (3-10x faster)
 4. **Use symbolId from search results** - More precise than name+path
 5. **No comments in code** - Comments waste tokens and serve no purpose at runtime
