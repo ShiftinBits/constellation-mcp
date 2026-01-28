@@ -67,7 +67,14 @@ describe('server-instructions', () => {
 		it('should return trimmed output without leading/trailing whitespace', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toBe(instructions.trim());
-			expect(instructions.startsWith('#')).toBe(true);
+			expect(instructions.startsWith('<IMPORTANT>')).toBe(true);
+		});
+
+		it('should include proactive usage guidance', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('designed for YOU');
+			expect(instructions).toContain('PROACTIVELY');
+			expect(instructions).toContain("don't wait for the human to ask");
 		});
 
 		it('should not contain template placeholders', () => {
@@ -78,10 +85,10 @@ describe('server-instructions', () => {
 			expect(instructions).not.toContain('FIXME');
 		});
 
-		it('should be concise (under 2000 chars)', () => {
+		it('should be concise (under 2500 chars)', () => {
 			const instructions = getServerInstructions();
-			// Simplified instructions should be ~40 lines, under 2000 chars
-			expect(instructions.length).toBeLessThan(2000);
+			// Simplified instructions with proactive guidance, under 2500 chars
+			expect(instructions.length).toBeLessThan(2500);
 			expect(instructions.length).toBeGreaterThan(500);
 		});
 	});

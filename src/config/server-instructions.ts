@@ -15,6 +15,10 @@
  */
 export function getServerInstructions(): string {
 	return `
+<IMPORTANT>
+The \`query_code\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code\`, not Grep/Glob/Read.
+</IMPORTANT>
+
 # Constellation Code Mode
 
 Write JavaScript with the \`api\` object to query the code intelligence graph.
