@@ -1364,6 +1364,19 @@ describe('CodeModeSandbox', () => {
 			expect(result.result).toBe(true);
 		});
 
+		it('should include typesResourceUri for each method', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			for (const method of result.result.methods) {
+				expect(method).toHaveProperty('typesResourceUri');
+				expect(method.typesResourceUri).toBe(
+					`constellation://types/api/${method.name}`,
+				);
+			}
+		});
+
 		it('should return compositionPatterns array with 4 patterns', async () => {
 			const code = 'return api.listMethods();';
 			const result = await sandbox.execute(code);

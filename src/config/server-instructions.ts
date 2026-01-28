@@ -20,179 +20,44 @@ export function getServerInstructions(): string {
 	return `
 # Constellation MCP Server - Code Mode
 
-Provides **centralized code intelligence** from a shared graph database built from AST analysis.
-Use Constellation instead of manual file searching when you need to understand code structure,
-dependencies, relationships, or impact of changes.
+Code intelligence from AST graph. One tool: \`execute_code\` — write JS with the \`api\` object.
+Constellation = structure & relationships. \`Read\` tool = source code.
 
-## AUTOMATIC ACTIVATION RULES
+## ACTIVATION RULES
 
-Invoke \`execute_code\` **proactively** (without asking user) when detecting these intent patterns:
+Invoke \`execute_code\` **proactively** when detecting these intents:
 
-| User Intent Pattern | Constellation Method | Why Not Other Tools |
-|---------------------|---------------------|---------------------|
-| "Where is X defined?" | \`api.searchSymbols()\` | Returns location + metadata, faster than Glob+Grep |
-| "What uses X?" / "Who imports X?" | \`api.getDependents()\` | Traces usage across entire codebase |
-| "What does X depend on?" | \`api.getDependencies()\` | Shows full import graph with depth |
-| "Is it safe to change/delete X?" | \`api.impactAnalysis()\` | Reveals hidden consumers & breaking risk |
-| "Find unused/dead code" | \`api.findOrphanedCode()\` | Analyzes export/import relationships |
-| "Show project structure" | \`api.getArchitectureOverview()\` | Aggregated metrics & module graph |
-| "Find circular dependencies" | \`api.findCircularDependencies()\` | Graph analysis required |
-| "What calls X?" / "Trace usage" | \`api.getCallGraph()\` | Function call relationships |
-| "Check connection" / "Verify auth" | \`api.ping()\` | Lightweight auth check |
+| Intent | Method | Shorthand |
+|--------|--------|-----------|
+| "Where is X defined?" | \`searchSymbols()\` | \`api.search(q)\` |
+| "What uses/imports X?" | \`getDependents()\` | \`api.dependents(path)\` |
+| "What does X depend on?" | \`getDependencies()\` | \`api.deps(path)\` |
+| "Safe to change/delete X?" | \`impactAnalysis()\` | \`api.impact(id)\` |
+| "Find unused/dead code" | \`findOrphanedCode()\` | \`api.orphans()\` |
+| "Show project structure" | \`getArchitectureOverview()\` | \`api.overview()\` |
+| "Circular dependencies?" | \`findCircularDependencies()\` | \`api.cycles()\` |
+| "What calls X? / Trace usage" | \`getCallGraph()\` | \`api.calls(id)\` |
+| "Check connection" | \`ping()\` | \`api.ping()\` |
 
-### Decision Logic for AI Assistants
+**Critical Rules**: Always \`await\`. Last expression auto-returned (explicit \`return\` for control flow). \`Promise.all()\` for parallel (3-10x faster). Use \`symbolId\` from search results. No comments in code.
 
-**USE CONSTELLATION WHEN:**
-1. User asks about symbol location → searchSymbols (not Glob)
-2. User asks about dependencies/imports → getDependencies/getDependents
-3. User asks about change impact → impactAnalysis
-4. User asks about code quality → findOrphanedCode
-5. User asks about project structure → getArchitectureOverview
-6. User asks about connectivity/auth → ping
+**Fallback**: \`Read\`/\`Edit\`/\`Write\` for source. \`Grep\` for text search. \`Glob\` for file patterns. Not indexed → \`constellation index\`.
 
-**FALLBACK TO OTHER TOOLS WHEN:**
-- Need to **read source code** → Use \`Read\` tool (Constellation has no source)
-- Need to **modify files** → Use \`Edit\`/\`Write\` tools
-- **Simple text search** → Use \`Grep\` (no symbol analysis needed)
-- **Project not indexed** → Inform user to run \`constellation index\`
-
-### Capability Check Pattern
-
-First call in a session can verify indexing:
+### Capability Check
 \`\`\`javascript
 const caps = await api.getCapabilities();
-if (!caps.isIndexed) {
-  return { error: "Project not indexed", suggestion: "Run: constellation index" };
-}
+if (!caps.isIndexed) return { error: "Not indexed", suggestion: "Run: constellation index" };
 \`\`\`
 
-## How Code Mode Works
+## Patterns
 
-Constellation exposes ONE tool: \`execute_code\`. Write JavaScript code that uses the \`api\` object to call methods.
-
+### Discovery
 \`\`\`javascript
-// Example: Find a function and analyze its impact
-const search = await api.searchSymbols({ query: "handleAuth" });
-const impact = await api.impactAnalysis({ symbolId: search.symbols[0].id });
-return { search, impact };
+api.listMethods()
 \`\`\`
+Returns method metadata, intent-to-method mapping, and composition recipes.
 
-### Key Principles
-
-1. **Always use \`await\`** - All API methods are async
-2. **Results are auto-returned** - The last expression is returned automatically. Use explicit \`return\` for complex control flow.
-3. **Use \`Promise.all()\`** - For parallel operations (3-10x faster)
-4. **Use symbolId from search results** - More precise than name+path
-5. **No comments in code** - Comments waste tokens and serve no purpose at runtime
-
-### Discovery Pattern
-
-When uncertain which method to use, start with \`api.listMethods()\`:
-\`\`\`javascript
-const guide = api.listMethods();
-// Returns: methods[], decisionGuide, compositionPatterns[]
-return guide;
-\`\`\`
-
-This returns method metadata, intent-to-method mapping, and composition recipes.
-
-## Core Principle
-
-**Constellation = Code Metadata & Relationships | Read tool = Source Code**
-
-Constellation tells you ABOUT code (structure, dependencies, usage). Always use \`Read\` to view actual file contents.
-
-## When to Use Constellation (Proactive)
-
-Use \`execute_code\` **automatically** when the user asks:
-
-**Discovery**: "Where is X?", "Find function Y", "Show me all classes"
-\`\`\`javascript
-const result = await api.searchSymbols({ query: "UserService", filterByKind: ["class"] });
-return result.symbols.map(s => ({ name: s.name, file: s.filePath, line: s.line }));
-\`\`\`
-
-**Dependencies**: "What does X import?", "What uses X?", "Show call graph"
-\`\`\`javascript
-const [deps, dependents] = await Promise.all([
-  api.getDependencies({ filePath: "src/service.ts" }),
-  api.getDependents({ filePath: "src/service.ts" })
-]);
-return { imports: deps.directDependencies, usedBy: dependents.directDependents };
-\`\`\`
-
-**Impact Analysis**: "What breaks if I change X?", "Is it safe to delete?", "Show blast radius"
-\`\`\`javascript
-const impact = await api.impactAnalysis({ symbolName: "processOrder", filePath: "src/orders.ts" });
-return { risk: impact.breakingChangeRisk, files: impact.impactedFiles };
-\`\`\`
-
-**Architecture**: "How is this organized?", "Show me the structure"
-\`\`\`javascript
-return await api.getArchitectureOverview({ includeMetrics: true });
-\`\`\`
-
-**Code Quality**: "Find dead code", "What can I delete?"
-\`\`\`javascript
-return await api.findOrphanedCode({ filePattern: "src/**", limit: 20 });
-\`\`\`
-
-## When NOT to Use Constellation
-
-- **Reading source code** - Use \`Read\` tool
-- **Modifying files** - Use \`Edit\` or \`Write\`
-- **Running commands** - Use \`Bash\`
-- **Project not indexed** - Ask user to run \`constellation index\`
-- **Simple file patterns** - Use \`Glob\`
-- **Text search** - Use \`Grep\`
-
-## API Reference
-
-| Method | Parameters | Use When |
-|--------|------------|----------|
-| \`api.searchSymbols()\` | query, filterByKind?, limit? | Finding functions, classes, variables |
-| \`api.getSymbolDetails()\` | symbolId OR symbolName+filePath | Getting full symbol info |
-| \`api.getDependencies()\` | filePath, depth? | What does this file import? |
-| \`api.getDependents()\` | filePath, depth? | What imports this file? |
-| \`api.traceSymbolUsage()\` | symbolId OR symbolName+filePath | Where is this symbol used? |
-| \`api.getCallGraph()\` | symbolId OR symbolName+filePath, direction? | Function call relationships |
-| \`api.impactAnalysis()\` | symbolId OR symbolName+filePath | Change impact assessment |
-| \`api.findCircularDependencies()\` | filePath?, maxDepth? | Find import cycles |
-| \`api.findOrphanedCode()\` | filePattern?, filterByKind? | Find unused/dead code |
-| \`api.getArchitectureOverview()\` | includeMetrics? | High-level project structure |
-| \`api.ping()\` | (none) | Verify authentication and API connectivity |
-
-## Shorthand Aliases
-
-Positional-arg shortcuts for common operations:
-
-| Shorthand | Delegates To | Example |
-|-----------|-------------|---------|
-| \`api.search(query, opts?)\` | \`searchSymbols\` | \`await api.search("User")\` |
-| \`api.details(symbolId)\` | \`getSymbolDetails\` | \`await api.details(id)\` |
-| \`api.deps(filePath, opts?)\` | \`getDependencies\` | \`await api.deps("src/index.ts")\` |
-| \`api.dependents(filePath, opts?)\` | \`getDependents\` | \`await api.dependents("src/utils.ts")\` |
-| \`api.impact(idOrName, file?, opts?)\` | \`impactAnalysis\` | \`await api.impact("UserService", "src/user.ts")\` |
-| \`api.usage(idOrName, file?, opts?)\` | \`traceSymbolUsage\` | \`await api.usage(symbol.id)\` |
-| \`api.calls(idOrName, file?, opts?)\` | \`getCallGraph\` | \`await api.calls("processOrder", "src/orders.ts")\` |
-| \`api.orphans(opts?)\` | \`findOrphanedCode\` | \`await api.orphans({ limit: 20 })\` |
-| \`api.cycles(opts?)\` | \`findCircularDependencies\` | \`await api.cycles()\` |
-| \`api.overview(opts?)\` | \`getArchitectureOverview\` | \`await api.overview()\` |
-
-**Smart resolution** (\`impact\`, \`usage\`, \`calls\`): 1 string = symbolId, 2 strings = symbolName + filePath.
-
-## Full Type Definitions
-
-For complete TypeScript interface definitions of all API methods, read the resource:
-\`\`\`
-constellation://types/api
-\`\`\`
-
-Use this when you need exact property names, optional fields, or nested structures.
-
-## Common Patterns
-
-### Chained Analysis (Search -> Details -> Impact)
+### Chained Analysis
 \`\`\`javascript
 const search = await api.searchSymbols({ query: "calculateTotal", limit: 1 });
 if (search.symbols.length === 0) return { error: "Not found" };
@@ -222,94 +87,66 @@ try {
 }
 \`\`\`
 
-## Composite Workflows
+## API Reference
 
-**Why Code Mode is Powerful**: A single \`execute_code\` call can replace 6+ traditional MCP tool calls with deterministic results.
+| Method | Parameters | Returns | Use When |
+|--------|-----------|---------|----------|
+| \`api.searchSymbols()\` | query, filterByKind?, limit? | \`{ symbols[], pagination? }\` | Finding functions, classes, variables |
+| \`api.getSymbolDetails()\` | symbolId OR symbolName+filePath | \`{ symbol, references?, relationships? }\` | Getting full symbol info |
+| \`api.getDependencies()\` | filePath, depth? | \`{ file, directDependencies[], transitive? }\` | What does this file import? |
+| \`api.getDependents()\` | filePath, depth? | \`{ file, directDependents[], transitive? }\` | What imports this file? |
+| \`api.traceSymbolUsage()\` | symbolId OR symbolName+filePath | \`{ symbol, directUsages[], transitive? }\` | Where is this symbol used? |
+| \`api.getCallGraph()\` | symbolId OR symbolName+filePath, direction? | \`{ root, callers?, callees? }\` | Function call relationships |
+| \`api.impactAnalysis()\` | symbolId OR symbolName+filePath | \`{ summary, breakingChangeRisk?, impactedFiles[] }\` | Change impact assessment |
+| \`api.findCircularDependencies()\` | filePath?, maxDepth? | \`{ cycles[], totalCycles }\` | Find import cycles |
+| \`api.findOrphanedCode()\` | filePattern?, filterByKind? | \`{ orphanedSymbols[], orphanedFiles[] }\` | Find unused/dead code |
+| \`api.getArchitectureOverview()\` | includeMetrics? | \`{ metadata, structure, dependencies }\` | High-level project structure |
+| \`api.ping()\` | (none) | \`{ pong: true }\` | Verify authentication and API connectivity |
 
-Traditional MCP tools would require separate calls for search, details, usage, dependencies, dependents, and impact analysis. The AI then synthesizes results non-deterministically. With Code Mode, you compose everything in one execution with custom logic.
+## Shorthand Aliases
 
-### Comprehensive Symbol Analysis Pattern
+Positional-arg shortcuts for common operations:
 
-\`\`\`javascript
-const symbolName = "UserService";
+| Shorthand | Delegates To | Example |
+|-----------|-------------|---------|
+| \`api.search(query, opts?)\` | \`searchSymbols\` | \`await api.search("User")\` |
+| \`api.details(symbolId)\` | \`getSymbolDetails\` | \`await api.details(id)\` |
+| \`api.deps(filePath, opts?)\` | \`getDependencies\` | \`await api.deps("src/index.ts")\` |
+| \`api.dependents(filePath, opts?)\` | \`getDependents\` | \`await api.dependents("src/utils.ts")\` |
+| \`api.impact(idOrName, file?, opts?)\` | \`impactAnalysis\` | \`await api.impact("UserService", "src/user.ts")\` |
+| \`api.usage(idOrName, file?, opts?)\` | \`traceSymbolUsage\` | \`await api.usage(symbol.id)\` |
+| \`api.calls(idOrName, file?, opts?)\` | \`getCallGraph\` | \`await api.calls("processOrder", "src/orders.ts")\` |
+| \`api.orphans(opts?)\` | \`findOrphanedCode\` | \`await api.orphans({ limit: 20 })\` |
+| \`api.cycles(opts?)\` | \`findCircularDependencies\` | \`await api.cycles()\` |
+| \`api.overview(opts?)\` | \`getArchitectureOverview\` | \`await api.overview()\` |
 
-// Step 1: Find the symbol
-const search = await api.searchSymbols({ query: symbolName, limit: 1 });
-if (search.symbols.length === 0) {
-  return { error: \`Symbol "\${symbolName}" not found\` };
-}
-const symbol = search.symbols[0];
+**Smart resolution** (\`impact\`, \`usage\`, \`calls\`): 1 string = symbolId, 2 strings = symbolName + filePath.
 
-// Step 2: Parallel analysis (5 API calls in one round-trip)
-const [details, usage, deps, dependents, impact] = await Promise.all([
-  api.getSymbolDetails({ symbolId: symbol.id, includeRelationships: true }),
-  api.traceSymbolUsage({ symbolId: symbol.id, excludeTests: true }),
-  api.getDependencies({ filePath: symbol.filePath, depth: 2 }),
-  api.getDependents({ filePath: symbol.filePath, depth: 2 }),
-  api.impactAnalysis({ symbolId: symbol.id, analyzeBreakingChanges: true })
-]);
+## Type Definitions
 
-// Step 3: Custom risk calculation (deterministic)
-const usageCount = usage.directUsages?.length || 0;
-const dependentCount = dependents.directDependents?.length || 0;
-let riskLevel = "LOW";
-if (usageCount > 50 || dependentCount > 20) riskLevel = "HIGH";
-else if (usageCount > 20 || dependentCount > 10) riskLevel = "MEDIUM";
+Three levels of type access (quick → detailed → exhaustive):
 
-return {
-  symbol,
-  metrics: { usageCount, dependencyCount: deps.directDependencies?.length || 0, dependentCount, riskLevel },
-  relationships: details.relationships,
-  impact: impact.summary,
-  breakingChangeRisk: impact.breakingChangeRisk
-};
-\`\`\`
+1. **Returns column above** — top-level response shape at a glance
+2. **Per-method resource** — readable interfaces with field descriptions (~30-50 lines):
+   \`\`\`
+   constellation://types/api/{methodName}
+   \`\`\`
+   Examples: \`constellation://types/api/searchSymbols\`, \`constellation://types/api/impactAnalysis\`
+   Also accepts shorthands: \`constellation://types/api/search\`, \`constellation://types/api/impact\`
 
-**Result**: 6 operations + custom logic in ONE tool call. Traditional tools would require 6 calls plus non-deterministic AI synthesis.
+3. **Full type definitions** — complete Zod schemas for all methods (~147KB):
+   \`\`\`
+   constellation://types/api
+   \`\`\`
+
+Start with the Returns column. Read a per-method resource when you need exact field names. Use the full resource only for edge cases.
 
 ## Best Practices
 
-### Start Small, Escalate
-- Use \`depth=1\` first, increase only if needed
-- Depth grows **EXPONENTIALLY**: depth=1~10 files, depth=2~100 files, depth=3~1000+ files
-
-### Use symbolId
-- After \`searchSymbols\`, use returned \`symbolId\` in follow-up calls
-- SymbolIds are precise, fast, and avoid ambiguity
-
-### Parallel Execution
-- Use \`Promise.all()\` for independent queries (3-10x faster)
-- Check array lengths before accessing elements
-
-### Filter Appropriately
-- Set \`excludeTests=true\` for production-only impact analysis
-- Use \`includeReferences\` only when needed (can be large for popular symbols)
-
-## Semantic Markers in Results
-
-| Marker | Meaning |
-|--------|---------|
-| [EXPORTED] | Public symbol - changes affect consumers |
-| [INTERNAL] | Private - safe to change within module |
-| [TEST] | Test file - lower production risk |
-| [UNUSED] | Never imported - deletion candidate |
-| [HEAVILY_USED] | 20+ usages - high impact |
-| [HIGH_IMPACT] | Critical to many dependents |
-
-## Quick Decision Matrix
-
-| Need to... | Do this |
-|------------|---------|
-| Find where X is defined | \`searchSymbols\` + \`getSymbolDetails\` |
-| Understand a file | Use \`Read\` tool |
-| See what X depends on | \`getDependencies\` |
-| See what depends on X | \`getDependents\` or \`impactAnalysis\` |
-| Check if safe to change X | \`impactAnalysis\` (depth=1-2) |
-| Plan refactoring | \`impactAnalysis\` + \`traceSymbolUsage\` |
-| Understand architecture | \`getArchitectureOverview\` |
-| Find dead code | \`findOrphanedCode\` |
-| Debug circular imports | \`findCircularDependencies\` |
-| Check connectivity | \`ping\` |
+- **Depth**: Use \`depth=1\` first, increase only if needed. Depth grows **EXPONENTIALLY**: depth=1~10 files, depth=2~100 files, depth=3~1000+ files
+- **symbolId**: After \`searchSymbols\`, use returned \`symbolId\` in follow-up calls — precise, fast, unambiguous
+- **Parallel**: Use \`Promise.all()\` for independent queries (3-10x faster). Check array lengths before accessing elements
+- **Filtering**: Set \`excludeTests=true\` for production-only impact analysis. Use \`includeReferences\` only when needed (can be large for popular symbols)
 
 ## Multi-Project Workspaces
 

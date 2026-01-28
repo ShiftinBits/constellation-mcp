@@ -139,7 +139,7 @@ api.findOrphanedCode({ filePattern?, filterByKind?, exportedOnly?, excludeTests?
 api.ping() → { pong: true }  // Verify auth & connectivity
 
 api.listMethods() → {
-  methods: [{ name, description, triggerPhrases[], quickExample }],
+  methods: [{ name, description, triggerPhrases[], quickExample, typesResourceUri }],
   usage: string,
   example: string,
   decisionGuide: { "user intent phrase": "methodName", ... },
@@ -148,7 +148,9 @@ api.listMethods() → {
 // Note: Returns an object with a 'methods' array, not an array directly
 // Example: const result = api.listMethods(); result.methods.forEach(m => ...)
 
-For complete TypeScript interfaces: read resource constellation://types/api
+For type details: read resource constellation://types/api/{methodName}
+  Examples: constellation://types/api/searchSymbols, constellation://types/api/impact
+  Full types (all methods, ~147KB): constellation://types/api
 `,
 
 	// Decision tree for when to use Constellation vs other tools

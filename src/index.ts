@@ -2,13 +2,20 @@ import { readFileSync } from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+	McpServer,
+	ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { configCache } from './config/config-cache.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { getToolRegistry } from './registry/ToolRegistry.js';
 import { allToolDefinitions } from './registry/tool-definitions/index.js';
 import { registerExecuteCodeTool } from './tools/execute-code-tool.js';
+import {
+	METHOD_SUMMARIES,
+	resolveMethodName,
+} from './types/method-summaries.js';
 
 const require = createRequire(import.meta.url);
 const packageJson = require('../package.json');
@@ -110,13 +117,13 @@ async function startServer() {
 		const __dirname = path.dirname(__filename);
 		const apiTypesPath = path.join(__dirname, 'types', 'api-types.d.ts');
 
-		server.resource(
+		server.registerResource(
 			'api-types',
 			'constellation://types/api',
 			{
 				description:
-					'Full TypeScript interfaces for all Constellation API method parameters and responses. ' +
-					'Read this when you need exact property names, optional fields, or nested structures.',
+					'Full TypeScript interfaces for ALL Constellation API methods. ' +
+					'Large (~147KB). Prefer constellation://types/api/{methodName} for individual methods.',
 				mimeType: 'text/typescript',
 			},
 			async () => ({
@@ -129,8 +136,48 @@ async function startServer() {
 				],
 			}),
 		);
+
+		server.registerResource(
+			'api-method-types',
+			new ResourceTemplate('constellation://types/api/{methodName}', {
+				list: async () => ({
+					resources: Object.keys(METHOD_SUMMARIES).map((name) => ({
+						uri: `constellation://types/api/${name}`,
+						name: `${name} types`,
+						description: `Type definitions for api.${name}()`,
+						mimeType: 'text/typescript',
+					})),
+				}),
+			}),
+			{
+				description:
+					'TypeScript type definitions for a specific API method. ' +
+					'Accepts canonical names (searchSymbols) or shorthand aliases (search).',
+				mimeType: 'text/typescript',
+			},
+			async (uri, variables) => {
+				const methodName = variables.methodName as string;
+				const canonical = resolveMethodName(methodName);
+				if (!canonical || !METHOD_SUMMARIES[canonical]) {
+					const available = Object.keys(METHOD_SUMMARIES).join(', ');
+					throw new Error(
+						`Unknown method: "${methodName}". Available: ${available}`,
+					);
+				}
+				return {
+					contents: [
+						{
+							uri: uri.href,
+							mimeType: 'text/typescript',
+							text: METHOD_SUMMARIES[canonical],
+						},
+					],
+				};
+			},
+		);
+
 		console.error(
-			'[CONSTELLATION] Registered resource: constellation://types/api',
+			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}',
 		);
 
 		// Validate that tool registry matches registered tools

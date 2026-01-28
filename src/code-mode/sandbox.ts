@@ -77,6 +77,8 @@ export interface MethodInfo {
 	triggerPhrases: string[];
 	/** Example code snippet showing typical usage */
 	quickExample: string;
+	/** URI to read this method's type definitions */
+	typesResourceUri: string;
 }
 
 /**
@@ -585,24 +587,28 @@ export class CodeModeSandbox {
 				description: 'Search for symbols by name/pattern',
 				triggerPhrases: ['find function', 'find class', 'where is', 'locate'],
 				quickExample: `await api.searchSymbols({ query: "User", limit: 10 })`,
+				typesResourceUri: 'constellation://types/api/searchSymbols',
 			},
 			{
 				name: 'getSymbolDetails',
 				description: 'Get detailed info about a symbol',
 				triggerPhrases: ['symbol details', 'more info about'],
 				quickExample: `await api.getSymbolDetails({ symbolId: "..." })`,
+				typesResourceUri: 'constellation://types/api/getSymbolDetails',
 			},
 			{
 				name: 'getDependencies',
 				description: 'Get what a file depends on',
 				triggerPhrases: ['what imports', 'dependencies of', 'what does it use'],
 				quickExample: `await api.getDependencies({ filePath: "src/index.ts" })`,
+				typesResourceUri: 'constellation://types/api/getDependencies',
 			},
 			{
 				name: 'getDependents',
 				description: 'Get what depends on a file',
 				triggerPhrases: ['what uses this', 'who imports', 'dependents of'],
 				quickExample: `await api.getDependents({ filePath: "src/utils.ts" })`,
+				typesResourceUri: 'constellation://types/api/getDependents',
 			},
 			{
 				name: 'findCircularDependencies',
@@ -613,24 +619,28 @@ export class CodeModeSandbox {
 					'dependency loop',
 				],
 				quickExample: `await api.findCircularDependencies({ maxDepth: 10 })`,
+				typesResourceUri: 'constellation://types/api/findCircularDependencies',
 			},
 			{
 				name: 'traceSymbolUsage',
 				description: 'Find all usages of a symbol',
 				triggerPhrases: ['where is used', 'find usages', 'trace usage'],
 				quickExample: `await api.traceSymbolUsage({ symbolName: "User", filePath: "..." })`,
+				typesResourceUri: 'constellation://types/api/traceSymbolUsage',
 			},
 			{
 				name: 'getCallGraph',
 				description: 'Get function call relationships',
 				triggerPhrases: ['what calls', 'called by', 'call graph'],
 				quickExample: `await api.getCallGraph({ symbolName: "process", filePath: "..." })`,
+				typesResourceUri: 'constellation://types/api/getCallGraph',
 			},
 			{
 				name: 'findOrphanedCode',
 				description: 'Find unused/dead code',
 				triggerPhrases: ['unused code', 'dead code', 'orphaned', 'can delete'],
 				quickExample: `await api.findOrphanedCode({ limit: 20 })`,
+				typesResourceUri: 'constellation://types/api/findOrphanedCode',
 			},
 			{
 				name: 'impactAnalysis',
@@ -642,6 +652,7 @@ export class CodeModeSandbox {
 					'blast radius',
 				],
 				quickExample: `await api.impactAnalysis({ symbolName: "Config", filePath: "..." })`,
+				typesResourceUri: 'constellation://types/api/impactAnalysis',
 			},
 			{
 				name: 'getArchitectureOverview',
@@ -652,6 +663,7 @@ export class CodeModeSandbox {
 					'codebase overview',
 				],
 				quickExample: `await api.getArchitectureOverview({ includeMetrics: true })`,
+				typesResourceUri: 'constellation://types/api/getArchitectureOverview',
 			},
 			{
 				name: 'ping',
@@ -664,12 +676,14 @@ export class CodeModeSandbox {
 					'verify access',
 				],
 				quickExample: `await api.ping()`,
+				typesResourceUri: 'constellation://types/api/ping',
 			},
 			{
 				name: 'getCapabilities',
 				description: 'Check project indexing status and available features',
 				triggerPhrases: ['is indexed', 'project status', 'capabilities'],
 				quickExample: `await api.getCapabilities()`,
+				typesResourceUri: 'constellation://types/api/getCapabilities',
 			},
 		];
 
