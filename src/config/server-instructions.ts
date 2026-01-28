@@ -23,6 +23,8 @@ Decision rule: When you consider using Grep/Glob calls to understand code struct
 Use \`query_code_graph\` for: symbols, definitions, dependencies, usage, impact, architecture
 Use Grep/Glob for: literal strings, log messages, config values, file patterns
 
+Pre-flight: Run \`await api.ping()\` once per session to verify auth + connectivity. If it fails, fall back to Grep/Glob.
+
 | Task | Best Tool |
 |------|-----------|
 | Find where X is defined | query_code_graph |

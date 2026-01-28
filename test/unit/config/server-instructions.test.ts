@@ -104,6 +104,17 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('fall back to Grep/Glob');
 		});
 
+		it('should include ping() pre-flight guidance in IMPORTANT block', () => {
+			const instructions = getServerInstructions();
+			const importantMatch = instructions.match(
+				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
+			);
+			expect(importantMatch).not.toBeNull();
+			const importantBlock = importantMatch![1];
+			expect(importantBlock).toContain('api.ping()');
+			expect(importantBlock).toContain('once per session');
+		});
+
 		it('should include chained workflow example with Promise.all', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain(

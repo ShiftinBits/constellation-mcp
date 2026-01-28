@@ -93,9 +93,7 @@ describe('registerQueryCodeGraphTool', () => {
 				'query_code_graph',
 				expect.objectContaining({
 					title: expect.stringContaining('Query Code Intelligence'),
-					description: expect.stringContaining(
-						'Query codebase structure and relationships via AST-based code intelligence graph',
-					),
+					description: expect.stringMatching(/^DECISION RULE:/),
 				}),
 				expect.any(Function),
 			);
@@ -117,6 +115,24 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.description).toContain('About to modify');
 			expect(config.description).toContain('Exploring unfamiliar code');
 			expect(config.description).toContain('Planning a refactor');
+		});
+
+		it('should lead with DECISION RULE before capability summary', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			const decisionRuleIndex = config.description.indexOf('DECISION RULE:');
+			const capabilitySummaryIndex = config.description.indexOf(
+				'Query codebase structure and relationships',
+			);
+			expect(decisionRuleIndex).toBeGreaterThanOrEqual(0);
+			expect(capabilitySummaryIndex).toBeGreaterThan(decisionRuleIndex);
+		});
+
+		it('should include error handling and availability guidance in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('Errors return structured JSON');
+			expect(config.description).toContain('api.ping()');
 		});
 
 		it('should register with correct input schema', () => {

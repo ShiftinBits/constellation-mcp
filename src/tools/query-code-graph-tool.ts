@@ -129,13 +129,13 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 		{
 			title: 'Query Code Intelligence',
 			description:
-				'Query codebase structure and relationships via AST-based code intelligence graph. ' +
-				'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks.\n\n' +
 				'DECISION RULE:\n' +
 				'• query_code_graph: definitions, callers/callees, dependencies, dependents, impact analysis, dead code, architecture\n' +
 				'• Grep: literal strings, log messages, config values, env vars\n' +
 				'• Glob: find files by name/pattern\n' +
 				'• Read: view source code content\n\n' +
+				'Query codebase structure and relationships via AST-based code intelligence graph. ' +
+				'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks.\n\n' +
 				'USE THIS TOOL WHEN:\n' +
 				'• "Where is X defined?" / "Find function Y" → searchSymbols({query})\n' +
 				'• "What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})\n' +
@@ -148,7 +148,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• Exploring unfamiliar code — get architecture overview first\n' +
 				'• Planning a refactor — trace dependencies and dependents\n' +
 				'• Reviewing a PR — understand call graph and blast radius\n\n' +
-				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
+				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
+				'Errors return structured JSON with `guidance[]` for recovery. Run `api.ping()` once per session to verify availability.\n\n' +
 				'Write JavaScript with the `api` object. Always await. Use Promise.all() for parallel queries. ' +
 				'Returns structured metadata—use Read tool for source code. Supports multi-project workspaces via cwd parameter.',
 			inputSchema: {
