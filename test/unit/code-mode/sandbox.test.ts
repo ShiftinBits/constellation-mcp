@@ -55,7 +55,12 @@ describe('CodeModeSandbox', () => {
 	});
 
 	// Helper function to create mock McpToolResult
-	const createMockResult = <T>(data: T, success = true, error?: string) => ({
+	const createMockResult = <T>(
+		data: T,
+		success = true,
+		error?: string,
+		asOfCommit?: string,
+	) => ({
 		success,
 		data: success ? data : undefined,
 		error: error || undefined,
@@ -64,6 +69,7 @@ describe('CodeModeSandbox', () => {
 			executionTime: 10,
 			cached: false,
 			timestamp: new Date().toISOString(),
+			...(asOfCommit ? { asOfCommit } : {}),
 		},
 	});
 
@@ -317,6 +323,36 @@ describe('CodeModeSandbox', () => {
 				{ query: 'test', limit: 10, types: ['class'] },
 				expect.any(Object),
 			);
+		});
+
+		it('should capture asOfCommit from API response metadata', async () => {
+			const commitHash = 'abc123def456abc123def456abc123def456abc1';
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(
+					{ symbols: [{ name: 'test' }] },
+					true,
+					undefined,
+					commitHash,
+				),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.asOfCommit).toBe(commitHash);
+		});
+
+		it('should not include asOfCommit when API response has no commit', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.asOfCommit).toBeUndefined();
 		});
 	});
 

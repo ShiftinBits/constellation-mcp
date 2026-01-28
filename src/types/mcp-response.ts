@@ -46,6 +46,8 @@ export interface McpToolResult<T = unknown> {
 		cached: boolean;
 		/** ISO timestamp of execution */
 		timestamp: string;
+		/** Git commit hash of the latest indexed data */
+		asOfCommit?: string;
 		/** Additional metadata (varies by tool) */
 		[key: string]: unknown;
 	};

@@ -16,7 +16,9 @@
 export function getServerInstructions(): string {
 	return `
 <IMPORTANT>
-The \`query_code_graph\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code_graph\`, not Grep/Glob/Read.
+The \`query_code_graph\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code_graph\`, not Grep/Glob/Read.
+
+When \`ping()\` succeeds, the code graph contains complete structural data for all indexed files — every symbol, dependency, and call relationship. For structural questions, it is MORE reliable than Grep: it captures indirect references and relationships that text search misses. Grep approximates; the graph knows.
 
 Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`query_code_graph\` instead—it answers structural questions in one call.
 

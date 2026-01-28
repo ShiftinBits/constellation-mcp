@@ -50,6 +50,8 @@ export interface CodeModeResponse {
 	structuredError?: McpErrorResponse;
 	logs?: string[];
 	executionTime?: number;
+	/** Git commit hash of the latest indexed data (from API responses) */
+	asOfCommit?: string;
 	metadata?: {
 		language: string;
 		sandboxed: boolean;
@@ -232,6 +234,7 @@ export class CodeModeRuntime {
 			structuredError: result.structuredError,
 			logs: allLogs.length > 0 ? allLogs : undefined,
 			executionTime: result.executionTime,
+			asOfCommit: result.asOfCommit,
 			metadata: {
 				language: 'javascript',
 				sandboxed: true,
@@ -247,6 +250,10 @@ export class CodeModeRuntime {
 		const output: any = {
 			success: response.success,
 		};
+
+		if (response.asOfCommit) {
+			output.asOfCommit = response.asOfCommit;
+		}
 
 		if (response.success) {
 			// Success response

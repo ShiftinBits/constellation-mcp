@@ -73,7 +73,7 @@ describe('server-instructions', () => {
 		it('should include proactive usage guidance with decision heuristic', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('designed for YOU');
-			expect(instructions).toContain('PROACTIVELY');
+			expect(instructions).toContain('Grep approximates; the graph knows');
 			expect(instructions).toContain('Decision rule');
 			expect(instructions).toContain('Use Grep/Glob for');
 		});

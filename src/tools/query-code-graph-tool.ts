@@ -44,6 +44,7 @@ interface SchemaCompliantOutput {
 	result?: any;
 	logs?: string[];
 	time?: number;
+	asOfCommit?: string;
 	error?: string;
 	[x: string]: unknown;
 }
@@ -59,6 +60,8 @@ function toSchemaCompliantOutput(
 	const output: SchemaCompliantOutput = {
 		success: response.success,
 	};
+
+	if (response.asOfCommit) output.asOfCommit = response.asOfCommit;
 
 	if (response.success) {
 		if (response.result !== undefined) output.result = response.result;
@@ -165,6 +168,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				result: z.any().optional(),
 				logs: z.array(z.string()).optional(),
 				time: z.number().optional(),
+				asOfCommit: z.string().optional(),
 				error: z.string().optional(),
 			},
 			annotations: {

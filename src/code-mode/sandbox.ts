@@ -290,6 +290,8 @@ export interface SandboxResult {
 	logs?: string[];
 	/** Execution time in milliseconds */
 	executionTime: number;
+	/** Git commit hash of the latest indexed data (from API responses) */
+	asOfCommit?: string;
 }
 
 /**
@@ -362,9 +364,12 @@ export class CodeModeSandbox {
 		// FIX: Guard flag to prevent double rejection when both VM timeout and Promise timeout fire
 		let hasTimedOut = false;
 
+		// Shared mutable state for capturing data from sandbox execution
+		const executionState = { asOfCommit: null as string | null };
+
 		try {
 			// Create sandbox context with API bindings
-			const sandbox = this.createSandboxContext(logs);
+			const sandbox = this.createSandboxContext(logs, executionState);
 
 			// Wrap code in async IIFE if not already
 			const wrappedCode = this.wrapCode(code);
@@ -411,6 +416,7 @@ export class CodeModeSandbox {
 				result,
 				logs,
 				executionTime: Date.now() - startTime,
+				asOfCommit: executionState.asOfCommit ?? undefined,
 			};
 		} catch (error) {
 			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
@@ -505,7 +511,10 @@ export class CodeModeSandbox {
 	/**
 	 * Create sandbox context with API and utilities
 	 */
-	private createSandboxContext(logs: string[]): any {
+	private createSandboxContext(
+		logs: string[],
+		executionState: { asOfCommit: string | null },
+	): any {
 		// Helper to convert snake_case to camelCase for display
 		const snakeToCamel = (str: string): string => {
 			return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -557,6 +566,11 @@ export class CodeModeSandbox {
 							`  Duration: ${duration}ms\n` +
 							`  Error: ${result.error || 'Unknown error'}`,
 					);
+				}
+
+				// Track latest indexed commit hash from API response metadata
+				if (result.metadata?.asOfCommit) {
+					executionState.asOfCommit = result.metadata.asOfCommit;
 				}
 
 				return result.data;

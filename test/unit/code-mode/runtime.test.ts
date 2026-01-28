@@ -168,6 +168,41 @@ describe('CodeModeRuntime', () => {
 			expect(result.logs).toEqual(['test']);
 		});
 
+		it('should pass asOfCommit from sandbox to response', async () => {
+			const commitHash = 'abc123def456abc123def456abc123def456abc1';
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: { symbols: [] },
+				logs: [],
+				executionTime: 10,
+				asOfCommit: commitHash,
+			});
+
+			const result = await runtime.execute({
+				code: 'return await api.searchSymbols({})',
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.asOfCommit).toBe(commitHash);
+		});
+
+		it('should not include asOfCommit when sandbox does not provide one', async () => {
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 42,
+				logs: [],
+				executionTime: 10,
+			});
+
+			const result = await runtime.execute({ code: 'return 42' });
+
+			expect(result.success).toBe(true);
+			expect(result.asOfCommit).toBeUndefined();
+		});
+
 		it('should always use javascript language', async () => {
 			mockSandbox.validateCode.mockReturnValue({ valid: true });
 			mockSandbox.execute.mockResolvedValue({
@@ -554,6 +589,33 @@ describe('CodeModeRuntime', () => {
 			const parsed = JSON.parse(formatted);
 
 			expect(parsed.logs).toBeUndefined(); // Empty arrays are omitted
+		});
+
+		it('should include asOfCommit in formatted output', () => {
+			const commitHash = 'abc123def456abc123def456abc123def456abc1';
+			const response = {
+				success: true,
+				result: { data: 'test' },
+				asOfCommit: commitHash,
+				executionTime: 100,
+			};
+
+			const formatted = runtime.formatResult(response);
+			const parsed = JSON.parse(formatted);
+
+			expect(parsed.asOfCommit).toBe(commitHash);
+		});
+
+		it('should not include asOfCommit when not present', () => {
+			const response = {
+				success: true,
+				result: 42,
+			};
+
+			const formatted = runtime.formatResult(response);
+			const parsed = JSON.parse(formatted);
+
+			expect(parsed.asOfCommit).toBeUndefined();
 		});
 	});
 

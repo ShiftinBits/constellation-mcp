@@ -117,6 +117,7 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.outputSchema.result).toBeDefined();
 			expect(config.outputSchema.logs).toBeDefined();
 			expect(config.outputSchema.time).toBeDefined();
+			expect(config.outputSchema.asOfCommit).toBeDefined();
 			expect(config.outputSchema.error).toBeDefined();
 		});
 	});
@@ -271,6 +272,42 @@ describe('registerQueryCodeGraphTool', () => {
 
 			// structuredContent uses 'time' to match outputSchema
 			expect(result.structuredContent.time).toBe(250);
+		});
+
+		it('should include asOfCommit in structuredContent when present', async () => {
+			const commitHash = 'abc123def456abc123def456abc123def456abc1';
+			const mockResponse = {
+				success: true,
+				result: { symbols: [] },
+				executionTime: 50,
+				asOfCommit: commitHash,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({ query: "test" });',
+			});
+
+			expect(result.structuredContent.asOfCommit).toBe(commitHash);
+		});
+
+		it('should not include asOfCommit in structuredContent when absent', async () => {
+			const mockResponse = {
+				success: true,
+				result: 42,
+				executionTime: 10,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return 42;',
+			});
+
+			expect(result.structuredContent.asOfCommit).toBeUndefined();
 		});
 	});
 
