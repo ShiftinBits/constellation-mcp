@@ -162,6 +162,25 @@ return await api.findOrphanedCode({ filePattern: "src/**", limit: 20 });
 | \`api.getArchitectureOverview()\` | includeMetrics? | High-level project structure |
 | \`api.ping()\` | (none) | Verify authentication and API connectivity |
 
+## Shorthand Aliases
+
+Positional-arg shortcuts for common operations:
+
+| Shorthand | Delegates To | Example |
+|-----------|-------------|---------|
+| \`api.search(query, opts?)\` | \`searchSymbols\` | \`await api.search("User")\` |
+| \`api.details(symbolId)\` | \`getSymbolDetails\` | \`await api.details(id)\` |
+| \`api.deps(filePath, opts?)\` | \`getDependencies\` | \`await api.deps("src/index.ts")\` |
+| \`api.dependents(filePath, opts?)\` | \`getDependents\` | \`await api.dependents("src/utils.ts")\` |
+| \`api.impact(idOrName, file?, opts?)\` | \`impactAnalysis\` | \`await api.impact("UserService", "src/user.ts")\` |
+| \`api.usage(idOrName, file?, opts?)\` | \`traceSymbolUsage\` | \`await api.usage(symbol.id)\` |
+| \`api.calls(idOrName, file?, opts?)\` | \`getCallGraph\` | \`await api.calls("processOrder", "src/orders.ts")\` |
+| \`api.orphans(opts?)\` | \`findOrphanedCode\` | \`await api.orphans({ limit: 20 })\` |
+| \`api.cycles(opts?)\` | \`findCircularDependencies\` | \`await api.cycles()\` |
+| \`api.overview(opts?)\` | \`getArchitectureOverview\` | \`await api.overview()\` |
+
+**Smart resolution** (\`impact\`, \`usage\`, \`calls\`): 1 string = symbolId, 2 strings = symbolName + filePath.
+
 ## Full Type Definitions
 
 For complete TypeScript interface definitions of all API methods, read the resource:

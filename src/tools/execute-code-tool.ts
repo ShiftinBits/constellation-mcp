@@ -130,7 +130,9 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				'Execute JavaScript using the api object. Start with api.listMethods() for ' +
 				'composition patterns. Available: searchSymbols, getSymbolDetails, getDependencies, ' +
 				'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-				'impactAnalysis, findOrphanedCode, getArchitectureOverview, ping, getCapabilities',
+				'impactAnalysis, findOrphanedCode, getArchitectureOverview, ping, getCapabilities\n\n' +
+				'Shorthand aliases (positional args): search, details, deps, dependents, ' +
+				'impact, usage, calls, orphans, cycles, overview',
 			inputSchema: {
 				code: z
 					.string()
