@@ -60,6 +60,12 @@ describe('CodeModeSandbox', () => {
 		success = true,
 		error?: string,
 		asOfCommit?: string,
+		lastIndexedAt?: string,
+		resultContext?: {
+			reason: string;
+			branchIndexed: boolean;
+			indexedFileCount: number;
+		},
 	) => ({
 		success,
 		data: success ? data : undefined,
@@ -70,6 +76,8 @@ describe('CodeModeSandbox', () => {
 			cached: false,
 			timestamp: new Date().toISOString(),
 			...(asOfCommit ? { asOfCommit } : {}),
+			...(lastIndexedAt ? { lastIndexedAt } : {}),
+			...(resultContext ? { resultContext } : {}),
 		},
 	});
 
@@ -341,6 +349,73 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.asOfCommit).toBe(commitHash);
+		});
+
+		it('should capture lastIndexedAt from API response metadata', async () => {
+			const timestamp = '2025-01-28T10:30:00.000Z';
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(
+					{ symbols: [{ name: 'test' }] },
+					true,
+					undefined,
+					undefined,
+					timestamp,
+				),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.lastIndexedAt).toBe(timestamp);
+		});
+
+		it('should not include lastIndexedAt when API response has no timestamp', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.lastIndexedAt).toBeUndefined();
+		});
+
+		it('should capture resultContext from API response metadata', async () => {
+			const context = {
+				reason: 'no_matches',
+				branchIndexed: true,
+				indexedFileCount: 42,
+			};
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(
+					{ symbols: [] },
+					true,
+					undefined,
+					undefined,
+					undefined,
+					context,
+				),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.resultContext).toEqual(context);
+		});
+
+		it('should not include resultContext when API response has none', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [{ name: 'Test' }] }),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.resultContext).toBeUndefined();
 		});
 
 		it('should not include asOfCommit when API response has no commit', async () => {

@@ -73,9 +73,10 @@ describe('server-instructions', () => {
 		it('should include proactive usage guidance with decision heuristic', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('designed for YOU');
-			expect(instructions).toContain('Grep approximates; the graph knows');
+			expect(instructions).toContain('PROACTIVELY');
 			expect(instructions).toContain('Decision rule');
 			expect(instructions).toContain('Use Grep/Glob for');
+			expect(instructions).toContain('Best Tool');
 		});
 
 		it('should include return shapes in method reference', () => {
@@ -119,10 +120,19 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('## Recipes');
 		});
 
-		it('should be concise (under 5000 chars)', () => {
+		it('should include named workflow recipes', () => {
 			const instructions = getServerInstructions();
-			// Enhanced instructions with return shapes, decision heuristic, recipes, and availability guidance
-			expect(instructions.length).toBeLessThan(5000);
+			expect(instructions).toContain('Safe to Change?');
+			expect(instructions).toContain('Understand This Codebase');
+			expect(instructions).toContain('Find Dead Code');
+			expect(instructions).toContain('Quick Lookups');
+		});
+
+		it('should be concise (under 7000 chars)', () => {
+			const instructions = getServerInstructions();
+			// Raised from 5000 to 7000 to accommodate response contract, comparative table,
+			// and named workflows. Additional headroom for Phase 2-3 metadata additions.
+			expect(instructions.length).toBeLessThan(7000);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});

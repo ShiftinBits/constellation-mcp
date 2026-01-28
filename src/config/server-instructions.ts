@@ -16,14 +16,24 @@
 export function getServerInstructions(): string {
 	return `
 <IMPORTANT>
-The \`query_code_graph\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code_graph\`, not Grep/Glob/Read.
+The \`query_code_graph\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code_graph\`, not Grep/Glob/Read.
 
-When \`ping()\` succeeds, the code graph contains complete structural data for all indexed files — every symbol, dependency, and call relationship. For structural questions, it is MORE reliable than Grep: it captures indirect references and relationships that text search misses. Grep approximates; the graph knows.
-
-Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`query_code_graph\` instead—it answers structural questions in one call.
+Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`query_code_graph\` instead—it answers structural questions in one call that would take multiple text searches, and captures indirect references Grep misses.
 
 Use \`query_code_graph\` for: symbols, definitions, dependencies, usage, impact, architecture
 Use Grep/Glob for: literal strings, log messages, config values, file patterns
+
+| Task | Best Tool |
+|------|-----------|
+| Find where X is defined | query_code_graph |
+| What calls function X? | query_code_graph |
+| What breaks if I change X? | query_code_graph |
+| Dependencies of a file | query_code_graph |
+| Find dead/unused code | query_code_graph |
+| Search for a literal string | Grep |
+| Find config values or env vars | Grep |
+| Read/view source code | Read |
+| Find files by name pattern | Glob |
 </IMPORTANT>
 
 # Constellation Code Mode
@@ -43,6 +53,19 @@ const [impact, deps] = await Promise.all([
   api.getDependents({ filePath: symbols[0].filePath })
 ]);
 return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
+\`\`\`
+
+## Response Contract
+\`\`\`javascript
+// Success — symbols found
+{ success: true, result: { symbols: [{id, name, kind, filePath}] }, asOfCommit: "abc123", lastIndexedAt: "2025-01-28T..." }
+
+// Empty — no matches (not an error)
+{ success: true, result: { symbols: [] }, asOfCommit: "abc123", lastIndexedAt: "2025-01-28T...", resultContext: { reason: "no_matches", branchIndexed: true } }
+// → resultContext.reason tells you WHY it's empty: "no_matches" vs "branch_not_indexed"
+
+// Error — structured with recovery guidance (key fields shown; full response includes type, recoverable, context)
+{ success: false, error: { code: "AUTH_ERROR", message: "...", guidance: ["Check CONSTELLATION_ACCESS_KEY"] } }
 \`\`\`
 
 ## Rules
@@ -73,6 +96,30 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 Run \`api.listMethods()\` for full API details. Read \`constellation://types/api/{method}\` for detailed type definitions.
 
 ## Recipes
+
+### "Safe to Change?" Workflow
+\`\`\`javascript
+const {symbols} = await api.searchSymbols({ query: "processOrder" });
+const [impact, usage] = await Promise.all([
+  api.impactAnalysis({ symbolId: symbols[0].id }),
+  api.traceSymbolUsage({ symbolId: symbols[0].id })
+]);
+return { risk: impact.breakingChangeRisk, usages: usage.directUsages?.length };
+\`\`\`
+
+### "Understand This Codebase" Workflow
+\`\`\`javascript
+const arch = await api.getArchitectureOverview();
+return { structure: arch.structure, metrics: arch.metrics, languages: arch.metadata?.languages };
+\`\`\`
+
+### "Find Dead Code" Workflow
+\`\`\`javascript
+const orphans = await api.findOrphanedCode();
+return orphans.orphanedSymbols?.map(s => \`\${s.kind} \${s.name} in \${s.filePath}\`);
+\`\`\`
+
+### Quick Lookups
 \`\`\`javascript
 // Find where a symbol is defined
 return await api.searchSymbols({ query: "MyService" });
@@ -93,7 +140,7 @@ return await api.findOrphanedCode();
 \`\`\`
 
 ## Multi-Project Workspaces
-Each distinct project must have a \`constellation.json\` file in it's root folder.
+Each distinct project must have a \`constellation.json\` file in its root folder.
 Provide \`cwd\` parameter to target the correct project in monorepos:
 \`\`\`javascript
 // Tool call with cwd parameter

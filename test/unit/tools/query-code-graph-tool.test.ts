@@ -293,6 +293,82 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(result.structuredContent.asOfCommit).toBe(commitHash);
 		});
 
+		it('should include lastIndexedAt in structuredContent when present', async () => {
+			const timestamp = '2025-01-28T10:30:00.000Z';
+			const mockResponse = {
+				success: true,
+				result: { symbols: [] },
+				executionTime: 50,
+				lastIndexedAt: timestamp,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({ query: "test" });',
+			});
+
+			expect(result.structuredContent.lastIndexedAt).toBe(timestamp);
+		});
+
+		it('should not include lastIndexedAt in structuredContent when absent', async () => {
+			const mockResponse = {
+				success: true,
+				result: 42,
+				executionTime: 10,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return 42;',
+			});
+
+			expect(result.structuredContent.lastIndexedAt).toBeUndefined();
+		});
+
+		it('should include resultContext in structuredContent when present', async () => {
+			const context = {
+				reason: 'no_matches',
+				branchIndexed: true,
+				indexedFileCount: 42,
+			};
+			const mockResponse = {
+				success: true,
+				result: { symbols: [] },
+				executionTime: 50,
+				resultContext: context,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({ query: "test" });',
+			});
+
+			expect(result.structuredContent.resultContext).toEqual(context);
+		});
+
+		it('should not include resultContext in structuredContent when absent', async () => {
+			const mockResponse = {
+				success: true,
+				result: 42,
+				executionTime: 10,
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return 42;',
+			});
+
+			expect(result.structuredContent.resultContext).toBeUndefined();
+		});
+
 		it('should not include asOfCommit in structuredContent when absent', async () => {
 			const mockResponse = {
 				success: true,

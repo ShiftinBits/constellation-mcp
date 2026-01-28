@@ -48,6 +48,14 @@ export interface McpToolResult<T = unknown> {
 		timestamp: string;
 		/** Git commit hash of the latest indexed data */
 		asOfCommit?: string;
+		/** ISO timestamp of the most recently indexed file */
+		lastIndexedAt?: string;
+		/** Disambiguation context for empty results */
+		resultContext?: {
+			reason: string;
+			branchIndexed: boolean;
+			indexedFileCount: number;
+		};
 		/** Additional metadata (varies by tool) */
 		[key: string]: unknown;
 	};

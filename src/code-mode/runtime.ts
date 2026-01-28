@@ -52,6 +52,14 @@ export interface CodeModeResponse {
 	executionTime?: number;
 	/** Git commit hash of the latest indexed data (from API responses) */
 	asOfCommit?: string;
+	/** ISO timestamp of the most recently indexed file (from API responses) */
+	lastIndexedAt?: string;
+	/** Disambiguation context for empty results */
+	resultContext?: {
+		reason: string;
+		branchIndexed: boolean;
+		indexedFileCount: number;
+	};
 	metadata?: {
 		language: string;
 		sandboxed: boolean;
@@ -235,6 +243,8 @@ export class CodeModeRuntime {
 			logs: allLogs.length > 0 ? allLogs : undefined,
 			executionTime: result.executionTime,
 			asOfCommit: result.asOfCommit,
+			lastIndexedAt: result.lastIndexedAt,
+			resultContext: result.resultContext,
 			metadata: {
 				language: 'javascript',
 				sandboxed: true,
@@ -253,6 +263,12 @@ export class CodeModeRuntime {
 
 		if (response.asOfCommit) {
 			output.asOfCommit = response.asOfCommit;
+		}
+		if (response.lastIndexedAt) {
+			output.lastIndexedAt = response.lastIndexedAt;
+		}
+		if (response.resultContext) {
+			output.resultContext = response.resultContext;
 		}
 
 		if (response.success) {

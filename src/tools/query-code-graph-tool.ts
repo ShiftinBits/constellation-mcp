@@ -45,6 +45,12 @@ interface SchemaCompliantOutput {
 	logs?: string[];
 	time?: number;
 	asOfCommit?: string;
+	lastIndexedAt?: string;
+	resultContext?: {
+		reason: string;
+		branchIndexed: boolean;
+		indexedFileCount: number;
+	};
 	error?: string;
 	[x: string]: unknown;
 }
@@ -62,6 +68,8 @@ function toSchemaCompliantOutput(
 	};
 
 	if (response.asOfCommit) output.asOfCommit = response.asOfCommit;
+	if (response.lastIndexedAt) output.lastIndexedAt = response.lastIndexedAt;
+	if (response.resultContext) output.resultContext = response.resultContext;
 
 	if (response.success) {
 		if (response.result !== undefined) output.result = response.result;
@@ -169,6 +177,14 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				logs: z.array(z.string()).optional(),
 				time: z.number().optional(),
 				asOfCommit: z.string().optional(),
+				lastIndexedAt: z.string().optional(),
+				resultContext: z
+					.object({
+						reason: z.string(),
+						branchIndexed: z.boolean(),
+						indexedFileCount: z.number(),
+					})
+					.optional(),
 				error: z.string().optional(),
 			},
 			annotations: {

@@ -292,6 +292,14 @@ export interface SandboxResult {
 	executionTime: number;
 	/** Git commit hash of the latest indexed data (from API responses) */
 	asOfCommit?: string;
+	/** ISO timestamp of the most recently indexed file (from API responses) */
+	lastIndexedAt?: string;
+	/** Disambiguation context for empty results (from API responses) */
+	resultContext?: {
+		reason: string;
+		branchIndexed: boolean;
+		indexedFileCount: number;
+	};
 }
 
 /**
@@ -365,7 +373,15 @@ export class CodeModeSandbox {
 		let hasTimedOut = false;
 
 		// Shared mutable state for capturing data from sandbox execution
-		const executionState = { asOfCommit: null as string | null };
+		const executionState = {
+			asOfCommit: null as string | null,
+			lastIndexedAt: null as string | null,
+			resultContext: null as {
+				reason: string;
+				branchIndexed: boolean;
+				indexedFileCount: number;
+			} | null,
+		};
 
 		try {
 			// Create sandbox context with API bindings
@@ -417,6 +433,8 @@ export class CodeModeSandbox {
 				logs,
 				executionTime: Date.now() - startTime,
 				asOfCommit: executionState.asOfCommit ?? undefined,
+				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
+				resultContext: executionState.resultContext ?? undefined,
 			};
 		} catch (error) {
 			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
@@ -513,7 +531,15 @@ export class CodeModeSandbox {
 	 */
 	private createSandboxContext(
 		logs: string[],
-		executionState: { asOfCommit: string | null },
+		executionState: {
+			asOfCommit: string | null;
+			lastIndexedAt: string | null;
+			resultContext: {
+				reason: string;
+				branchIndexed: boolean;
+				indexedFileCount: number;
+			} | null;
+		},
 	): any {
 		// Helper to convert snake_case to camelCase for display
 		const snakeToCamel = (str: string): string => {
@@ -568,9 +594,16 @@ export class CodeModeSandbox {
 					);
 				}
 
-				// Track latest indexed commit hash from API response metadata
+				// Track index metadata from API response
 				if (result.metadata?.asOfCommit) {
 					executionState.asOfCommit = result.metadata.asOfCommit;
+				}
+				if (result.metadata?.lastIndexedAt) {
+					executionState.lastIndexedAt = result.metadata.lastIndexedAt;
+				}
+				if (result.metadata?.resultContext) {
+					executionState.resultContext = result.metadata
+						.resultContext as typeof executionState.resultContext;
 				}
 
 				return result.data;
