@@ -70,26 +70,55 @@ describe('server-instructions', () => {
 			expect(instructions.startsWith('<IMPORTANT>')).toBe(true);
 		});
 
-		it('should include proactive usage guidance', () => {
+		it('should include proactive usage guidance with decision heuristic', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('designed for YOU');
 			expect(instructions).toContain('PROACTIVELY');
-			expect(instructions).toContain("don't wait for the human to ask");
+			expect(instructions).toContain('Decision rule');
+			expect(instructions).toContain('Use Grep/Glob for');
+		});
+
+		it('should include return shapes in method reference', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Returns');
+			// Verify key return shapes are present
+			expect(instructions).toContain('{symbols:');
+			expect(instructions).toContain('breakingChangeRisk');
+			expect(instructions).toContain('orphanedSymbols');
+		});
+
+		it('should include error handling and availability guidance', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Errors are structured');
+			expect(instructions).toContain('guidance[]');
+			expect(instructions).toContain('api.ping()');
+			expect(instructions).toContain('api.getCapabilities()');
+		});
+
+		it('should include chained workflow example with Promise.all', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain(
+				'api.impactAnalysis({ symbolId: symbols[0].id })',
+			);
+			expect(instructions).toContain(
+				'api.getDependents({ filePath: symbols[0].filePath })',
+			);
 		});
 
 		it('should not contain template placeholders', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).not.toContain('{{');
-			expect(instructions).not.toContain('}}');
+			// Check for Handlebars/Mustache-style template placeholders (e.g., {{ variable }})
+			// but not JSON-like return shapes (e.g., {symbols: [{id}]})
+			expect(instructions).not.toMatch(/\{\{\s*\w+/);
 			expect(instructions).not.toContain('TODO');
 			expect(instructions).not.toContain('FIXME');
 		});
 
-		it('should be concise (under 2500 chars)', () => {
+		it('should be concise (under 3500 chars)', () => {
 			const instructions = getServerInstructions();
-			// Simplified instructions with proactive guidance, under 2500 chars
-			expect(instructions.length).toBeLessThan(2500);
-			expect(instructions.length).toBeGreaterThan(500);
+			// Enhanced instructions with return shapes and decision heuristic
+			expect(instructions.length).toBeLessThan(3500);
+			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});
 });
