@@ -26,6 +26,10 @@ export const queryCodeGraphDefinition: McpToolDefinition = {
 		'"Safe to modify X?" / "Blast radius?" → impactAnalysis({symbolId})',
 		'"Find dead code" / "Unused exports?" → findOrphanedCode()',
 		'"Project structure?" → getArchitectureOverview()',
+		'About to modify a function/class → impactAnalysis first',
+		'Exploring unfamiliar code → getArchitectureOverview first',
+		'Planning a refactor → trace dependencies and dependents',
+		'Reviewing a PR → check call graph and blast radius',
 	],
 
 	relatedTools: ['query_code_graph'],

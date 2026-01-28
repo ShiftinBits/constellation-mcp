@@ -101,6 +101,24 @@ describe('registerQueryCodeGraphTool', () => {
 			);
 		});
 
+		it('should include expanded decision-rule classification in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('query_code_graph: definitions');
+			expect(config.description).toContain('Grep: literal strings');
+			expect(config.description).toContain('Glob: find files');
+			expect(config.description).toContain('Read: view source code');
+		});
+
+		it('should include proactive internal-reasoning triggers in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('ALSO USE PROACTIVELY WHEN');
+			expect(config.description).toContain('About to modify');
+			expect(config.description).toContain('Exploring unfamiliar code');
+			expect(config.description).toContain('Planning a refactor');
+		});
+
 		it('should register with correct input schema', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];

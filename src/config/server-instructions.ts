@@ -69,13 +69,12 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
 
 ## Rules
-0. **Check availability first** — Run \`await api.ping()\` once per session to verify auth + connectivity. If it fails, fall back to Grep/Glob.
+0. **Pre-flight check (once per session)** — Run \`await api.ping()\` as your FIRST call. If it succeeds, the tool is ready for the whole session. If it fails, fall back to Grep/Glob — don't retry ping repeatedly.
 1. **Always await** - All api.* methods are async
 2. **Return results** - Last expression auto-returned; use explicit \`return\` for control flow
 3. **Use Promise.all()** - 3-10x faster for independent queries
 4. **Use symbolId** - After search, use the returned \`id\` for precise follow-up queries
 5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays, not errors. Read \`guidance[]\` for recovery steps. If a search returns empty, try a broader query before falling back to Grep.
-6. **Check availability** — If unsure the project is indexed, run \`api.ping()\` or \`api.getCapabilities()\` first.
 
 ## Method Reference
 | Method | Use For | Returns |
@@ -121,23 +120,25 @@ return orphans.orphanedSymbols?.map(s => \`\${s.kind} \${s.name} in \${s.filePat
 
 ### Quick Lookups
 \`\`\`javascript
-// Find where a symbol is defined
-return await api.searchSymbols({ query: "MyService" });
-
-// Who calls this function?
 const {symbols} = await api.searchSymbols({ query: "handleAuth" });
-return await api.getCallGraph({ symbolId: symbols[0].id });
-
-// What would break if I change this?
-const {symbols} = await api.searchSymbols({ query: "UserService" });
-return await api.impactAnalysis({ symbolId: symbols[0].id });
-
-// File dependency tree
-return await api.getDependencies({ filePath: "src/services/auth.ts" });
-
-// Find unused code
-return await api.findOrphanedCode();
+const [callGraph, deps] = await Promise.all([
+  api.getCallGraph({ symbolId: symbols[0].id }),
+  api.getDependencies({ filePath: symbols[0].filePath })
+]);
+return { symbol: symbols[0], callGraph, deps };
 \`\`\`
+
+## Recovery Patterns
+Errors return structured JSON with actionable recovery data:
+\`\`\`javascript
+// Error shape: { success: false, error: { code, message, guidance[], suggestedCode?, alternativeApproach?, recoverable } }
+\`\`\`
+- **Read \`guidance[]\` first** — contains exact recovery steps
+- **Check \`suggestedCode\`** — copy-paste ready retry code
+- **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
+- **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
+
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → use more specific query
 
 ## Multi-Project Workspaces
 Each distinct project must have a \`constellation.json\` file in its root folder.

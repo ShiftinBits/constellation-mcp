@@ -93,7 +93,15 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Errors are structured');
 			expect(instructions).toContain('guidance[]');
 			expect(instructions).toContain('api.ping()');
-			expect(instructions).toContain('api.getCapabilities()');
+			// getCapabilities remains in Method Reference table (not prefixed with api.)
+			expect(instructions).toContain('getCapabilities()');
+		});
+
+		it('should include pre-flight check with success/failure branching', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Pre-flight check');
+			expect(instructions).toContain('FIRST call');
+			expect(instructions).toContain('fall back to Grep/Glob');
 		});
 
 		it('should include chained workflow example with Promise.all', () => {
@@ -128,11 +136,21 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Quick Lookups');
 		});
 
-		it('should be concise (under 7000 chars)', () => {
+		it('should include recovery patterns section', () => {
 			const instructions = getServerInstructions();
-			// Raised from 5000 to 7000 to accommodate response contract, comparative table,
-			// and named workflows. Additional headroom for Phase 2-3 metadata additions.
-			expect(instructions.length).toBeLessThan(7000);
+			expect(instructions).toContain('## Recovery Patterns');
+			expect(instructions).toContain('guidance[]');
+			expect(instructions).toContain('suggestedCode');
+			expect(instructions).toContain('alternativeApproach');
+			expect(instructions).toContain('recoverable');
+			expect(instructions).toContain('AUTH_ERROR');
+			expect(instructions).toContain('PROJECT_NOT_INDEXED');
+		});
+
+		it('should be concise (under 7500 chars)', () => {
+			const instructions = getServerInstructions();
+			// Raised from 7000 to 7500 to accommodate recovery patterns section.
+			expect(instructions.length).toBeLessThan(7500);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});
