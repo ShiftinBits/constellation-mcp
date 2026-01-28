@@ -130,19 +130,16 @@ export function registerExecuteCodeTool(server: McpServer): void {
 				'Execute JavaScript using the api object. Start with api.listMethods() for ' +
 				'composition patterns. Available: searchSymbols, getSymbolDetails, getDependencies, ' +
 				'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-				'impactAnalysis, findOrphanedCode, getArchitectureOverview, ping, getCapabilities\n\n' +
-				'Shorthand aliases (positional args): search, details, deps, dependents, ' +
-				'impact, usage, calls, orphans, cycles, overview',
+				'impactAnalysis, findOrphanedCode, getArchitectureOverview, ping, getCapabilities',
 			inputSchema: {
 				code: z
 					.string()
 					.min(1)
 					.describe(
 						'JavaScript code to execute. Can use top-level await. ' +
-							'The last expression is auto-returned if no explicit return is present. ' +
 							'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
 							'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-							'findOrphanedCode, impactAnalysis, getArchitectureOverview',
+							'impactAnalysis, findOrphanedCode, getArchitectureOverview',
 					),
 				timeout: z
 					.number()
