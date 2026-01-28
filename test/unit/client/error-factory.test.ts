@@ -125,7 +125,7 @@ describe('createStructuredError', () => {
 	describe('ConfigurationError', () => {
 		it('should return NOT_CONFIGURED code', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'execute_code');
+			const result = createStructuredError(error, 'query_code');
 
 			expect(result.success).toBe(false);
 			expect(result.error.code).toBe(ErrorCode.NOT_CONFIGURED);
@@ -134,14 +134,14 @@ describe('createStructuredError', () => {
 
 		it('should be recoverable', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'execute_code');
+			const result = createStructuredError(error, 'query_code');
 
 			expect(result.error.recoverable).toBe(true);
 		});
 
 		it('should include init guidance', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'execute_code');
+			const result = createStructuredError(error, 'query_code');
 
 			expect(
 				result.error.guidance.some((g) => g.includes('constellation init')),

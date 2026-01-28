@@ -1,17 +1,17 @@
-import { readFileSync } from 'fs';
-import { createRequire } from 'module';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import {
 	McpServer,
 	ResourceTemplate,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { readFileSync } from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { getToolRegistry } from './registry/ToolRegistry.js';
 import { allToolDefinitions } from './registry/tool-definitions/index.js';
-import { registerExecuteCodeTool } from './tools/execute-code-tool.js';
+import { registerExecuteCodeTool } from './tools/query-code-tool.js';
 import {
 	METHOD_SUMMARIES,
 	resolveMethodName,

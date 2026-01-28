@@ -2,7 +2,7 @@
 
 ## A Revolutionary Approach to MCP
 
-This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `execute_code`. The AI writes TypeScript code to interact with the Constellation API.
+This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `query_code`. The AI writes TypeScript code to interact with the Constellation API.
 
 ## Why Code Mode Only?
 
@@ -620,7 +620,7 @@ This server embraces the insight from [Cloudflare's blog post on Code Mode](http
 
 This is a Code Mode-only server. Any contributions should maintain this philosophy:
 
-- No individual tools - everything through execute_code
+- No individual tools - everything through query_code
 - Focus on making the API methods powerful and composable
 - Improve the sandbox and security model
 - Add more helper utilities for common patterns

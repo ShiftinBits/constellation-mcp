@@ -1,12 +1,12 @@
 /**
- * Execute Code Tool Registration Tests
+ * Query Code Tool Registration Tests
  */
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
-import { registerExecuteCodeTool } from '../../../src/tools/execute-code-tool.js';
+import { registerExecuteCodeTool } from '../../../src/tools/query-code-tool.js';
 
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
@@ -88,13 +88,13 @@ describe('registerExecuteCodeTool', () => {
 	});
 
 	describe('tool registration', () => {
-		it('should register execute_code tool with server', () => {
+		it('should register query_code tool with server', () => {
 			expect(mockServer.registerTool).toHaveBeenCalledWith(
-				'execute_code',
+				'query_code',
 				expect.objectContaining({
-					title: expect.stringContaining('Execute JavaScript Code'),
+					title: expect.stringContaining('Query Code Intelligence'),
 					description: expect.stringContaining(
-						'Use when you need to understand code structure',
+						'Query codebase structure and relationships via AST-based code intelligence graph',
 					),
 				}),
 				expect.any(Function),

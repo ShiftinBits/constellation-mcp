@@ -21,10 +21,10 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 ## Architecture
 
 ```
-AI Assistant → MCP (stdio) → execute_code → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
+AI Assistant → MCP (stdio) → query_code → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-**Single tool design**: One `execute_code` tool executes JavaScript with `api` object providing 12 methods.
+**Single tool design**: One `query_code` tool executes JavaScript with `api` object providing 12 methods.
 
 ## Key Files
 

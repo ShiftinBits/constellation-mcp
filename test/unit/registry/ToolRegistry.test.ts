@@ -5,26 +5,22 @@
  */
 
 import {
-	describe,
-	it,
-	expect,
-	jest,
-	beforeEach,
 	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
 } from '@jest/globals';
+import { McpToolDefinition } from '../../../src/registry/McpToolDefinition.interface.js';
 import {
 	ToolRegistry,
 	getToolRegistry,
 	resetToolRegistry,
 } from '../../../src/registry/ToolRegistry.js';
 import {
-	McpToolDefinition,
-	ToolCategory,
-} from '../../../src/registry/McpToolDefinition.interface.js';
-import {
-	createMockToolDefinition,
-	createMinimalToolDefinition,
 	createInvalidToolDefinition,
+	createMockToolDefinition,
 	createToolDefinitionSet,
 	createToolDefinitionWithTriggers,
 } from '../../helpers/mock-factories.js';
@@ -360,19 +356,17 @@ describe('ToolRegistry', () => {
 			);
 		});
 
-		it('should return warning if execute_code missing', () => {
+		it('should return warning if query_code missing', () => {
 			registry.register(createMockToolDefinition({ name: 'other_tool' }));
 			registry.markInitialized();
 
 			const result = registry.validateWithMcpServer(mockServer);
 
-			expect(result.warnings).toContain(
-				'Missing metadata for execute_code tool',
-			);
+			expect(result.warnings).toContain('Missing metadata for query_code tool');
 		});
 
 		it('should return valid=true when all checks pass', () => {
-			registry.register(createMockToolDefinition({ name: 'execute_code' }));
+			registry.register(createMockToolDefinition({ name: 'query_code' }));
 			registry.markInitialized();
 
 			const result = registry.validateWithMcpServer(mockServer);

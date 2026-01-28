@@ -5,7 +5,7 @@
  * the parameters and result types for a single API method. These are served
  * via the constellation://types/api/{methodName} resource.
  *
- * Authoritative source: execute-code.definition.ts apiReference pseudocode shapes.
+ * Authoritative source: query-code.definition.ts apiReference pseudocode shapes.
  */
 
 /**

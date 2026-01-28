@@ -2,7 +2,7 @@
  * Server Instructions Unit Tests
  *
  * Tests the getServerInstructions function that provides
- * comprehensive guidance to AI assistants about Constellation Code Mode.
+ * usage guidance to AI assistants about Constellation Code Mode.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -18,12 +18,12 @@ describe('server-instructions', () => {
 
 		it('should include the main header for Code Mode', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('# Constellation MCP Server - Code Mode');
+			expect(instructions).toContain('# Constellation Code Mode');
 		});
 
-		it('should reference execute_code tool and api object', () => {
+		it('should reference query_code tool and api object', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('execute_code');
+			expect(instructions).toContain('query_code');
 			expect(instructions).toContain('api');
 		});
 
@@ -32,102 +32,42 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('await');
 			expect(instructions).toContain('return');
 			expect(instructions).toContain('Promise.all()');
-			expect(instructions).toContain('auto-returned');
 		});
 
-		it('should distinguish Constellation from source code tools', () => {
+		it('should include method reference table', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('relationships');
-			expect(instructions).toContain('Read');
+			expect(instructions).toContain('## Method Reference');
+			expect(instructions).toContain('searchSymbols');
+			expect(instructions).toContain('getDependents');
+			expect(instructions).toContain('impactAnalysis');
 		});
 
-		it('should include activation table with intent-to-method mapping', () => {
+		it('should include quick start example', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## ACTIVATION RULES');
-			expect(instructions).toContain('Where is X defined');
-			expect(instructions).toContain('searchSymbols()');
-			expect(instructions).toContain('api.search(');
-		});
-
-		it('should include fallback guidance', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('Fallback');
-			expect(instructions).toContain('Grep');
-			expect(instructions).toContain('constellation index');
-		});
-
-		it('should include JavaScript code examples for each use case', () => {
-			const instructions = getServerInstructions();
+			expect(instructions).toContain('## Quick Start');
 			expect(instructions).toContain('api.searchSymbols');
-			expect(instructions).toContain('api.getDependencies');
-			expect(instructions).toContain('api.impactAnalysis');
-			expect(instructions).toContain('api.getArchitectureOverview');
-			expect(instructions).toContain('api.findOrphanedCode');
 		});
 
-		it('should include patterns zone', () => {
+		it('should mention api.listMethods() for discovery', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## Patterns');
-			expect(instructions).toContain('Chained Analysis');
-			expect(instructions).toContain('Error Handling');
+			expect(instructions).toContain('api.listMethods()');
 		});
 
-		it('should include best practices reference', () => {
+		it('should mention type resources', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## Best Practices');
-			expect(instructions).toContain('symbolId');
-			expect(instructions).toContain('Parallel');
-			expect(instructions).toContain('Filtering');
+			expect(instructions).toContain('constellation://types/api');
 		});
 
-		it('should include API reference table with Returns column', () => {
+		it('should include multi-project workspace guidance', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('## API Reference');
-			expect(instructions).toContain(
-				'| Method | Parameters | Returns | Use When |',
-			);
-			expect(instructions).toContain('api.searchSymbols()');
-			expect(instructions).toContain('api.getSymbolDetails()');
-			expect(instructions).toContain('api.getDependencies()');
-			expect(instructions).toContain('api.getDependents()');
-			expect(instructions).toContain('api.traceSymbolUsage()');
-			expect(instructions).toContain('api.getCallGraph()');
-			expect(instructions).toContain('api.impactAnalysis()');
-			expect(instructions).toContain('api.findCircularDependencies()');
-			expect(instructions).toContain('api.findOrphanedCode()');
-			expect(instructions).toContain('api.getArchitectureOverview()');
-			expect(instructions).toContain('symbols[], pagination?');
-			expect(instructions).toContain('breakingChangeRisk');
-		});
-
-		it('should document per-method type resources', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('constellation://types/api/{methodName}');
-			expect(instructions).toContain('constellation://types/api/searchSymbols');
-		});
-
-		it('should document type access hierarchy', () => {
-			const instructions = getServerInstructions();
-			const returnsIdx = instructions.indexOf('| Returns |');
-			const typeDefsIdx = instructions.indexOf('## Type Definitions');
-			expect(returnsIdx).toBeLessThan(typeDefsIdx);
+			expect(instructions).toContain('cwd');
+			expect(instructions).toContain('monorepo');
 		});
 
 		it('should return trimmed output without leading/trailing whitespace', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toBe(instructions.trim());
 			expect(instructions.startsWith('#')).toBe(true);
-		});
-
-		it('should mention depth parameter best practices', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('depth=1');
-			expect(instructions).toContain('EXPONENTIALLY');
-		});
-
-		it('should mention excludeTests filter option', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('excludeTests=true');
 		});
 
 		it('should not contain template placeholders', () => {
@@ -138,26 +78,11 @@ describe('server-instructions', () => {
 			expect(instructions).not.toContain('FIXME');
 		});
 
-		it('should provide substantial content', () => {
+		it('should be concise (under 2000 chars)', () => {
 			const instructions = getServerInstructions();
-			// Should be comprehensive guide - at least 3000 chars
-			expect(instructions.length).toBeGreaterThan(3000);
-		});
-
-		it('should follow activation-first zone structure', () => {
-			const instructions = getServerInstructions();
-			const activationIdx = instructions.indexOf('## ACTIVATION RULES');
-			const patternsIdx = instructions.indexOf('## Patterns');
-			const referenceIdx = instructions.indexOf('## API Reference');
-			expect(activationIdx).toBeLessThan(patternsIdx);
-			expect(patternsIdx).toBeLessThan(referenceIdx);
-		});
-
-		it('should include shorthand aliases in activation table', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('api.search(');
-			expect(instructions).toContain('api.deps(');
-			expect(instructions).toContain('api.impact(');
+			// Simplified instructions should be ~40 lines, under 2000 chars
+			expect(instructions.length).toBeLessThan(2000);
+			expect(instructions.length).toBeGreaterThan(500);
 		});
 	});
 });
