@@ -34,6 +34,11 @@
 			"type": "stdio",
 			"command": "npx",
 			"args": ["-y", "@modelcontextprotocol/server-sequential-thinking@latest"]
+		},
+		"constellation": {
+			"type": "stdio",
+			"command": "mcp-constellation",
+			"tools": ["query_code_graph"]
 		}
 	}
 }

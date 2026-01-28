@@ -1,0 +1,5 @@
+[mcp_servers.constellation]
+command = "mcp-constellation"
+env_vars = ["CONSTELLATION_ACCESS_KEY"]
+enabled = true
+enabled_tools = ["query_code_graph"]

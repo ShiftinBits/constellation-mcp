@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"constellation": {
+			"command": "mcp-constellation",
+			"alwaysAllow": ["query_code_graph"],
+			"env": {
+				"CONSTELLATION_ACCESS_KEY": "${env:CONSTELLATION_ACCESS_KEY}"
+			}
+		}
+	}
+}

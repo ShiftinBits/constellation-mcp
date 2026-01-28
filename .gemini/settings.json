@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"constellation": {
+			"command": "mcp-constellation",
+			"trust": true,
+			"env": {
+				"CONSTELLATION_ACCESS_KEY": "${CONSTELLATION_ACCESS_KEY}"
+			}
+		}
+	}
+}

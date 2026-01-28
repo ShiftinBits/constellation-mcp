@@ -1,0 +1,11 @@
+{
+	"servers": {
+		"constellation": {
+			"type": "stdio",
+			"command": "mcp-constellation",
+			"env": {
+				"CONSTELLATION_ACCESS_KEY": "CONSTELLATION_ACCESS_KEY"
+			}
+		}
+	}
+}
