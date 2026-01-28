@@ -45,10 +45,6 @@ This file contains 7 structured feedback questions covering Tool Selection, Acti
 
 All commands in this procedure assume you are in the `constellation-mcp` root directory:
 
-```bash
-cd constellation-mcp
-```
-
 ---
 
 ## Procedure
