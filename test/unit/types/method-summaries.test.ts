@@ -43,7 +43,7 @@ describe('method-summaries', () => {
 		}
 	});
 
-	it('each summary should include a header with method name and shorthand', () => {
+	it('each summary should include a header with method name', () => {
 		for (const [name, summary] of Object.entries(METHOD_SUMMARIES)) {
 			expect(summary).toContain(name);
 		}
@@ -53,19 +53,6 @@ describe('method-summaries', () => {
 		it('should resolve canonical method names', () => {
 			expect(resolveMethodName('searchSymbols')).toBe('searchSymbols');
 			expect(resolveMethodName('impactAnalysis')).toBe('impactAnalysis');
-		});
-
-		it('should resolve shorthand aliases', () => {
-			expect(resolveMethodName('search')).toBe('searchSymbols');
-			expect(resolveMethodName('deps')).toBe('getDependencies');
-			expect(resolveMethodName('impact')).toBe('impactAnalysis');
-			expect(resolveMethodName('orphans')).toBe('findOrphanedCode');
-			expect(resolveMethodName('cycles')).toBe('findCircularDependencies');
-			expect(resolveMethodName('overview')).toBe('getArchitectureOverview');
-			expect(resolveMethodName('details')).toBe('getSymbolDetails');
-			expect(resolveMethodName('dependents')).toBe('getDependents');
-			expect(resolveMethodName('usage')).toBe('traceSymbolUsage');
-			expect(resolveMethodName('calls')).toBe('getCallGraph');
 		});
 
 		it('should return null for unknown names', () => {

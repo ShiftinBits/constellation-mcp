@@ -95,16 +95,6 @@ export interface CompositionPattern {
 }
 
 /**
- * Shorthand alias metadata for listMethods() response.
- */
-export interface ShorthandInfo {
-	name: string;
-	signature: string;
-	delegatesTo: string;
-	description: string;
-}
-
-/**
  * Response from api.listMethods()
  */
 export interface ListMethodsResult {
@@ -113,7 +103,6 @@ export interface ListMethodsResult {
 	example: string;
 	decisionGuide: Record<string, string>;
 	compositionPatterns: CompositionPattern[];
-	shorthands: ShorthandInfo[];
 	tip: string;
 }
 
@@ -160,45 +149,6 @@ export interface ConstellationApi {
 	ping(): Promise<PingResult>;
 	listMethods(): ListMethodsResult;
 	getCapabilities(): Promise<ProjectCapabilities>;
-
-	// Shorthand aliases (positional args)
-	search(
-		query: string,
-		options?: Partial<SearchSymbolsParams>,
-	): Promise<SearchSymbolsResult>;
-	details(symbolId: string): Promise<SymbolDetailsResult>;
-	deps(
-		filePath: string,
-		options?: Partial<GetDependenciesParams>,
-	): Promise<GetDependenciesResult>;
-	dependents(
-		filePath: string,
-		options?: Partial<GetDependentsParams>,
-	): Promise<GetDependentsResult>;
-	impact(
-		symbolNameOrId: string,
-		filePathOrOptions?: string | Partial<ImpactAnalysisParams>,
-		options?: Partial<ImpactAnalysisParams>,
-	): Promise<ImpactAnalysisResult>;
-	usage(
-		symbolNameOrId: string,
-		filePathOrOptions?: string | Partial<TraceSymbolUsageParams>,
-		options?: Partial<TraceSymbolUsageParams>,
-	): Promise<TraceSymbolUsageResult>;
-	calls(
-		symbolNameOrId: string,
-		filePathOrOptions?: string | Partial<GetCallGraphParams>,
-		options?: Partial<GetCallGraphParams>,
-	): Promise<GetCallGraphResult>;
-	orphans(
-		options?: Partial<FindOrphanedCodeParams>,
-	): Promise<FindOrphanedCodeResult>;
-	cycles(
-		options?: Partial<FindCircularDependenciesParams>,
-	): Promise<FindCircularDependenciesResult>;
-	overview(
-		options?: Partial<GetArchitectureOverviewParams>,
-	): Promise<GetArchitectureOverviewResult>;
 }
 
 /**
@@ -820,147 +770,6 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 			return transformed;
 		};
 
-		// Smart resolution: 1 string = symbolId, 2 strings = symbolName + filePath
-		const resolveSymbolArgs = (...args: unknown[]): Record<string, unknown> => {
-			if (args.length === 0 || typeof args[0] !== 'string') {
-				throw new Error(
-					'Expected first argument to be a string (symbolId or symbolName)',
-				);
-			}
-			const params: Record<string, unknown> = {};
-			const firstArg = args[0];
-			const lastArg = args[args.length - 1];
-			const hasOptions =
-				args.length > 1 &&
-				typeof lastArg === 'object' &&
-				lastArg !== null &&
-				!Array.isArray(lastArg);
-			const options = hasOptions ? (lastArg as Record<string, unknown>) : {};
-			const stringArgCount = hasOptions ? args.length - 1 : args.length;
-
-			if (stringArgCount >= 2) {
-				if (typeof args[1] !== 'string') {
-					throw new Error(
-						'Expected second argument to be a string (filePath) or an options object',
-					);
-				}
-				params.symbolName = firstArg;
-				params.filePath = args[1];
-			} else {
-				params.symbolId = firstArg;
-			}
-
-			return { ...params, ...options };
-		};
-
-		const shorthandDefinitions: Record<
-			string,
-			{
-				toolName: string;
-				delegatesTo: string;
-				signature: string;
-				description: string;
-				toParams: (...args: unknown[]) => Record<string, unknown>;
-			}
-		> = {
-			search: {
-				toolName: 'search_symbols',
-				delegatesTo: 'searchSymbols',
-				signature: 'search(query, options?)',
-				description: 'Search symbols by name/pattern',
-				toParams: (query: unknown, options?: unknown) => ({
-					query,
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-			details: {
-				toolName: 'get_symbol_details',
-				delegatesTo: 'getSymbolDetails',
-				signature: 'details(symbolId)',
-				description: 'Get detailed symbol info',
-				toParams: (symbolId: unknown) => ({ symbolId }),
-			},
-			deps: {
-				toolName: 'get_dependencies',
-				delegatesTo: 'getDependencies',
-				signature: 'deps(filePath, options?)',
-				description: 'Get file dependencies',
-				toParams: (filePath: unknown, options?: unknown) => ({
-					filePath,
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-			dependents: {
-				toolName: 'get_dependents',
-				delegatesTo: 'getDependents',
-				signature: 'dependents(filePath, options?)',
-				description: 'Get file dependents',
-				toParams: (filePath: unknown, options?: unknown) => ({
-					filePath,
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-			impact: {
-				toolName: 'impact_analysis',
-				delegatesTo: 'impactAnalysis',
-				signature: 'impact(symbolNameOrId, filePath?, options?)',
-				description:
-					'Analyze change impact (1 string=symbolId, 2 strings=name+file)',
-				toParams: (...args: unknown[]) => resolveSymbolArgs(...args),
-			},
-			usage: {
-				toolName: 'trace_symbol_usage',
-				delegatesTo: 'traceSymbolUsage',
-				signature: 'usage(symbolNameOrId, filePath?, options?)',
-				description:
-					'Trace symbol usage (1 string=symbolId, 2 strings=name+file)',
-				toParams: (...args: unknown[]) => resolveSymbolArgs(...args),
-			},
-			calls: {
-				toolName: 'get_call_graph',
-				delegatesTo: 'getCallGraph',
-				signature: 'calls(symbolNameOrId, filePath?, options?)',
-				description: 'Get call graph (1 string=symbolId, 2 strings=name+file)',
-				toParams: (...args: unknown[]) => resolveSymbolArgs(...args),
-			},
-			orphans: {
-				toolName: 'find_orphaned_code',
-				delegatesTo: 'findOrphanedCode',
-				signature: 'orphans(options?)',
-				description: 'Find unused/dead code',
-				toParams: (options?: unknown) => ({
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-			cycles: {
-				toolName: 'find_circular_dependencies',
-				delegatesTo: 'findCircularDependencies',
-				signature: 'cycles(options?)',
-				description: 'Find circular dependency cycles',
-				toParams: (options?: unknown) => ({
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-			overview: {
-				toolName: 'get_architecture_overview',
-				delegatesTo: 'getArchitectureOverview',
-				signature: 'overview(options?)',
-				description: 'Get project structure overview',
-				toParams: (options?: unknown) => ({
-					...(typeof options === 'object' && options !== null ? options : {}),
-				}),
-			},
-		};
-
-		const shorthandInfoList: ShorthandInfo[] = Object.entries(
-			shorthandDefinitions,
-		).map(([name, def]) => ({
-			name,
-			signature: def.signature,
-			delegatesTo: def.delegatesTo,
-			description: def.description,
-		}));
-
 		// Create typed API proxy for Code Mode
 		// Maps method names to tool names while maintaining type safety
 		const api: ConstellationApi = new Proxy(
@@ -972,8 +781,7 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					example: "const result = await api.searchSymbols({ query: 'User' });",
 					decisionGuide,
 					compositionPatterns,
-					shorthands: shorthandInfoList,
-					tip: 'Use Promise.all() for parallel queries. Shorthand aliases accept positional args: api.search("User") instead of api.searchSymbols({ query: "User" }).',
+					tip: 'Use Promise.all() for parallel queries (3-10x faster).',
 				}),
 				// Capability check method - allows AI to verify project state
 				getCapabilities: async (): Promise<ProjectCapabilities> => {
@@ -991,19 +799,6 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					}
 
 					if (typeof prop !== 'string') return undefined;
-
-					// Check for shorthand aliases (positional-arg methods)
-					const shorthand = shorthandDefinitions[prop];
-					if (shorthand) {
-						return async (...args: unknown[]) => {
-							const params = shorthand.toParams(...args);
-							const transformedParams = transformParams(
-								shorthand.toolName,
-								params,
-							);
-							return executor(shorthand.toolName, transformedParams);
-						};
-					}
 
 					// Convert camelCase to snake_case for tool names
 					// searchSymbols -> search_symbols

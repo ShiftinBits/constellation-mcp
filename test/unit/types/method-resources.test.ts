@@ -18,26 +18,6 @@ describe('per-method resource resolution', () => {
 		}
 	});
 
-	it('should resolve all 10 shorthand aliases to summaries', () => {
-		const shorthands = [
-			'search',
-			'details',
-			'deps',
-			'dependents',
-			'impact',
-			'usage',
-			'calls',
-			'orphans',
-			'cycles',
-			'overview',
-		];
-		for (const alias of shorthands) {
-			const canonical = resolveMethodName(alias);
-			expect(canonical).not.toBeNull();
-			expect(METHOD_SUMMARIES[canonical!]).toBeDefined();
-		}
-	});
-
 	it('should return null for unknown method names', () => {
 		expect(resolveMethodName('unknown')).toBeNull();
 		expect(resolveMethodName('foo')).toBeNull();

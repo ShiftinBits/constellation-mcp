@@ -14,13 +14,12 @@
 export const METHOD_SUMMARIES: Record<string, string> = {
 	searchSymbols: `// === searchSymbols ===
 // Find symbols (functions, classes, variables) by name or pattern
-// Shorthand: api.search(query, opts?)
 // Resource: constellation://types/api/searchSymbols
 
 interface SearchSymbolsParams {
   query: string;                        // Name or pattern to search
   filterByKind?: SymbolKindCategory[];  // e.g., ['function', 'class', 'interface', 'variable']
-  filterByExported?: boolean;           // Only exported symbols (alias: isExported in shorthand)
+  filterByExported?: boolean;           // Only exported symbols
   limit?: number;                       // Max results (default: 50)
   offset?: number;                      // Pagination offset
   includeUsageCount?: boolean;          // Include usage count per symbol
@@ -52,7 +51,6 @@ interface SearchSymbolsResult {
 
 	getSymbolDetails: `// === getSymbolDetails ===
 // Get detailed information about a specific symbol
-// Shorthand: api.details(symbolId)
 // Resource: constellation://types/api/getSymbolDetails
 
 interface GetSymbolDetailsParams {
@@ -94,7 +92,6 @@ interface GetSymbolDetailsResult {
 
 	getDependencies: `// === getDependencies ===
 // Get what a file depends on (imports)
-// Shorthand: api.deps(filePath, opts?)
 // Resource: constellation://types/api/getDependencies
 
 interface GetDependenciesParams {
@@ -127,7 +124,6 @@ interface GetDependenciesResult {
 
 	getDependents: `// === getDependents ===
 // Get what depends on a file (reverse imports)
-// Shorthand: api.dependents(filePath, opts?)
 // Resource: constellation://types/api/getDependents
 
 interface GetDependentsParams {
@@ -160,7 +156,6 @@ interface GetDependentsResult {
 
 	findCircularDependencies: `// === findCircularDependencies ===
 // Find circular dependency cycles in the codebase
-// Shorthand: api.cycles(opts?)
 // Resource: constellation://types/api/findCircularDependencies
 
 interface FindCircularDependenciesParams {
@@ -179,7 +174,6 @@ interface FindCircularDependenciesResult {
 
 	traceSymbolUsage: `// === traceSymbolUsage ===
 // Find all usages of a symbol across the codebase
-// Shorthand: api.usage(symbolNameOrId, filePath?, opts?)
 // Resource: constellation://types/api/traceSymbolUsage
 
 interface TraceSymbolUsageParams {
@@ -214,7 +208,6 @@ interface TraceSymbolUsageResult {
 
 	getCallGraph: `// === getCallGraph ===
 // Get function call relationships (who calls whom)
-// Shorthand: api.calls(symbolNameOrId, filePath?, opts?)
 // Resource: constellation://types/api/getCallGraph
 
 interface GetCallGraphParams {
@@ -243,7 +236,6 @@ interface GetCallGraphResult {
 
 	impactAnalysis: `// === impactAnalysis ===
 // Analyze the impact of changing a symbol (blast radius, breaking change risk)
-// Shorthand: api.impact(symbolNameOrId, filePath?, opts?)
 // Resource: constellation://types/api/impactAnalysis
 
 interface ImpactAnalysisParams {
@@ -287,7 +279,6 @@ interface ImpactAnalysisResult {
 
 	findOrphanedCode: `// === findOrphanedCode ===
 // Find unused/dead code (exported but never imported)
-// Shorthand: api.orphans(opts?)
 // Resource: constellation://types/api/findOrphanedCode
 
 interface FindOrphanedCodeParams {
@@ -321,7 +312,6 @@ interface FindOrphanedCodeResult {
 
 	getArchitectureOverview: `// === getArchitectureOverview ===
 // Get high-level project structure and metrics
-// Shorthand: api.overview(opts?)
 // Resource: constellation://types/api/getArchitectureOverview
 
 interface GetArchitectureOverviewParams {
@@ -393,29 +383,11 @@ interface GetCapabilitiesResult {
 };
 
 /**
- * Maps shorthand aliases to canonical method names.
- * These match the shorthand aliases defined in sandbox.ts.
- */
-export const SHORTHAND_TO_CANONICAL: Record<string, string> = {
-	search: 'searchSymbols',
-	details: 'getSymbolDetails',
-	deps: 'getDependencies',
-	dependents: 'getDependents',
-	impact: 'impactAnalysis',
-	usage: 'traceSymbolUsage',
-	calls: 'getCallGraph',
-	orphans: 'findOrphanedCode',
-	cycles: 'findCircularDependencies',
-	overview: 'getArchitectureOverview',
-};
-
-/**
- * Resolves a method name (canonical or shorthand) to its canonical form.
+ * Resolves a method name to its canonical form if it exists.
  * Returns null if the name is not recognized.
  */
 export function resolveMethodName(name: string): string | null {
 	if (!name) return null;
 	if (name in METHOD_SUMMARIES) return name;
-	if (name in SHORTHAND_TO_CANONICAL) return SHORTHAND_TO_CANONICAL[name];
 	return null;
 }

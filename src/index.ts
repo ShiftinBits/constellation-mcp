@@ -152,7 +152,7 @@ async function startServer() {
 			{
 				description:
 					'TypeScript type definitions for a specific API method. ' +
-					'Accepts canonical names (searchSymbols) or shorthand aliases (search).',
+					'Accepts canonical method names (e.g., searchSymbols, getDependencies).',
 				mimeType: 'text/typescript',
 			},
 			async (uri, variables) => {
