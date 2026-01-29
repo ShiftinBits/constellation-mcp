@@ -182,7 +182,7 @@ describe('server-instructions', () => {
 		it('should describe searchSymbols query matching behavior', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('searchSymbols');
-			expect(instructions).toContain('case-sensitive substring');
+			expect(instructions).toContain('substring');
 		});
 
 		it('should clarify cwd default behavior', () => {
@@ -191,10 +191,10 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('git root');
 		});
 
-		it('should be concise (under 7500 chars)', () => {
+		it('should be concise (under 8000 chars)', () => {
 			const instructions = getServerInstructions();
-			// Raised from 7000 to 7500 to accommodate recovery patterns section.
-			expect(instructions.length).toBeLessThan(7500);
+			// Raised from 7500 to 8000 to accommodate 4-column method reference table with parameters.
+			expect(instructions.length).toBeLessThan(8000);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});

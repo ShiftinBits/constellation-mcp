@@ -59,7 +59,7 @@ mkdir -p ./temp/feedback-results
 
 ### Step 2: Run Each AI CLI Tool
 
-Pipe the feedback prompt into each tool and capture the output. Run each command one at a time, allowing the tool to complete before proceeding to the next.
+Pipe the feedback prompt into each tool and capture the output.
 
 **Claude:**
 

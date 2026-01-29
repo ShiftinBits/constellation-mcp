@@ -85,20 +85,22 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 3. \`getDependents({filePath})\` → what uses this
 
 ## Method Reference
-| Method | Use For | Returns |
-|--------|---------|---------|
-| \`searchSymbols({query})\` | Find symbols by name (case-sensitive substring) | \`{symbols: [{id, name, kind, filePath, line}]}\` |
-| \`getSymbolDetails({symbolId})\` | Full symbol info | \`{symbol: {id, name, signature, modifiers}, relationships}\` |
-| \`getDependencies({filePath})\` | What this file imports | \`{directDependencies: [{filePath, importedSymbols}]}\` |
-| \`getDependents({filePath})\` | What imports this file | \`{directDependents: [{filePath, usedSymbols}]}\` |
-| \`impactAnalysis({symbolId})\` | Change risk assessment | \`{breakingChangeRisk: {riskLevel}, impactedFiles[], summary}\` |
-| \`findOrphanedCode()\` | Find unused exports | \`{orphanedSymbols: [{name, kind, filePath}]}\` |
-| \`getArchitectureOverview()\` | Project structure | \`{metadata, structure, dependencies, metrics}\` |
-| \`traceSymbolUsage({symbolId})\` | All usages of symbol | \`{directUsages: [{filePath, usageType, line}]}\` |
-| \`getCallGraph({symbolId})\` | Call relationships | \`{root, callers: [{name, filePath}], callees}\` |
-| \`findCircularDependencies()\` | Import cycles | \`{cycles: [{cycle: [filePaths], length}]}\` |
-| \`ping()\` | Verify auth + connectivity | \`{pong: boolean}\` |
-| \`getCapabilities()\` | Check project indexing status | \`{indexed, languages, symbolCount}\` |
+| Method | Parameters | Use For | Returns |
+|--------|-----------|---------|---------|
+| \`searchSymbols\` | \`query\`, \`filterByKind?\`, \`isExported?\` | Find symbols by name (substring) | \`{symbols: [{id, name, kind, filePath, line}]}\` |
+| \`getSymbolDetails\` | \`symbolId\`*, \`includeRelationships?\` | Full symbol info | \`{symbol: {id, name, signature, modifiers}, relationships}\` |
+| \`getDependencies\` | \`filePath\`, \`depth?\`, \`includeSymbols?\` | What this file imports | \`{directDependencies: [{filePath, importedSymbols}]}\` |
+| \`getDependents\` | \`filePath\`, \`depth?\`, \`includeSymbols?\` | What imports this file | \`{directDependents: [{filePath, usedSymbols}]}\` |
+| \`impactAnalysis\` | \`symbolId\`*, \`depth?\` | Change risk assessment | \`{breakingChangeRisk: {riskLevel}, impactedFiles[], summary}\` |
+| \`findOrphanedCode\` | \`filterByKind?\`, \`exportedOnly?\` | Find unused exports | \`{orphanedSymbols: [{name, kind, filePath}]}\` |
+| \`getArchitectureOverview\` | \`includeMetrics?\` | Project structure | \`{metadata, structure, dependencies, metrics}\` |
+| \`traceSymbolUsage\` | \`symbolId\`*, \`includeTransitive?\` | All usages of symbol | \`{directUsages: [{filePath, usageType, line}]}\` |
+| \`getCallGraph\` | \`symbolId\`*, \`direction?\`, \`depth?\` | Call relationships | \`{root, callers: [{name, filePath}], callees}\` |
+| \`findCircularDependencies\` | \`filePath?\`, \`maxCycleLength?\` | Import cycles | \`{cycles: [{files: [filePaths], length}]}\` |
+| \`ping\` | _(none)_ | Verify auth + connectivity | \`{pong: true}\` |
+| \`getCapabilities\` | _(none)_ | Pre-flight check — indexing status | \`{isIndexed, supportedLanguages, symbolCount}\` |
+
+*Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination.*
 
 Run \`api.listMethods()\` for full API details. Read \`constellation://types/api/{method}\` for detailed type definitions.
 

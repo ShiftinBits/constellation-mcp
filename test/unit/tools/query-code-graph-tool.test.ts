@@ -133,7 +133,7 @@ describe('registerQueryCodeGraphTool', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 			expect(config.description).toContain('Errors return structured JSON');
-			expect(config.description).toContain('api.ping()');
+			expect(config.description).toContain('api.getCapabilities()');
 		});
 
 		it('should not use symbolName in impactAnalysis tool description examples', () => {

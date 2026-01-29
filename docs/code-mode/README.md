@@ -61,18 +61,22 @@ return result;
 
 All 10 Constellation tools are available as API methods through the `api` object:
 
-| Method                     | Use Case                     | Key Parameters                            |
-| -------------------------- | ---------------------------- | ----------------------------------------- |
-| `searchSymbols`            | Find symbols by name/pattern | `query`, `filterByKind[]`                 |
-| `getSymbolDetails`         | Get detailed symbol info     | `symbolName`, `filePath`                  |
-| `getDependencies`          | What file depends on         | `filePath`, `depth`                       |
-| `getDependents`            | What depends on file         | `filePath`, `depth`                       |
-| `findCircularDependencies` | Detect circular refs         | `maxDepth`                                |
-| `traceSymbolUsage`         | Find all symbol usages       | `symbolName`, `filePath`, `depth`         |
-| `getCallGraph`             | Function call relationships  | `symbolId`/`symbolName`, `filePath`       |
-| `impactAnalysis`           | Assess change impact         | `symbolName`, `filePath`, `analysisDepth` |
-| `findOrphanedCode`         | Find unused code             | `includeTests`, `minConfidence`           |
-| `getArchitectureOverview`  | Project structure            | `includeMetrics`, `depth`                 |
+| Method                     | Use Case                     | Key Parameters                                    |
+| -------------------------- | ---------------------------- | ------------------------------------------------- |
+| `searchSymbols`            | Find symbols by name/pattern | `query`, `filterByKind?`, `isExported?`           |
+| `getSymbolDetails`         | Get detailed symbol info     | `symbolId`\* , `includeRelationships?`            |
+| `getDependencies`          | What file depends on         | `filePath`, `depth?`, `includeSymbols?`           |
+| `getDependents`            | What depends on file         | `filePath`, `depth?`, `includeSymbols?`           |
+| `findCircularDependencies` | Detect circular refs         | `filePath?`, `maxCycleLength?`                    |
+| `traceSymbolUsage`         | Find all symbol usages       | `symbolId`\* , `includeTransitive?`               |
+| `getCallGraph`             | Function call relationships  | `symbolId`\* , `direction?`, `depth?`             |
+| `impactAnalysis`           | Assess change impact         | `symbolId`\* , `depth?`                           |
+| `findOrphanedCode`         | Find unused code             | `filterByKind?`, `exportedOnly?`, `excludeTests?` |
+| `getArchitectureOverview`  | Project structure            | `includeMetrics?`, `includeModuleGraph?`          |
+| `ping`                     | Verify auth + connectivity   | _(none)_                                          |
+| `getCapabilities`          | Check indexing status        | _(none)_                                          |
+
+\*Methods marked \* accept either `{symbolId}` or `{symbolName, filePath}`. All methods also accept `limit` and `offset` for pagination.
 
 ## Examples
 

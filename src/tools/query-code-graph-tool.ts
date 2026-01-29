@@ -149,7 +149,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• Planning a refactor — trace dependencies and dependents\n' +
 				'• Reviewing a PR — understand call graph and blast radius\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
-				'Errors return structured JSON with `guidance[]` for recovery. Run `api.ping()` once per session to verify availability.\n\n' +
+				'Errors return structured JSON with `guidance[]` for recovery. Run `api.getCapabilities()` once per session to verify availability and indexing status.\n\n' +
 				'Write JavaScript with the `api` object. Always await. Use Promise.all() for parallel queries. ' +
 				'Returns structured metadata—use Read tool for source code. Supports multi-project workspaces via cwd parameter.',
 			inputSchema: {
