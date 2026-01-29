@@ -36,6 +36,12 @@ Optional pre-flight: \`await api.getCapabilities()\` checks auth + indexing stat
 | Find config values or env vars | Grep |
 | Read/view source code | Read |
 | Find files by name pattern | Glob |
+
+NOT for these tasks (use the indicated tool instead):
+• "Find all console.log statements" → Grep (literal string search)
+• "What's the value of MAX_RETRIES?" → Grep (config values)
+• "Find all .test.ts files" → Glob (file name pattern)
+• "Show me the source code of function X" → query_code_graph to find it, then Read to view source code
 </IMPORTANT>
 
 # Constellation Code Mode

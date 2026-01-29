@@ -158,6 +158,34 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(impactExample!.parameters.code).not.toContain('symbolName');
 		});
 
+		it('should include a quick-start example in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('api.searchSymbols');
+			expect(config.description).toContain('QUICK START');
+		});
+
+		it('should include performance expectations in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('<200ms');
+		});
+
+		it('should include ROI justification in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('replaces');
+			expect(config.description).toContain('Grep');
+		});
+
+		it('should include refactoring and planning triggers in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('Refactoring');
+			expect(config.description).toContain('multi-file changes');
+			expect(config.description).toContain('implementations');
+		});
+
 		it('should register with correct input schema', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];

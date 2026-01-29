@@ -30,6 +30,9 @@ export const queryCodeGraphDefinition: McpToolDefinition = {
 		'Exploring unfamiliar code → getArchitectureOverview first',
 		'Planning a refactor → trace dependencies and dependents',
 		'Reviewing a PR → check call graph and blast radius',
+		'Refactoring code → impactAnalysis + getDependents to assess risk before restructuring',
+		'Planning multi-file changes → getDependencies + getDependents to map modification order',
+		'Finding all implementations of an interface → searchSymbols + traceSymbolUsage',
 	],
 
 	relatedTools: ['query_code_graph'],

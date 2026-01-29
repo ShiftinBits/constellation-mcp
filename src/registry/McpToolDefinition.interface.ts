@@ -86,7 +86,7 @@ export interface McpToolDefinition {
 	shortDescription?: string;
 
 	/**
-	 * List of common use cases (3-5 bullet points)
+	 * List of common use cases (3-15 bullet points)
 	 * Helps AI agents map user intent to tools
 	 *
 	 * Example:
@@ -200,8 +200,8 @@ export const McpToolDefinitionSchema = z.object({
 	whenToUse: z
 		.array(z.string().min(10).max(200))
 		.min(3)
-		.max(10)
-		.describe('3-10 use case bullet points'),
+		.max(15)
+		.describe('3-15 use case bullet points'),
 
 	relatedTools: z
 		.array(z.string())

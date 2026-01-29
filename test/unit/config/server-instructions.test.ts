@@ -209,10 +209,26 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('git root');
 		});
 
-		it('should be concise (under 8000 chars)', () => {
+		it('should include "When NOT to Use" guidance', () => {
 			const instructions = getServerInstructions();
-			// Raised from 7500 to 8000 to accommodate 4-column method reference table with parameters.
-			expect(instructions.length).toBeLessThan(8000);
+			expect(instructions).toContain('NOT for');
+			expect(instructions).toContain('literal string');
+			expect(instructions).toContain('config values');
+			expect(instructions).toContain('file name pattern');
+		});
+
+		it('should map anti-patterns to correct alternative tools', () => {
+			const instructions = getServerInstructions();
+			// Verify each anti-pattern points to the right tool
+			expect(instructions).toMatch(/console\.log.*→.*Grep/i);
+			expect(instructions).toMatch(/\.test\.ts.*→.*Glob/i);
+			expect(instructions).toMatch(/source code.*→.*Read/i);
+		});
+
+		it('should be concise (under 8500 chars)', () => {
+			const instructions = getServerInstructions();
+			// Raised from 8000 to 8500 to accommodate "NOT for" anti-pattern guidance section.
+			expect(instructions.length).toBeLessThan(8500);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 	});

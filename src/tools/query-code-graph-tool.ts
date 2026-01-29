@@ -147,8 +147,13 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• About to modify a function/class — check impact first with impactAnalysis\n' +
 				'• Exploring unfamiliar code — get architecture overview first\n' +
 				'• Planning a refactor — trace dependencies and dependents\n' +
-				'• Reviewing a PR — understand call graph and blast radius\n\n' +
+				'• Reviewing a PR — understand call graph and blast radius\n' +
+				'• Refactoring code — assess risk with impactAnalysis + getDependents\n' +
+				'• Planning multi-file changes — map modification order with getDependencies\n' +
+				'• Finding all implementations of an interface — searchSymbols + traceSymbolUsage\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
+				'QUICK START: const {symbols} = await api.searchSymbols({query: "AuthService"}); return symbols[0];\n\n' +
+				'PERFORMANCE: Queries return in <200ms. One query_code_graph call replaces 3-5 Grep/Glob calls for structural questions—fewer round-trips, complete results.\n\n' +
 				'WHY NOT GREP: "What calls handleAuth?" — Grep finds string matches but misses re-exports, aliases, and dynamic calls. query_code_graph returns the complete caller graph in one call.\n\n' +
 				'Errors return structured JSON with `guidance[]` for recovery. Optionally run `api.getCapabilities()` to check indexing status.\n\n' +
 				'Write JavaScript with the `api` object. Always await. Use Promise.all() for parallel queries. ' +
