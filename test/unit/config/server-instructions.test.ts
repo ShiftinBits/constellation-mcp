@@ -37,18 +37,16 @@ describe('server-instructions', () => {
 		it('should have a reference section separator', () => {
 			const instructions = getServerInstructions();
 			// The instructions should visually separate Essential from Reference content
-			expect(instructions).toContain('## Reference');
+			expect(instructions).toContain('\n---\n');
 		});
 
 		it('should order essential content before reference content', () => {
 			const instructions = getServerInstructions();
 			const topWorkflowIdx = instructions.indexOf('## Top 3 Workflow');
 			const separatorIdx = instructions.indexOf('\n---\n');
-			const referenceIdx = instructions.indexOf('## Reference');
 			const methodRefIdx = instructions.indexOf('## Method Reference');
 			expect(topWorkflowIdx).toBeLessThan(separatorIdx);
-			expect(separatorIdx).toBeLessThan(referenceIdx);
-			expect(referenceIdx).toBeLessThan(methodRefIdx);
+			expect(separatorIdx).toBeLessThan(methodRefIdx);
 		});
 
 		it('should include method reference table', () => {
@@ -163,7 +161,6 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Safe to Change?');
 			expect(instructions).toContain('Understand This Codebase');
 			expect(instructions).toContain('Find Dead Code');
-			expect(instructions).toContain('Quick Lookups');
 		});
 
 		it('should include recovery patterns section', () => {
@@ -209,27 +206,69 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('git root');
 		});
 
-		it('should include "When NOT to Use" guidance', () => {
+		it('should include tool routing guidance in decision table', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('NOT for');
 			expect(instructions).toContain('literal string');
 			expect(instructions).toContain('config values');
-			expect(instructions).toContain('file name pattern');
+			expect(instructions).toContain('Find files by name pattern');
 		});
 
-		it('should map anti-patterns to correct alternative tools', () => {
+		it('should map tasks to correct tools in decision table', () => {
 			const instructions = getServerInstructions();
-			// Verify each anti-pattern points to the right tool
-			expect(instructions).toMatch(/console\.log.*→.*Grep/i);
-			expect(instructions).toMatch(/\.test\.ts.*→.*Glob/i);
-			expect(instructions).toMatch(/source code.*→.*Read/i);
+			// Verify the decision table maps tasks to tools
+			expect(instructions).toContain('| Read/view source code | Read |');
+			expect(instructions).toContain('| Find files by name pattern | Glob |');
+			expect(instructions).toContain('| Search for a literal string | Grep |');
 		});
 
-		it('should be concise (under 8500 chars)', () => {
+		it('should be concise (under 9500 chars)', () => {
 			const instructions = getServerInstructions();
-			// Raised from 8000 to 8500 to accommodate "NOT for" anti-pattern guidance section.
-			expect(instructions.length).toBeLessThan(8500);
+			// Raised to 9500 to accommodate Which Method, Empty Results, and presentation improvements.
+			expect(instructions.length).toBeLessThan(9500);
 			expect(instructions.length).toBeGreaterThan(1000);
+		});
+
+		it('should include "Which Method?" quick selector', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('## Which Method?');
+			expect(instructions).toContain('searchSymbols');
+			expect(instructions).toContain('getCallGraph');
+			expect(instructions).toContain('findOrphanedCode');
+		});
+
+		it('should include "Empty Results?" diagnostic section', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('## Empty Results?');
+			expect(instructions).toContain('resultContext.reason');
+			expect(instructions).toContain('constellation index');
+		});
+
+		it('should include cross-tool workflow guidance in IMPORTANT block', () => {
+			const instructions = getServerInstructions();
+			const importantMatch = instructions.match(
+				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
+			);
+			expect(importantMatch).not.toBeNull();
+			expect(importantMatch![1]).toContain('Read to view source');
+		});
+
+		it('should include limit heuristics in rules', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('limit: 10');
+			expect(instructions).toContain('limit: 50');
+		});
+
+		it('should document isExported parameter mapping', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('filterByExported');
+		});
+
+		it('should order Which Method before Response Contract', () => {
+			const instructions = getServerInstructions();
+			const whichMethodIdx = instructions.indexOf('## Which Method?');
+			const responseContractIdx = instructions.indexOf('## Response Contract');
+			expect(whichMethodIdx).toBeGreaterThan(0);
+			expect(whichMethodIdx).toBeLessThan(responseContractIdx);
 		});
 	});
 });

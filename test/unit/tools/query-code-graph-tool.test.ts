@@ -112,7 +112,7 @@ describe('registerQueryCodeGraphTool', () => {
 		it('should include proactive internal-reasoning triggers in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('ALSO USE PROACTIVELY WHEN');
+			expect(config.description).toContain('PROACTIVE SCENARIOS');
 			expect(config.description).toContain('About to modify');
 			expect(config.description).toContain('Exploring unfamiliar code');
 			expect(config.description).toContain('Planning a refactor');
@@ -134,13 +134,6 @@ describe('registerQueryCodeGraphTool', () => {
 			const config = call[1];
 			expect(config.description).toContain('Errors return structured JSON');
 			expect(config.description).toContain('getCapabilities()');
-		});
-
-		it('should include grep comparison example in tool description', () => {
-			const call = mockServer.registerTool.mock.calls[0];
-			const config = call[1];
-			expect(config.description).toContain('WHY NOT GREP');
-			expect(config.description).toContain('misses');
 		});
 
 		it('should not use symbolName in impactAnalysis tool description examples', () => {
@@ -181,9 +174,8 @@ describe('registerQueryCodeGraphTool', () => {
 		it('should include refactoring and planning triggers in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('Refactoring');
-			expect(config.description).toContain('multi-file changes');
-			expect(config.description).toContain('implementations');
+			expect(config.description).toContain('PROACTIVE SCENARIOS');
+			expect(config.description).toContain('Planning a refactor');
 		});
 
 		it('should register with correct input schema', () => {

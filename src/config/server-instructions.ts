@@ -37,11 +37,7 @@ Optional pre-flight: \`await api.getCapabilities()\` checks auth + indexing stat
 | Read/view source code | Read |
 | Find files by name pattern | Glob |
 
-NOT for these tasks (use the indicated tool instead):
-• "Find all console.log statements" → Grep (literal string search)
-• "What's the value of MAX_RETRIES?" → Grep (config values)
-• "Find all .test.ts files" → Glob (file name pattern)
-• "Show me the source code of function X" → query_code_graph to find it, then Read to view source code
+Typical workflow: query_code_graph to find → Read to view source → Edit to modify
 </IMPORTANT>
 
 # Constellation Code Mode
@@ -63,6 +59,19 @@ const [impact, deps] = await Promise.all([
 return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
 
+## Which Method?
+| Question | Call |
+|----------|------|
+| "Where is X?" | \`searchSymbols({query: "X"})\` |
+| "What does X call?" | \`getCallGraph({symbolId, direction: "callees"})\` |
+| "What calls X?" | \`getCallGraph({symbolId, direction: "callers"})\` |
+| "What does this file import?" | \`getDependencies({filePath})\` |
+| "What imports this file?" | \`getDependents({filePath})\` |
+| "What would break?" | \`impactAnalysis({symbolId})\` |
+| "Find all usages" | \`traceSymbolUsage({symbolId})\` |
+| "Dead code?" | \`findOrphanedCode()\` |
+| "Project overview" | \`getArchitectureOverview()\` |
+
 ## Response Contract
 \`\`\`javascript
 // Success — symbols found
@@ -76,6 +85,12 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 { success: false, error: { code: "AUTH_ERROR", message: "...", guidance: ["Check CONSTELLATION_ACCESS_KEY"] } }
 \`\`\`
 
+## Empty Results?
+1. Check \`resultContext.reason\` — "no_matches" vs "branch_not_indexed"
+2. If no_matches: broaden query (e.g., "Auth" instead of "AuthService")
+3. If branch_not_indexed: run \`constellation index\`
+4. If still empty: fall back to Grep (symbol may be dynamically generated)
+
 ## Rules
 1. **Always await** - All api.* methods are async
 2. **Return results** - Last expression auto-returned; use explicit \`return\` for control flow
@@ -83,6 +98,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 4. **Use symbolId** - After search, use the returned \`id\` for precise follow-up queries
 5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays with \`resultContext.reason\` ("no_matches" or "branch_not_indexed"). Read \`guidance[]\` for recovery. If empty, try a broader query before falling back to Grep.
 6. **Performance** — Queries typically return in <200ms
+7. **Limits** — Good defaults: \`limit: 10\` (search), \`limit: 50\` (dead code). Impact analysis needs no limit.
 
 *Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
 
@@ -92,8 +108,6 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 3. \`getDependents({filePath})\` → what uses this
 
 ---
-
-## Reference
 
 ## Method Reference
 | Method | Parameters | Use For | Returns |
@@ -111,7 +125,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 | \`ping\` | _(none)_ | Verify auth + connectivity | \`{pong: true}\` |
 | \`getCapabilities\` | _(none)_ | Pre-flight check — indexing status | \`{isIndexed, supportedLanguages, symbolCount}\` |
 
-*Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination.*
+*Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination. \`isExported\` maps to Core's \`filterByExported\` parameter.*
 
 Run \`api.listMethods()\` for full API details. Read \`constellation://types/api/{method}\` for detailed type definitions.
 
@@ -139,27 +153,14 @@ const orphans = await api.findOrphanedCode();
 return orphans.orphanedSymbols?.map(s => \`\${s.kind} \${s.name} in \${s.filePath}\`);
 \`\`\`
 
-### Quick Lookups
-\`\`\`javascript
-const {symbols} = await api.searchSymbols({ query: "handleAuth" });
-const [callGraph, deps] = await Promise.all([
-  api.getCallGraph({ symbolId: symbols[0].id }),
-  api.getDependencies({ filePath: symbols[0].filePath })
-]);
-return { symbol: symbols[0], callGraph, deps };
-\`\`\`
-
 ## Recovery Patterns
-Errors return structured JSON with actionable recovery data:
-\`\`\`javascript
-// Error shape: { success: false, error: { code, message, guidance[], suggestedCode?, alternativeApproach?, recoverable } }
-\`\`\`
+Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alternativeApproach?, recoverable}}\`
 - **Read \`guidance[]\` first** — contains exact recovery steps
 - **Check \`suggestedCode\`** — copy-paste ready retry code
 - **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
 - **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
 
-Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → use more specific query
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term
 
 ## Multi-Project Workspaces
 Default: Uses git root of the MCP server's startup directory. In monorepos with multiple \`constellation.json\` files, provide \`cwd\`:
