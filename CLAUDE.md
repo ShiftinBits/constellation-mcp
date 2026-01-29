@@ -15,6 +15,7 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 | Lint          | `npm run lint:fix`                      |
 | MCP Inspector | `npm run inspector`                     |
 | Type check    | `npm run type-check`                    |
+| Benchmark     | `npm run benchmark`                     |
 
 **Engines**: Node.js 24+, npm 11+
 
@@ -24,49 +25,78 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 AI Assistant → MCP (stdio) → query_code_graph → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-**Single tool design**: One `query_code_graph` tool executes JavaScript with `api` object providing 12 methods.
+**Single tool design**: One `query_code_graph` tool executes JavaScript with `api` object providing 13 methods (10 API + ping + getCapabilities + listMethods).
+
+**Layer stack**:
+
+| Layer   | File                             | Responsibility                                        |
+| ------- | -------------------------------- | ----------------------------------------------------- |
+| Tool    | `tools/query-code-graph-tool.ts` | Input validation, config resolution, error transform  |
+| Runtime | `code-mode/runtime.ts`           | Orchestration, result formatting, size limits         |
+| Sandbox | `code-mode/sandbox.ts`           | VM isolation, dual timeout, AST validation, API proxy |
+| Client  | `client/constellation-client.ts` | HTTP with retry/backoff, auth headers                 |
+| Config  | `config/config-cache.ts`         | Multi-project resolution, LRU cache by git root       |
 
 ## Key Files
 
 ```
 src/
-├── index.ts                     Entry point, registers tool + resource
-├── tools/query-code-graph-tool.ts  MCP tool handler
+├── index.ts                            Entry point, registers tool + resources
+├── tools/query-code-graph-tool.ts      MCP tool handler (input validation, error transform)
 ├── code-mode/
-│   ├── sandbox.ts               VM execution with dual timeout
-│   ├── runtime.ts               API method metadata
-│   └── capabilities.ts          Project state detection
+│   ├── sandbox.ts                      VM execution, dual timeout, API proxy
+│   ├── runtime.ts                      Orchestration, result size enforcement
+│   ├── auto-return.ts                  REPL-like implicit return (AST-based)
+│   ├── capabilities.ts                 Project state detection
+│   └── validators/
+│       ├── ast-validator.ts            Acorn AST walker integration
+│       ├── dangerous-patterns.ts       Pattern checker definitions
+│       └── ast-walker.ts               Generic AST traversal
 ├── client/
-│   ├── constellation-client.ts  HTTP client with retry/backoff
-│   ├── error-factory.ts         Structured error creation
-│   └── error-mapper.ts          Error translation
+│   ├── constellation-client.ts         HTTP client with retry/backoff
+│   ├── error-factory.ts                Structured error creation (17 error codes)
+│   └── error-mapper.ts                 Error message formatting
 ├── config/
-│   ├── config-cache.ts          Multi-project config resolution & caching
-│   ├── config.loader.ts         Load constellation.json
-│   ├── server-instructions.ts   AI assistant guidance
-│   └── config.ts                ConstellationConfig class
+│   ├── config-cache.ts                 Multi-project config resolution & LRU cache
+│   ├── config.loader.ts                Load constellation.json from git root
+│   ├── server-instructions.ts          AI assistant guidance (MCP instructions)
+│   └── config.ts                       ConstellationConfig class
 ├── types/
-│   ├── api-types.d.ts           API method type definitions (mirror Core DTOs)
-│   └── mcp-errors.ts            Error codes & structured errors
-└── registry/                    Tool metadata registry
+│   ├── api-types.d.ts                  API method type definitions (mirror Core DTOs)
+│   ├── mcp-errors.ts                   Error codes & structured error interfaces
+│   ├── mcp-response.ts                 MCP response types
+│   └── method-summaries.ts             Per-method type excerpts for resources
+├── constants/
+│   ├── sandbox-limits.ts               Execution timeouts, code size, API call limits
+│   ├── result-limits.ts                Output size thresholds (100KB warn, 1MB hard)
+│   ├── urls.ts                         Documentation URLs
+│   └── index.ts                        Re-exports
+├── registry/
+│   ├── ToolRegistry.ts                 Tool metadata registry with validation
+│   ├── McpToolDefinition.interface.ts  Tool definition schema
+│   └── tool-definitions/               Individual tool definitions
+└── utils/
+    ├── file.utils.ts                   File/git root operations
+    └── error-messages.ts               Error message templates
 ```
 
-## API Methods (12 total)
+## API Methods (13 total)
 
-| Method                     | Purpose                      |
-| -------------------------- | ---------------------------- |
-| `searchSymbols`            | Find symbols by name/pattern |
-| `getSymbolDetails`         | Detailed symbol info         |
-| `getDependencies`          | What a file imports          |
-| `getDependents`            | What imports a file          |
-| `findCircularDependencies` | Detect import cycles         |
-| `traceSymbolUsage`         | Find all symbol usages       |
-| `getCallGraph`             | Function call relationships  |
-| `impactAnalysis`           | Assess change impact         |
-| `findOrphanedCode`         | Find unused/dead code        |
-| `getArchitectureOverview`  | Project structure overview   |
-| `ping`                     | Verify auth + connectivity   |
-| `getCapabilities`          | Check indexing status        |
+| Method                     | Purpose                      | Type |
+| -------------------------- | ---------------------------- | ---- |
+| `searchSymbols`            | Find symbols by name/pattern | API  |
+| `getSymbolDetails`         | Detailed symbol info         | API  |
+| `getDependencies`          | What a file imports          | API  |
+| `getDependents`            | What imports a file          | API  |
+| `findCircularDependencies` | Detect import cycles         | API  |
+| `traceSymbolUsage`         | Find all symbol usages       | API  |
+| `getCallGraph`             | Function call relationships  | API  |
+| `impactAnalysis`           | Assess change impact         | API  |
+| `findOrphanedCode`         | Find unused/dead code        | API  |
+| `getArchitectureOverview`  | Project structure overview   | API  |
+| `ping`                     | Verify auth + connectivity   | Util |
+| `getCapabilities`          | Check indexing status        | Util |
+| `listMethods`              | Method discovery (sync)      | Util |
 
 ## Configuration
 
@@ -89,66 +119,100 @@ src/
 }
 ```
 
+**Multi-project**: ConfigCache resolves config per git root via `cwd` parameter. LRU cached. Server starts without config (tools return setup instructions).
+
 ## Type Sync (CRITICAL)
 
 `src/types/api-types.d.ts` must mirror Core DTOs. See `../CLAUDE.md` Section 3 for checklist.
 
-**Parameter transformations** (in `sandbox.ts:440-453`):
+**Shared types package**: `@constellationdev/types` (GitHub-sourced). Locally linked via `npm link` in dev, falls back to GitHub version in CI.
 
-- MCP `isExported` → Core `filterByExported`
+**Parameter transformation** (in `sandbox.ts`): MCP `isExported` → Core `filterByExported` (search_symbols only).
 
 ## Error Handling
 
-**Error codes** (from `mcp-errors.ts`):
+**17 error codes** (from `mcp-errors.ts`):
 
-| Category  | Codes                                                                                           |
-| --------- | ----------------------------------------------------------------------------------------------- |
-| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                     |
-| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                             |
-| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                        |
-| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT` |
-| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                         |
+| Category  | Codes                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                                        |
+| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                                                |
+| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                                           |
+| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT`, `EXECUTION_ERROR` |
+| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                                            |
 
-**Retry logic** (`constellation-client.ts:236-243`): Exponential backoff (1s, 2s, 4s...) with jitter, max 30s, for 5xx errors.
+**Structured error response** includes: `code`, `type`, `message`, `recoverable`, `guidance[]`, `context`, `docs?`, `suggestedCode?`, `alternativeApproach?`.
+
+**Retry logic** (`constellation-client.ts`): Exponential backoff (1s base, 2^n scaling, 250ms jitter, 30s cap). Retries on 5xx only. Default 3 attempts.
 
 ## Sandbox Behavior
 
-**Dual timeout** (`sandbox.ts:199-220`):
+**Dual timeout** (`sandbox.ts`): VM timeout catches sync hangs, `Promise.race` catches async hangs.
 
-1. VM timeout catches sync hangs
-2. `Promise.race` catches async hangs
+**Auto-return** (`auto-return.ts`): AST-based implicit `return` prepended to last expression. Handles destructuring, multi-declarator const. Falls back gracefully on parse errors.
 
-**Code validation** (`sandbox.ts:619-689`):
+**Rate limiting**: Max 50 API calls per execution (configurable via `maxApiCalls`).
 
-- Blocks dangerous patterns (require, eval, process, fs, etc.)
-- Warns on missing `return` or `await` (common mistakes)
+**Code validation** (`validators/`): Acorn AST parser (not TypeScript compiler — faster) walks tree checking:
 
-**Allowed in sandbox**: `api`, `Promise`, `Array`, `Object`, `String`, `Number`, `Boolean`, `Date`, `JSON`, `Math`, `RegExp`, `Map`, `Set`, `console.*`
+- **Dangerous globals**: `process`, `global`, `globalThis`, `require`, `module`, `exports`, `__dirname`, `__filename`, `Buffer`, `eval`, `Function`, `Proxy`, `Reflect`
+- **Dangerous properties**: `constructor`, `__proto__`, `prototype`, `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`
+- **Patterns**: Computed property chains, dynamic import(), with statements
+- **Warnings**: Missing `return` or `await`
+
+**Sandbox globals**: `api`, `Promise`, `Array`, `Object`, `String`, `Number`, `Boolean`, `Date`, `JSON`, `Math`, `RegExp`, `Map`, `Set`, `Function`, `console.*` — all frozen (prototypes + constructors).
+
+**Limits** (`constants/sandbox-limits.ts`):
+
+| Limit             | Value                        |
+| ----------------- | ---------------------------- |
+| Default timeout   | 30s                          |
+| Min/Max timeout   | 1s – 60s                     |
+| Max code size     | 100KB                        |
+| Max API calls     | 50                           |
+| Memory limit      | 128MB (future)               |
+| Result warn       | 100KB                        |
+| Result hard limit | 1MB (truncated with preview) |
 
 ## Testing
 
 ```bash
 npm test                    # All tests
 npm run test:watch          # Watch mode
-npm run test:coverage       # 70%+ required
-npm run inspector           # Interactive MCP validation
+npm run test:coverage       # 70%+ required (branches, functions, lines, statements)
+npm run test:ci             # CI mode (--maxWorkers=2)
+npm run inspector           # Interactive MCP protocol validation
 ```
 
 Test structure mirrors `src/`: `test/unit/{module}/{file}.test.ts`
 
+**Coverage excludes**: `index.ts` (import.meta.url), type definitions, example tools.
+
 ## Gotchas
 
-- **Logging**: Use `console.error` (MCP uses stdout for protocol)
+- **Logging**: Use `console.error` only (MCP uses stdout for protocol)
 - **ESM imports**: Must include `.js` extension (`from './config.js'`)
-- **Build tool**: Uses `tsup` (not tsc directly)
-- **Windows**: `breakOnSigint` disabled on Windows (`sandbox.ts:213`)
+- **Build tool**: `tsup` (ESM bundle, tree-shake, minify, keepNames) — not tsc directly
+- **Windows**: `breakOnSigint` disabled on Windows (can cause hangs)
+- **Result truncation**: Large results silently truncated at 1MB with preview
+- **Config fallback**: Server starts even without config — tools return setup instructions
+- **Auto-return**: Sandbox adds implicit `return` to last expression. Code with explicit `return` is unchanged
+- **Prototype freeze**: All built-in prototypes and constructors are frozen in sandbox to prevent pollution
+
+## Dependencies
+
+| Package                     | Purpose                                                         |
+| --------------------------- | --------------------------------------------------------------- |
+| `@modelcontextprotocol/sdk` | MCP protocol implementation                                     |
+| `@constellationdev/types`   | Shared type definitions (GitHub-sourced, mirrors Core DTOs)     |
+| `acorn`                     | JS AST parser for code validation (fast, no TS compiler needed) |
+| `zod`                       | Runtime schema validation                                       |
 
 ## Extended Docs
 
-| Path                       | Content                           |
-| -------------------------- | --------------------------------- |
-| `../CLAUDE.md`             | Workspace architecture, type sync |
-| `../TROUBLESHOOTING.md`    | Error codes, debug commands       |
-| `../COMMANDS.md`           | Full command reference            |
-| `../ADR.md`                | Architecture decisions            |
-| `docs/code-mode/README.md` | Code Mode usage guide             |
+| Path                    | Content                           |
+| ----------------------- | --------------------------------- |
+| `../CLAUDE.md`          | Workspace architecture, type sync |
+| `../TROUBLESHOOTING.md` | Error codes, debug commands       |
+| `../COMMANDS.md`        | Full command reference            |
+| `../ADR.md`             | Architecture decisions            |
