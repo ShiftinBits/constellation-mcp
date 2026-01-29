@@ -93,25 +93,26 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Errors are structured');
 			expect(instructions).toContain('guidance[]');
 			expect(instructions).toContain('api.ping()');
-			// getCapabilities remains in Method Reference table (not prefixed with api.)
+			// getCapabilities() appears in IMPORTANT block and Rule 0 as api.getCapabilities(),
+			// and in Method Reference without the api. prefix
 			expect(instructions).toContain('getCapabilities()');
 		});
 
 		it('should include pre-flight check with success/failure branching', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('Pre-flight check');
+			expect(instructions).toContain('Pre-flight');
 			expect(instructions).toContain('FIRST call');
 			expect(instructions).toContain('fall back to Grep/Glob');
 		});
 
-		it('should include ping() pre-flight guidance in IMPORTANT block', () => {
+		it('should include getCapabilities() pre-flight guidance in IMPORTANT block', () => {
 			const instructions = getServerInstructions();
 			const importantMatch = instructions.match(
 				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
 			);
 			expect(importantMatch).not.toBeNull();
 			const importantBlock = importantMatch![1];
-			expect(importantBlock).toContain('api.ping()');
+			expect(importantBlock).toContain('api.getCapabilities()');
 			expect(importantBlock).toContain('once per session');
 		});
 
@@ -156,6 +157,38 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('recoverable');
 			expect(instructions).toContain('AUTH_ERROR');
 			expect(instructions).toContain('PROJECT_NOT_INDEXED');
+		});
+
+		it('should include top 3 workflow quick-reference', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Top 3 Workflow');
+			expect(instructions).toContain('searchSymbols({query})');
+			expect(instructions).toContain('impactAnalysis({symbolId})');
+			expect(instructions).toContain('getDependents({filePath})');
+		});
+
+		it('should promote getCapabilities() in pre-flight rule', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('api.getCapabilities()');
+			expect(instructions).toContain('isIndexed');
+		});
+
+		it('should include query performance note', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Performance');
+			expect(instructions).toContain('200ms');
+		});
+
+		it('should describe searchSymbols query matching behavior', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('searchSymbols');
+			expect(instructions).toContain('case-sensitive substring');
+		});
+
+		it('should clarify cwd default behavior', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('Default:');
+			expect(instructions).toContain('git root');
 		});
 
 		it('should be concise (under 7500 chars)', () => {

@@ -7,6 +7,7 @@ import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import { registerQueryCodeGraphTool } from '../../../src/tools/query-code-graph-tool.js';
+import { queryCodeGraphDefinition } from '../../../src/registry/tool-definitions/query-code-graph.definition.js';
 
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
@@ -133,6 +134,21 @@ describe('registerQueryCodeGraphTool', () => {
 			const config = call[1];
 			expect(config.description).toContain('Errors return structured JSON');
 			expect(config.description).toContain('api.ping()');
+		});
+
+		it('should not use symbolName in impactAnalysis tool description examples', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).not.toContain('symbolName: "Config"');
+		});
+
+		it('should use symbolId workflow in impactAnalysis definition example', () => {
+			const impactExample = queryCodeGraphDefinition.examples?.find(
+				(e) => e.title === 'Analyze change impact',
+			);
+			expect(impactExample).toBeDefined();
+			expect(impactExample!.parameters.code).toContain('symbolId');
+			expect(impactExample!.parameters.code).not.toContain('symbolName');
 		});
 
 		it('should register with correct input schema', () => {

@@ -70,7 +70,7 @@ cat docs/constellation-feedback-prompt.md | claude > ./temp/feedback-results/cla
 **Codex:**
 
 ```bash
-cat docs/constellation-feedback-prompt.md | codex > ./temp/feedback-results/codex-feedback.md
+cat docs/constellation-feedback-prompt.md | codex exec - > ./temp/feedback-results/codex-feedback.md
 ```
 
 **Copilot:**
@@ -88,7 +88,7 @@ cat docs/constellation-feedback-prompt.md | gemini > ./temp/feedback-results/gem
 **Kilocode:**
 
 ```bash
-cat docs/constellation-feedback-prompt.md | kilocode > ./temp/feedback-results/kilocode-feedback.md
+cat docs/constellation-feedback-prompt.md | kilocode --auto > ./temp/feedback-results/kilocode-feedback.md
 ```
 
 ### Step 3: Review Individual Responses

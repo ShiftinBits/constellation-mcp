@@ -23,7 +23,7 @@ Decision rule: When you consider using Grep/Glob calls to understand code struct
 Use \`query_code_graph\` for: symbols, definitions, dependencies, usage, impact, architecture
 Use Grep/Glob for: literal strings, log messages, config values, file patterns
 
-Pre-flight: Run \`await api.ping()\` once per session to verify auth + connectivity. If it fails, fall back to Grep/Glob.
+Pre-flight: Run \`await api.getCapabilities()\` once per session to verify auth, connectivity, and indexing. If it fails or \`isIndexed: false\`, fall back to Grep/Glob.
 
 | Task | Best Tool |
 |------|-----------|
@@ -71,17 +71,23 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
 
 ## Rules
-0. **Pre-flight check (once per session)** — Run \`await api.ping()\` as your FIRST call. If it succeeds, the tool is ready for the whole session. If it fails, fall back to Grep/Glob — don't retry ping repeatedly.
+0. **Pre-flight (once per session)** — Run \`await api.getCapabilities()\` as your FIRST call. Checks auth, connectivity, AND indexing (\`isIndexed\`). If \`isIndexed: false\`, the project needs indexing first. For a quick auth-only check, use \`api.ping()\`.
 1. **Always await** - All api.* methods are async
 2. **Return results** - Last expression auto-returned; use explicit \`return\` for control flow
 3. **Use Promise.all()** - 3-10x faster for independent queries
 4. **Use symbolId** - After search, use the returned \`id\` for precise follow-up queries
-5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays, not errors. Read \`guidance[]\` for recovery steps. If a search returns empty, try a broader query before falling back to Grep.
+5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays with \`resultContext.reason\` ("no_matches" or "branch_not_indexed"). Read \`guidance[]\` for recovery. If empty, try a broader query before falling back to Grep.
+6. **Performance** — Queries typically return in <200ms
+
+## Top 3 Workflow
+1. \`searchSymbols({query})\` → find symbol → get \`id\`
+2. \`impactAnalysis({symbolId})\` → change risk
+3. \`getDependents({filePath})\` → what uses this
 
 ## Method Reference
 | Method | Use For | Returns |
 |--------|---------|---------|
-| \`searchSymbols({query})\` | Find symbols by name | \`{symbols: [{id, name, kind, filePath, line}]}\` |
+| \`searchSymbols({query})\` | Find symbols by name (case-sensitive substring) | \`{symbols: [{id, name, kind, filePath, line}]}\` |
 | \`getSymbolDetails({symbolId})\` | Full symbol info | \`{symbol: {id, name, signature, modifiers}, relationships}\` |
 | \`getDependencies({filePath})\` | What this file imports | \`{directDependencies: [{filePath, importedSymbols}]}\` |
 | \`getDependents({filePath})\` | What imports this file | \`{directDependents: [{filePath, usedSymbols}]}\` |
@@ -143,8 +149,7 @@ Errors return structured JSON with actionable recovery data:
 Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → use more specific query
 
 ## Multi-Project Workspaces
-Each distinct project must have a \`constellation.json\` file in its root folder.
-Provide \`cwd\` parameter to target the correct project in monorepos:
+Default: Uses git root of the MCP server's startup directory. In monorepos with multiple \`constellation.json\` files, provide \`cwd\`:
 \`\`\`javascript
 // Tool call with cwd parameter
 query_code_graph({ code: 'return await api.searchSymbols({query:"User"})', cwd: "/path/to/project" })

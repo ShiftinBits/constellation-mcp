@@ -109,4 +109,6 @@ Please structure your feedback as:
 
 ---
 
+**Version evaluated:** 2026-01-28 — Tool description includes DECISION RULE, proactive triggers, error handling guidance, and ping() pre-flight. Server instructions include Top 3 Workflow, getCapabilities() pre-flight, performance note, query syntax guidance, empty-result diagnostics, cwd default clarification, Recovery Patterns, and pre-flight check in IMPORTANT block.
+
 Thank you for your candid feedback. This will directly inform improvements to help LLMs like yourself leverage code intelligence more effectively.

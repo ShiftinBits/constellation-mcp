@@ -81,7 +81,7 @@ export const queryCodeGraphDefinition: McpToolDefinition = {
 			title: 'Analyze change impact',
 			description: 'Assess risk and dependencies before modifying a symbol',
 			parameters: {
-				code: 'return await api.impactAnalysis({ symbolName: "UserService", filePath: "src/services/user.ts" });',
+				code: 'const {symbols} = await api.searchSymbols({query: "UserService"}); return await api.impactAnalysis({ symbolId: symbols[0].id });',
 			},
 			expectedOutcome:
 				'Returns dependents, impacted files, and breaking change risk assessment.',

@@ -648,7 +648,7 @@ export class CodeModeSandbox {
 					'impact of',
 					'blast radius',
 				],
-				quickExample: `await api.impactAnalysis({ symbolName: "Config", filePath: "..." })`,
+				quickExample: `await api.impactAnalysis({ symbolId: "..." })`,
 				typesResourceUri: 'constellation://types/api/impactAnalysis',
 			},
 			{
