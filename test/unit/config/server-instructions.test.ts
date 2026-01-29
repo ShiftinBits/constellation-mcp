@@ -34,6 +34,23 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('Promise.all()');
 		});
 
+		it('should have a reference section separator', () => {
+			const instructions = getServerInstructions();
+			// The instructions should visually separate Essential from Reference content
+			expect(instructions).toContain('## Reference');
+		});
+
+		it('should order essential content before reference content', () => {
+			const instructions = getServerInstructions();
+			const topWorkflowIdx = instructions.indexOf('## Top 3 Workflow');
+			const separatorIdx = instructions.indexOf('\n---\n');
+			const referenceIdx = instructions.indexOf('## Reference');
+			const methodRefIdx = instructions.indexOf('## Method Reference');
+			expect(topWorkflowIdx).toBeLessThan(separatorIdx);
+			expect(separatorIdx).toBeLessThan(referenceIdx);
+			expect(referenceIdx).toBeLessThan(methodRefIdx);
+		});
+
 		it('should include method reference table', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('## Method Reference');
@@ -98,11 +115,11 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('getCapabilities()');
 		});
 
-		it('should include pre-flight check with success/failure branching', () => {
+		it('should include pre-flight guidance with graceful fallback', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('Pre-flight');
-			expect(instructions).toContain('FIRST call');
-			expect(instructions).toContain('fall back to Grep/Glob');
+			expect(instructions).toContain('pre-flight');
+			expect(instructions).toContain('getCapabilities()');
+			expect(instructions).toContain('guidance[]');
 		});
 
 		it('should include getCapabilities() pre-flight guidance in IMPORTANT block', () => {
@@ -113,7 +130,8 @@ describe('server-instructions', () => {
 			expect(importantMatch).not.toBeNull();
 			const importantBlock = importantMatch![1];
 			expect(importantBlock).toContain('api.getCapabilities()');
-			expect(importantBlock).toContain('once per session');
+			// Changed: no longer requires "once per session"
+			expect(importantBlock).toContain('pre-flight');
 		});
 
 		it('should include chained workflow example with Promise.all', () => {
@@ -167,7 +185,7 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('getDependents({filePath})');
 		});
 
-		it('should promote getCapabilities() in pre-flight rule', () => {
+		it('should mention getCapabilities() for pre-flight checking', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('api.getCapabilities()');
 			expect(instructions).toContain('isIndexed');

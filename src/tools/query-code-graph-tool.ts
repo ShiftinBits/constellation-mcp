@@ -148,8 +148,9 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• Exploring unfamiliar code — get architecture overview first\n' +
 				'• Planning a refactor — trace dependencies and dependents\n' +
 				'• Reviewing a PR — understand call graph and blast radius\n\n' +
-				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
-				'Errors return structured JSON with `guidance[]` for recovery. Run `api.getCapabilities()` once per session to verify availability and indexing status.\n\n' +
+				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
+				'WHY NOT GREP: "What calls handleAuth?" — Grep finds string matches but misses re-exports, aliases, and dynamic calls. query_code_graph returns the complete caller graph in one call.\n\n' +
+				'Errors return structured JSON with `guidance[]` for recovery. Optionally run `api.getCapabilities()` to check indexing status.\n\n' +
 				'Write JavaScript with the `api` object. Always await. Use Promise.all() for parallel queries. ' +
 				'Returns structured metadata—use Read tool for source code. Supports multi-project workspaces via cwd parameter.',
 			inputSchema: {

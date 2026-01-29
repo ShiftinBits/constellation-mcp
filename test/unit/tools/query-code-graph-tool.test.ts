@@ -133,7 +133,14 @@ describe('registerQueryCodeGraphTool', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 			expect(config.description).toContain('Errors return structured JSON');
-			expect(config.description).toContain('api.getCapabilities()');
+			expect(config.description).toContain('getCapabilities()');
+		});
+
+		it('should include grep comparison example in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('WHY NOT GREP');
+			expect(config.description).toContain('misses');
 		});
 
 		it('should not use symbolName in impactAnalysis tool description examples', () => {

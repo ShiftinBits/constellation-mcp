@@ -23,7 +23,7 @@ Decision rule: When you consider using Grep/Glob calls to understand code struct
 Use \`query_code_graph\` for: symbols, definitions, dependencies, usage, impact, architecture
 Use Grep/Glob for: literal strings, log messages, config values, file patterns
 
-Pre-flight: Run \`await api.getCapabilities()\` once per session to verify auth, connectivity, and indexing. If it fails or \`isIndexed: false\`, fall back to Grep/Glob.
+Optional pre-flight: \`await api.getCapabilities()\` checks auth + indexing status. If you skip it, errors self-recover with \`guidance[]\`.
 
 | Task | Best Tool |
 |------|-----------|
@@ -71,7 +71,6 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
 
 ## Rules
-0. **Pre-flight (once per session)** — Run \`await api.getCapabilities()\` as your FIRST call. Checks auth, connectivity, AND indexing (\`isIndexed\`). If \`isIndexed: false\`, the project needs indexing first. For a quick auth-only check, use \`api.ping()\`.
 1. **Always await** - All api.* methods are async
 2. **Return results** - Last expression auto-returned; use explicit \`return\` for control flow
 3. **Use Promise.all()** - 3-10x faster for independent queries
@@ -79,10 +78,16 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays with \`resultContext.reason\` ("no_matches" or "branch_not_indexed"). Read \`guidance[]\` for recovery. If empty, try a broader query before falling back to Grep.
 6. **Performance** — Queries typically return in <200ms
 
+*Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
+
 ## Top 3 Workflow
 1. \`searchSymbols({query})\` → find symbol → get \`id\`
 2. \`impactAnalysis({symbolId})\` → change risk
 3. \`getDependents({filePath})\` → what uses this
+
+---
+
+## Reference
 
 ## Method Reference
 | Method | Parameters | Use For | Returns |

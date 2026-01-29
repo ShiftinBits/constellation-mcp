@@ -615,7 +615,7 @@ export class CodeModeSandbox {
 					'import cycle',
 					'dependency loop',
 				],
-				quickExample: `await api.findCircularDependencies({ maxDepth: 10 })`,
+				quickExample: `await api.findCircularDependencies({ maxCycleLength: 10 })`,
 				typesResourceUri: 'constellation://types/api/findCircularDependencies',
 			},
 			{

@@ -160,7 +160,7 @@ interface GetDependentsResult {
 
 interface FindCircularDependenciesParams {
   filePath?: string;                    // Start from specific file (optional)
-  maxDepth?: number;                    // Max cycle length to detect
+  maxCycleLength?: number;              // Max cycle length to detect (min: 2, max: 10)
 }
 
 interface FindCircularDependenciesResult {
@@ -169,7 +169,7 @@ interface FindCircularDependenciesResult {
 }
 
 // DependencyCycle:
-//   .cycle[]   - Array of file paths forming the cycle (e.g., ["a.ts", "b.ts", "a.ts"])
+//   .files[]   - Array of file paths forming the cycle (e.g., ["a.ts", "b.ts", "a.ts"])
 //   .length    - Number of files in the cycle`,
 
 	traceSymbolUsage: `// === traceSymbolUsage ===
