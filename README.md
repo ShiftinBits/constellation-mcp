@@ -1,12 +1,12 @@
 # Constellation MCP Server
 
-[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) [![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](https://vscode.dev/redirect/mcp/install?name=constellation&config=%7B%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%22%5D%7D) [![Add to Cursor](https://img.shields.io/badge/add%20to-Cursor-black.svg?logo=cursor)](https://cursor.com/en-US/install-mcp?name=constellation&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb25zdGVsbGF0aW9uZGV2L21jcEBsYXRlc3QifQ%3D%3D) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE) [![Made with Claude Code](https://img.shields.io/badge/made%20with%20Claude%20Code-D97757.svg?logo=claude&logoColor=white)](https://www.anthropic.com/claude-code)
-
-**Connecting stars in your code into intelligent patterns**
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-3DA639?logo=opensourceinitiative&logoColor=white)](LICENSE)
 
 Give your AI coding assistant instant, intelligent access to your entire codebase's structure, dependencies, and relationships without transmitting any source code. Constellation provides code intelligence as a service to AI coding assistant tools.
 
 ## Quick Start
+
+[![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](vscode:mcp/install?%7B%22name%22%3A%22constellation%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%40latest%22%5D%2C%22tools%22%3A%5B%22query_code_graph%22%5D%2C%22env%22%3A%7B%22CONSTELLATION_ACCESS_KEY%22%3A%22CONSTELLATION_ACCESS_KEY%22%7D%7D) [![Add to Cursor](https://img.shields.io/badge/add%20to-Cursor-black.svg?logo=cursor)](https://cursor.com/en-US/install-mcp?name=constellation&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb25zdGVsbGF0aW9uZGV2L21jcEBsYXRlc3QifQ%3D%3D)
 
 Add the Constellation MCP server to your AI assistant project-level config (or system-level if your tooling doesn't support project-level configuration):
 
@@ -25,9 +25,9 @@ Add the Constellation MCP server to your AI assistant project-level config (or s
 > [!NOTE]  
 > The above example is a generic format for the `.mcp.json` file used by some tools such as VSCode and Claude Code.
 >
-> For information on configuring other AI assistants see the [MCP Server > Installation doc](http://localhost:3123/docs/mcp/#installation).
+> For information on configuring other AI assistants see the [MCP Server > Installation doc](https://docs.constellationdev.io/mcp/#installation).
 
-For further instructions regarding authentication, project setup, and configuration refer to the [official docs](https://docs.constellationdev.io/docs/).
+For further instructions regarding authentication, project setup, and configuration refer to the [official docs](https://docs.constellationdev.io/).
 
 ## How It Works
 
@@ -71,11 +71,11 @@ flowchart LR
 
 ## Documentation
 
-Find the full and comprehensive documentation at **[docs.constellationdev.io/docs/mcp/](https://docs.constellationdev.io/docs/mcp/)**
+Find the full and comprehensive documentation at **[docs.constellationdev.io/mcp/](https://docs.constellationdev.io/mcp/)**
 
-- [Installation & Setup](https://docs.constellationdev.io/docs/mcp/#installation) - Configure for Claude Code, Cursor, GitHub Copilot, and more
-- [Tools Reference](https://docs.constellationdev.io/docs/mcp/tools) - Code Mode API and available methods
-- [Troubleshooting](https://docs.constellationdev.io/docs/mcp/troubleshooting) - Common issues and solutions
+- [Installation & Setup](https://docs.constellationdev.io/mcp/#installation) - Configure for Claude Code, Cursor, GitHub Copilot, and more
+- [Tools Reference](https://docs.constellationdev.io/mcp/tools) - Code Mode API and available methods
+- [Troubleshooting](https://docs.constellationdev.io/mcp/troubleshooting) - Common issues and solutions
 
 ## Privacy & Security
 
@@ -83,7 +83,7 @@ Find the full and comprehensive documentation at **[docs.constellationdev.io/doc
 - **Access control** - API keys required for all requests
 - **Branch isolation** - Each git branch maintains discrete code intelligence
 
-For comprehensive information regarding privacy and security, see the [official Privacy & Security documentation](http://localhost:3123/docs/privacy).
+For comprehensive information regarding privacy and security, see the [official Privacy & Security documentation](https://docs.constellationdev.io/privacy).
 
 ## Support
 
