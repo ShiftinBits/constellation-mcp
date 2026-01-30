@@ -1,0 +1,13 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	"mcp": {
+		"constellation": {
+			"command": ["mcp-constellation"],
+			"type": "local",
+			"enabled": true,
+			"environment": {
+				"CONSTELLATION_ACCESS_KEY": "{env:CONSTELLATION_ACCESS_KEY}",
+			},
+		},
+	},
+}

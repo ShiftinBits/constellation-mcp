@@ -1,8 +1,7 @@
 {
-	"servers": {
+	"mcpServers": {
 		"constellation": {
 			"command": "mcp-constellation",
-			"tools": ["query_code_graph"],
 			"env": {
 				"CONSTELLATION_ACCESS_KEY": "CONSTELLATION_ACCESS_KEY"
 			}
