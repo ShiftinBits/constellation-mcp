@@ -791,23 +791,6 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 		const client = this.client;
 		const projectContext = this.options.projectContext;
 
-		// Parameter transformation for known MCP → Core mismatches
-		// This handles cases where MCP api-types.ts uses different param names than Core executors
-		const transformParams = (toolName: string, params: any): any => {
-			if (!params || typeof params !== 'object') return params;
-
-			// Make a shallow copy to avoid mutating the original
-			const transformed = { ...params };
-
-			// search_symbols: MCP uses 'isExported', Core expects 'filterByExported'
-			if (toolName === 'search_symbols' && 'isExported' in transformed) {
-				transformed.filterByExported = transformed.isExported;
-				delete transformed.isExported;
-			}
-
-			return transformed;
-		};
-
 		// Create typed API proxy for Code Mode
 		// Maps method names to tool names while maintaining type safety
 		const api: ConstellationApi = new Proxy(
@@ -848,9 +831,7 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					// Return async function that calls the executor
 					// The type safety is enforced by the ConstellationApi interface
 					return async (params: unknown) => {
-						// Transform params for known mismatches between MCP and Core
-						const transformedParams = transformParams(toolName, params);
-						return executor(toolName, transformedParams);
+						return executor(toolName, params);
 					};
 				},
 			},

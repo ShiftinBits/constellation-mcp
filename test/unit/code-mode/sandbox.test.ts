@@ -450,6 +450,61 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(true);
 			expect(result.asOfCommit).toBeUndefined();
 		});
+
+		describe('parameter pass-through', () => {
+			it('should pass isExported parameter unchanged to Core', async () => {
+				mockClient.executeMcpTool.mockResolvedValue(
+					createMockResult({
+						symbols: [],
+						pagination: { total: 0, returned: 0, hasMore: false },
+					}),
+				);
+
+				const code = `return await api.searchSymbols({ query: "test", isExported: true });`;
+				await sandbox.execute(code);
+
+				expect(mockClient.executeMcpTool).toHaveBeenCalledWith(
+					'search_symbols',
+					expect.objectContaining({ query: 'test', isExported: true }),
+					expect.any(Object),
+				);
+				// Verify filterByExported is NOT present
+				const callArgs = mockClient.executeMcpTool.mock.calls[0][1];
+				expect(callArgs).not.toHaveProperty('filterByExported');
+			});
+
+			it('should pass isExported: false unchanged', async () => {
+				mockClient.executeMcpTool.mockResolvedValue(
+					createMockResult({
+						symbols: [],
+						pagination: { total: 0, returned: 0, hasMore: false },
+					}),
+				);
+
+				const code = `return await api.searchSymbols({ query: "test", isExported: false });`;
+				await sandbox.execute(code);
+
+				const callArgs = mockClient.executeMcpTool.mock.calls[0][1];
+				expect(callArgs).toEqual({ query: 'test', isExported: false });
+			});
+
+			it('should omit isExported when not provided', async () => {
+				mockClient.executeMcpTool.mockResolvedValue(
+					createMockResult({
+						symbols: [],
+						pagination: { total: 0, returned: 0, hasMore: false },
+					}),
+				);
+
+				const code = `return await api.searchSymbols({ query: "test" });`;
+				await sandbox.execute(code);
+
+				const callArgs = mockClient.executeMcpTool.mock.calls[0][1];
+				expect(callArgs).toEqual({ query: 'test' });
+				expect(callArgs).not.toHaveProperty('isExported');
+				expect(callArgs).not.toHaveProperty('filterByExported');
+			});
+		});
 	});
 
 	describe('validateCode', () => {

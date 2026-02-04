@@ -125,7 +125,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 | \`ping\` | _(none)_ | Verify auth + connectivity | \`{pong: true}\` |
 | \`getCapabilities\` | _(none)_ | Pre-flight check — indexing status | \`{isIndexed, supportedLanguages, symbolCount}\` |
 
-*Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination. \`isExported\` maps to Core's \`filterByExported\` parameter.*
+*Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination.*
 
 Run \`api.listMethods()\` for full API details. Read \`constellation://types/api/{method}\` for detailed type definitions.
 

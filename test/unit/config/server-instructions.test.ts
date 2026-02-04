@@ -258,9 +258,12 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('limit: 50');
 		});
 
-		it('should document isExported parameter mapping', () => {
+		it('should document isExported parameter in method reference', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('filterByExported');
+			// isExported is documented in the Method Reference table
+			expect(instructions).toContain('isExported');
+			// No transformation - Core accepts isExported directly
+			expect(instructions).not.toContain('filterByExported');
 		});
 
 		it('should order Which Method before Response Contract', () => {
