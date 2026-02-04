@@ -33,6 +33,7 @@ export const ErrorCode = {
 	VALIDATION_ERROR: 'VALIDATION_ERROR',
 	EXECUTION_ERROR: 'EXECUTION_ERROR',
 	EXECUTION_TIMEOUT: 'EXECUTION_TIMEOUT',
+	MEMORY_EXCEEDED: 'MEMORY_EXCEEDED',
 
 	// System
 	RATE_LIMITED: 'RATE_LIMITED',
@@ -145,6 +146,7 @@ export function isRecoverableError(code: ErrorCodeType): boolean {
 		ErrorCode.BRANCH_NOT_FOUND,
 		ErrorCode.STALE_INDEX,
 		ErrorCode.VALIDATION_ERROR,
+		ErrorCode.MEMORY_EXCEEDED,
 	];
 	return recoverableCodes.includes(code);
 }

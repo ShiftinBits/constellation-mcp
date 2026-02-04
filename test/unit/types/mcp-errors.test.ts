@@ -23,14 +23,15 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.VALIDATION_ERROR).toBe('VALIDATION_ERROR');
 		expect(ErrorCode.EXECUTION_ERROR).toBe('EXECUTION_ERROR');
 		expect(ErrorCode.EXECUTION_TIMEOUT).toBe('EXECUTION_TIMEOUT');
+		expect(ErrorCode.MEMORY_EXCEEDED).toBe('MEMORY_EXCEEDED');
 		expect(ErrorCode.RATE_LIMITED).toBe('RATE_LIMITED');
 		expect(ErrorCode.SERVICE_UNAVAILABLE).toBe('SERVICE_UNAVAILABLE');
 		expect(ErrorCode.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
 	});
 
-	it('should have exactly 17 error codes', () => {
+	it('should have exactly 18 error codes', () => {
 		const codeCount = Object.keys(ErrorCode).length;
-		expect(codeCount).toBe(17);
+		expect(codeCount).toBe(18);
 	});
 
 	it('should not contain any undefined values', () => {
@@ -165,6 +166,10 @@ describe('isRecoverableError', () => {
 		it('should return true for VALIDATION_ERROR', () => {
 			expect(isRecoverableError(ErrorCode.VALIDATION_ERROR)).toBe(true);
 		});
+
+		it('should return true for MEMORY_EXCEEDED', () => {
+			expect(isRecoverableError(ErrorCode.MEMORY_EXCEEDED)).toBe(true);
+		});
 	});
 
 	describe('non-recoverable error codes', () => {
@@ -220,7 +225,7 @@ describe('isRecoverableError', () => {
 		);
 
 		// Verify expected counts
-		expect(recoverableCodes.length).toBe(8);
+		expect(recoverableCodes.length).toBe(9);
 		expect(nonRecoverableCodes.length).toBe(9);
 	});
 });
