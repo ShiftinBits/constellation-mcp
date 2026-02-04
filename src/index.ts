@@ -9,8 +9,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
 import { getServerInstructions } from './config/server-instructions.js';
-import { getToolRegistry } from './registry/ToolRegistry.js';
-import { allToolDefinitions } from './registry/tool-definitions/index.js';
 import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
 import {
 	METHOD_SUMMARIES,
@@ -35,37 +33,6 @@ async function startServer() {
 		// Initialize configuration cache with default from startup directory
 		// This is non-fatal - if it fails, server will require cwd parameter on each call
 		await configCache.trySetDefaultFromStartup(process.cwd());
-
-		// Initialize Tool Registry with enhanced definitions
-		console.error('[CONSTELLATION] Initializing Tool Registry...');
-		const registry = getToolRegistry();
-		registry.registerMany(allToolDefinitions);
-		registry.markInitialized();
-
-		// Validate registry
-		const validation = registry.validateRegistry();
-		if (!validation.valid) {
-			console.error('[CONSTELLATION] Tool Registry validation errors:');
-			for (const error of validation.errors) {
-				console.error(`  ${error}`);
-			}
-			throw new Error('Tool Registry validation failed');
-		}
-
-		if (validation.warnings.length > 0) {
-			console.error('[CONSTELLATION] Tool Registry warnings:');
-			for (const warning of validation.warnings) {
-				console.error(`   ${warning}`);
-			}
-		}
-
-		const stats = registry.getStats();
-		console.error('[CONSTELLATION] Tool Registry initialized:');
-		console.error(`  Total tools: ${stats.totalTools}`);
-		console.error(`  Tools with examples: ${stats.toolsWithExamples}`);
-		console.error(
-			`  Average examples per tool: ${stats.averageExamplesPerTool.toFixed(1)}`,
-		);
 
 		// Report configuration status
 		const defaultConfig = configCache.getDefaultConfig();
@@ -179,10 +146,6 @@ async function startServer() {
 		console.error(
 			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}',
 		);
-
-		// Validate that tool registry matches registered tools
-		console.error('[CONSTELLATION] Validating tool registry...');
-		registry.validateWithMcpServer(server);
 
 		console.error('[CONSTELLATION] Server configured successfully');
 		console.error(

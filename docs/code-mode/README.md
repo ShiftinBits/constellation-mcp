@@ -631,10 +631,9 @@ This is a Code Mode-only server. Any contributions should maintain this philosop
 
 To add new capabilities to Code Mode:
 
-1. Add new tool to `src/tools/`
-2. Create tool definition in `src/registry/tool-definitions/`
-3. Run `npm run codegen` to regenerate API
-4. Update documentation with examples
+1. Add or update the tool in `src/tools/`
+2. Update the tool description and server instructions as needed
+3. Update documentation with examples
 
 ## Support
 

@@ -71,10 +71,6 @@ src/
 │   ├── result-limits.ts                Output size thresholds (100KB warn, 1MB hard)
 │   ├── urls.ts                         Documentation URLs
 │   └── index.ts                        Re-exports
-├── registry/
-│   ├── ToolRegistry.ts                 Tool metadata registry with validation
-│   ├── McpToolDefinition.interface.ts  Tool definition schema
-│   └── tool-definitions/               Individual tool definitions
 └── utils/
     ├── file.utils.ts                   File/git root operations
     └── error-messages.ts               Error message templates
