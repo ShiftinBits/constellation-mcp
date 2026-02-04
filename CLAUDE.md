@@ -2,7 +2,7 @@
 
 MCP server bridging AI assistants to constellation-core for code intelligence.
 
-**See**: `../CLAUDE.md` for workspace architecture, type sync checklist.
+**See**: `../CLAUDE.md` for workspace architecture and shared types.
 
 ## Quick Reference
 
@@ -62,7 +62,7 @@ src/
 │   ├── server-instructions.ts          AI assistant guidance (MCP instructions)
 │   └── config.ts                       ConstellationConfig class
 ├── types/
-│   ├── api-types.d.ts                  API method type definitions (mirror Core DTOs)
+│   ├── api-types.d.ts                  Re-exports from @constellationdev/types
 │   ├── mcp-errors.ts                   Error codes & structured error interfaces
 │   ├── mcp-response.ts                 MCP response types
 │   └── method-summaries.ts             Per-method type excerpts for resources
@@ -117,11 +117,13 @@ src/
 
 **Multi-project**: ConfigCache resolves config per git root via `cwd` parameter. LRU cached. Server starts without config (tools return setup instructions).
 
-## Type Sync (CRITICAL)
+## Shared Types
 
-`src/types/api-types.d.ts` must mirror Core DTOs. See `../CLAUDE.md` Section 3 for checklist.
+All types imported from `@constellationdev/types` (centralized in `constellation-types/`).
 
-**Shared types package**: `@constellationdev/types` (GitHub-sourced). Locally linked via `npm link` in dev, falls back to GitHub version in CI.
+`src/types/api-types.d.ts` re-exports from the shared package for import convenience.
+
+**Adding types**: Add to `constellation-types/src/`, not locally. See `../CLAUDE.md` Section 3.
 
 **Parameter transformation** (in `sandbox.ts`): MCP `isExported` → Core `filterByExported` (search_symbols only).
 
@@ -200,15 +202,15 @@ Test structure mirrors `src/`: `test/unit/{module}/{file}.test.ts`
 | Package                     | Purpose                                                         |
 | --------------------------- | --------------------------------------------------------------- |
 | `@modelcontextprotocol/sdk` | MCP protocol implementation                                     |
-| `@constellationdev/types`   | Shared type definitions (GitHub-sourced, mirrors Core DTOs)     |
+| `@constellationdev/types`   | Shared type definitions (single source of truth)                |
 | `acorn`                     | JS AST parser for code validation (fast, no TS compiler needed) |
 | `zod`                       | Runtime schema validation                                       |
 
 ## Extended Docs
 
-| Path                    | Content                           |
-| ----------------------- | --------------------------------- |
-| `../CLAUDE.md`          | Workspace architecture, type sync |
-| `../TROUBLESHOOTING.md` | Error codes, debug commands       |
-| `../COMMANDS.md`        | Full command reference            |
-| `../ADR.md`             | Architecture decisions            |
+| Path                    | Content                              |
+| ----------------------- | ------------------------------------ |
+| `../CLAUDE.md`          | Workspace architecture, shared types |
+| `../TROUBLESHOOTING.md` | Error codes, debug commands          |
+| `../COMMANDS.md`        | Full command reference               |
+| `../ADR.md`             | Architecture decisions               |
