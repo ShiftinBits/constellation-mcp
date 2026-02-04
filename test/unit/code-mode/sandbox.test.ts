@@ -2,7 +2,16 @@
  * CodeModeSandbox Unit Tests
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import {
+	describe,
+	it,
+	expect,
+	jest,
+	beforeEach,
+	afterEach,
+	beforeAll,
+	afterAll,
+} from '@jest/globals';
 import {
 	CodeModeSandbox,
 	MemoryExceededError,
@@ -39,9 +48,8 @@ describe('CodeModeSandbox', () => {
 	let mockClient: jest.Mocked<ConstellationClient>;
 	let mockConfigContext: ConfigContext;
 
-	beforeEach(() => {
-		jest.clearAllMocks();
-
+	// Create sandbox ONCE to avoid VM context accumulation across 165 tests
+	beforeAll(() => {
 		mockConfigContext = createMockConfigContext();
 
 		mockClient = {
@@ -55,6 +63,15 @@ describe('CodeModeSandbox', () => {
 			allowConsole: true,
 			configContext: mockConfigContext,
 		});
+	});
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	afterAll(() => {
+		sandbox = undefined as any;
+		mockClient = undefined as any;
 	});
 
 	// Helper function to create mock McpToolResult
