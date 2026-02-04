@@ -1,0 +1,26 @@
+{
+	"version": 1,
+	"hooks": {
+		"sessionStart": [
+			{
+				"type": "prompt",
+				"prompt": "You have Constellation access. `constellation__query_code_graph` is your PRIMARY tool for understanding this codebase—not an alternative, not a fallback, THE DEFAULT.\n\nMental model:\n- \"Where is X defined?\" → constellation__query_code_graph\n- \"What uses X?\" → constellation__query_code_graph\n- \"What would break?\" → constellation__query_code_graph\n- \"Find the string 'ERROR_CODE_123'\" → Grep\n\nGrep is for literal text. Everything else starts with constellation__query_code_graph.",
+				"matcher": ".*"
+			}
+		],
+		"subagentStart": [
+			{
+				"type": "prompt",
+				"prompt": "You have access to Constellation's constellation__query_code_graph MCP tool. For structural code questions—symbol definitions, callers/callees, dependencies, dependents, impact analysis, architecture overview—use constellation__query_code_graph instead of Grep/Glob. It answers in one call what would take 3-5 text searches. Use Grep/Glob only for literal string search, config values, or when the tool is unavailable.",
+				"matcher": "Explore|Plan|explore|shell"
+			}
+		],
+		"preCompact": [
+			{
+				"type": "prompt",
+				"prompt": "Preserve: (1) The instruction that constellation__query_code_graph is the PRIMARY tool for code understanding—Grep is only for literal text, (2) Any architectural insights, dependency relationships, or impact analysis results discovered via Constellation.",
+				"matcher": ".*"
+			}
+		]
+	}
+}
