@@ -1,4 +1,48 @@
 {
+	"hooks": {
+		"SessionStart": [
+			{
+				"matcher": "startup",
+				"hooks": [
+					{
+						"name": "constellation-sessionstart",
+						"type": "command",
+						"command": "$GEMINI_PROJECT_DIR/.gemini/hooks/constellation-session-start.sh",
+						"timeout": 5000,
+						"description": "Constellation: Inject code intelligence guidance at session start"
+					}
+				]
+			}
+		],
+		"BeforeAgent": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"name": "constellation-subagentstart",
+						"type": "command",
+						"command": "$GEMINI_PROJECT_DIR/.gemini/hooks/constellation-before-agent.sh",
+						"timeout": 5000,
+						"description": "Constellation: Inject guidance for agent planning"
+					}
+				]
+			}
+		],
+		"PreCompress": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"name": "constellation-precompact",
+						"type": "command",
+						"command": "$GEMINI_PROJECT_DIR/.gemini/hooks/constellation-pre-compress.sh",
+						"timeout": 5000,
+						"description": "Constellation: Context preservation reminder"
+					}
+				]
+			}
+		]
+	},
 	"mcpServers": {
 		"constellation": {
 			"command": "mcp-constellation",

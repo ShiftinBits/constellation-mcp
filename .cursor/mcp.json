@@ -1,8 +1,7 @@
 {
 	"mcpServers": {
 		"constellation": {
-			"command": "npx",
-			"args": ["-y", "@constellationdev/cli@latest"],
+			"command": "mcp-constellation",
 			"env": {
 				"CONSTELLATION_ACCESS_KEY": "${env:CONSTELLATION_ACCESS_KEY}"
 			}
