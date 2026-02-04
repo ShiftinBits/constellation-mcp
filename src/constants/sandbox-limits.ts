@@ -12,6 +12,7 @@ export const MAX_EXECUTION_TIMEOUT_MS = 60000;
 
 // Resource limits
 export const DEFAULT_MEMORY_LIMIT_MB = 128;
+export const MEMORY_CHECK_INTERVAL_MS = 50; // SB-156 - Check interval for memory enforcement
 export const DEFAULT_MAX_API_CALLS = 50;
 
 // Output truncation
