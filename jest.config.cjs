@@ -32,9 +32,6 @@ module.exports = {
 	setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
 	testTimeout: 10000,
 	verbose: true,
-	// Force exit after tests complete to avoid OOM during Jest's leak detection
-	// The sandbox tests create many VM contexts which Jest's heap walker struggles with
-	forceExit: true,
 	transform: {
 		'^.+\\.tsx?$': [
 			'ts-jest',
