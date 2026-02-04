@@ -160,15 +160,15 @@ src/
 
 **Limits** (`constants/sandbox-limits.ts`):
 
-| Limit             | Value                        |
-| ----------------- | ---------------------------- |
-| Default timeout   | 30s                          |
-| Min/Max timeout   | 1s – 60s                     |
-| Max code size     | 100KB                        |
-| Max API calls     | 50                           |
-| Memory limit      | 128MB (future)               |
-| Result warn       | 100KB                        |
-| Result hard limit | 1MB (truncated with preview) |
+| Limit             | Value                              |
+| ----------------- | ---------------------------------- |
+| Default timeout   | 30s                                |
+| Min/Max timeout   | 1s – 60s                           |
+| Max code size     | 100KB                              |
+| Max API calls     | 50                                 |
+| Memory limit      | 128MB (best-effort, checked @50ms) |
+| Result warn       | 100KB                              |
+| Result hard limit | 1MB (truncated with preview)       |
 
 ## Testing
 

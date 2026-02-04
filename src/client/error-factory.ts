@@ -12,6 +12,7 @@ import {
 } from '../config/config-cache.js';
 import { DOCS_URLS } from '../constants/urls.js';
 import { ErrorCode, type McpErrorResponse } from '../types/mcp-errors.js';
+import { MemoryExceededError } from '../code-mode/sandbox.js';
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -278,6 +279,27 @@ const result = await api.searchSymbols({
 			error: errorDetails,
 			formattedMessage:
 				error.message || 'Operation timed out - try a smaller request',
+		};
+	}
+
+	// Memory Exceeded Error (SB-156)
+	if (error instanceof MemoryExceededError) {
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEMORY_EXCEEDED,
+				type: 'MemoryExceededError',
+				message: error.message,
+				recoverable: true,
+				guidance: [
+					'Reduce the amount of data being processed',
+					'Use pagination (limit parameter) to process in smaller batches',
+					'Avoid creating large arrays or objects in loops',
+					'Break complex operations into smaller sequential steps',
+				],
+				context: baseContext,
+			},
+			formattedMessage: error.message,
 		};
 	}
 

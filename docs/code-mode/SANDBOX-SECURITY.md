@@ -56,11 +56,14 @@ All code runs in strict mode (`"use strict"`), which:
 
 ### 4. Resource Limits
 
-| Resource          | Default    | Purpose                    |
-| ----------------- | ---------- | -------------------------- |
-| Execution timeout | 30 seconds | Prevents infinite loops    |
-| Memory limit      | 128 MB     | Prevents memory exhaustion |
-| API call limit    | 50 calls   | Prevents API abuse         |
+| Resource          | Default    | Purpose                    | Enforcement        |
+| ----------------- | ---------- | -------------------------- | ------------------ |
+| Execution timeout | 30 seconds | Prevents infinite loops    | Hard (VM + race)   |
+| Memory limit      | 128 MB     | Prevents memory exhaustion | Best-effort (50ms) |
+| API call limit    | 50 calls   | Prevents API abuse         | Hard               |
+
+**Memory limit note**: Checked every 50ms via `process.memoryUsage()`. Rapid allocation
+can exceed the limit between checks. For hard memory limits, use container cgroup limits.
 
 ### 5. VM Context Isolation
 
@@ -89,6 +92,35 @@ Each execution creates a fresh VM context with isolated:
 | Side-channel attacks            | Timing attacks, resource probing possible |
 | Sophisticated escape techniques | vm module has known limitations           |
 | CPU exhaustion within timeout   | Can still use 100% CPU for 30s            |
+
+## Known Limitations
+
+### Memory Limit Enforcement (SB-156)
+
+The memory limit uses **best-effort periodic checking**, not a hard boundary:
+
+1. **Check interval**: Memory is sampled every 50ms. Code can allocate significant
+   memory between checks:
+
+   ```javascript
+   // Can allocate ~100-200MB before detection
+   while (true) arr.push(new Array(10000).fill('x'));
+   ```
+
+2. **Process-level measurement**: `process.memoryUsage().heapUsed` measures the
+   entire Node.js process heap, not just the sandbox. Background activity affects readings.
+
+3. **GC timing**: Memory may not be released immediately due to garbage collection timing.
+
+**For hard memory limits**, deploy with container/cgroup memory restrictions:
+
+```yaml
+# docker-compose.yml
+services:
+  mcp-server:
+    mem_limit: 256m
+    memswap_limit: 256m
+```
 
 ## Trust Assumptions
 
@@ -156,8 +188,9 @@ Key test categories:
 
 ## Version History
 
-| Version | Change                                               |
-| ------- | ---------------------------------------------------- |
-| SB-102  | Added prototype freezing and strict mode enforcement |
-| SB-85   | Fixed async timeout bypass                           |
-| SB-84   | Added console serialization error handling           |
+| Version | Change                                                     |
+| ------- | ---------------------------------------------------------- |
+| SB-156  | Added best-effort memory limit enforcement (50ms interval) |
+| SB-102  | Added prototype freezing and strict mode enforcement       |
+| SB-85   | Fixed async timeout bypass                                 |
+| SB-84   | Added console serialization error handling                 |

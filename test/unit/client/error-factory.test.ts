@@ -8,6 +8,7 @@ import {
 	ConfigurationError,
 	TimeoutError,
 } from '../../../src/client/constellation-client.js';
+import { MemoryExceededError } from '../../../src/code-mode/sandbox.js';
 import { ErrorCode } from '../../../src/types/mcp-errors.js';
 import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
@@ -209,6 +210,38 @@ describe('createStructuredError', () => {
 			const result = createStructuredError(error, 'get_call_graph');
 
 			expect(result.error.recoverable).toBe(true);
+		});
+	});
+
+	describe('MemoryExceededError handling', () => {
+		it('should create structured error with MEMORY_EXCEEDED code', () => {
+			const error = new MemoryExceededError(150.5, 128);
+			const result = createStructuredError(error, 'execute');
+
+			expect(result.success).toBe(false);
+			expect(result.error.code).toBe(ErrorCode.MEMORY_EXCEEDED);
+			expect(result.error.type).toBe('MemoryExceededError');
+			expect(result.error.recoverable).toBe(true);
+		});
+
+		it('should include memory values in message', () => {
+			const error = new MemoryExceededError(150.5, 128);
+			const result = createStructuredError(error, 'execute');
+
+			expect(result.error.message).toContain('150.5');
+			expect(result.error.message).toContain('128');
+		});
+
+		it('should provide actionable guidance', () => {
+			const error = new MemoryExceededError(200, 128);
+			const result = createStructuredError(error, 'execute');
+
+			expect(result.error.guidance.length).toBeGreaterThan(0);
+			expect(
+				result.error.guidance.some(
+					(g) => g.includes('pagination') || g.includes('limit'),
+				),
+			).toBe(true);
 		});
 	});
 

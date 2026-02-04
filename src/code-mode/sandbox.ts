@@ -37,6 +37,7 @@ import {
 	DEFAULT_MAX_API_CALLS,
 	PARAM_SUMMARY_MAX_LENGTH,
 	MAX_CONSOLE_OBJECT_SIZE,
+	MEMORY_CHECK_INTERVAL_MS,
 } from '../constants/index.js';
 
 // Import API types from shared package - single source of truth
@@ -63,6 +64,22 @@ import type {
 	GetArchitectureOverviewResult,
 	PingResult,
 } from '@constellationdev/types';
+
+/**
+ * Error thrown when memory limit is exceeded during sandbox execution.
+ * This is a best-effort detection - rapid allocation may bypass the check interval.
+ */
+export class MemoryExceededError extends Error {
+	constructor(
+		public readonly usedMB: number,
+		public readonly limitMB: number,
+	) {
+		super(
+			`Memory limit exceeded: ${usedMB.toFixed(1)}MB used, limit is ${limitMB}MB`,
+		);
+		this.name = 'MemoryExceededError';
+	}
+}
 
 /**
  * Method metadata for listMethods() response.
@@ -178,7 +195,9 @@ export interface SandboxOptions {
 	timeout?: number;
 
 	/**
-	 * Memory limit in MB (reserved for future enhancement).
+	 * Memory limit in MB for sandbox execution.
+	 * Enforced via periodic heap checking (best-effort - rapid allocation may exceed
+	 * the limit between checks). For hard limits, use container memory limits.
 	 * @default 128
 	 */
 	memoryLimit?: number;
@@ -316,11 +335,12 @@ export class CodeModeSandbox {
 			logs.push(...validation.warnings.map((w) => `[WARN] ${w}`));
 		}
 
-		// FIX: Declare timeoutHandle outside try block so it can be cleaned up in all paths
+		// Declare handles outside try block for cleanup
 		const timeoutMs = this.options.timeout;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-		// FIX: Guard flag to prevent double rejection when both VM timeout and Promise timeout fire
-		let hasTimedOut = false;
+		let memoryCheckHandle: ReturnType<typeof setInterval> | undefined;
+		// Guard flag to prevent double rejection (covers timeout and memory exceeded)
+		let hasTerminated = false;
 
 		// Shared mutable state for capturing data from sandbox execution
 		const executionState = {
@@ -356,12 +376,25 @@ export class CodeModeSandbox {
 			// Use Promise.race() to enforce timeout on the entire async execution.
 			const timeoutPromise = new Promise<never>((_, reject) => {
 				timeoutHandle = setTimeout(() => {
-					// FIX: Only reject if not already handled (prevents double rejection)
-					if (!hasTimedOut) {
-						hasTimedOut = true;
+					// Only reject if not already handled (prevents double rejection)
+					if (!hasTerminated) {
+						hasTerminated = true;
 						reject(new Error('Script execution timed out'));
 					}
 				}, timeoutMs);
+			});
+
+			// Memory limit enforcement - best-effort periodic checking (SB-156)
+			const memoryLimitBytes = this.options.memoryLimit * 1024 * 1024;
+			const memoryCheckPromise = new Promise<never>((_, reject) => {
+				memoryCheckHandle = setInterval(() => {
+					const heapUsed = process.memoryUsage().heapUsed;
+					if (heapUsed > memoryLimitBytes && !hasTerminated) {
+						hasTerminated = true;
+						const usedMB = heapUsed / (1024 * 1024);
+						reject(new MemoryExceededError(usedMB, this.options.memoryLimit));
+					}
+				}, MEMORY_CHECK_INTERVAL_MS);
 			});
 
 			// Run script with VM timeout (catches sync hangs) and race with timeout Promise (catches async hangs)
@@ -371,10 +404,11 @@ export class CodeModeSandbox {
 				breakOnSigint: process.platform !== 'win32',
 			});
 
-			// Race the script result (which may be a Promise) against the timeout
+			// Race script against timeout AND memory check
 			const result = await Promise.race([
 				Promise.resolve(scriptResult),
 				timeoutPromise,
+				memoryCheckPromise,
 			]);
 
 			return {
@@ -387,8 +421,8 @@ export class CodeModeSandbox {
 				resultContext: executionState.resultContext ?? undefined,
 			};
 		} catch (error) {
-			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
-			hasTimedOut = true;
+			// Mark as handled to prevent any pending timeout/memory callbacks from firing
+			hasTerminated = true;
 
 			// Create structured error to preserve error type information
 			// Pass configContext for accurate project/branch info in multi-project scenarios
@@ -406,14 +440,18 @@ export class CodeModeSandbox {
 				executionTime: Date.now() - startTime,
 			};
 		} finally {
-			// FIX: Mark as handled to prevent any pending timeout callbacks from firing
-			hasTimedOut = true;
+			// Mark as handled to prevent any pending timeout/memory callbacks from firing
+			hasTerminated = true;
 
-			// FIX: Clean up timeout in ALL paths (success, VM timeout error, or other errors)
+			// Clean up timeout in ALL paths (success, VM timeout error, or other errors)
 			// This prevents unhandled promise rejections when VM's internal timeout fires
 			// before the Promise-based timeout, leaving the setTimeout dangling
 			if (timeoutHandle) {
 				clearTimeout(timeoutHandle);
+			}
+			// Clean up memory check interval (SB-156)
+			if (memoryCheckHandle) {
+				clearInterval(memoryCheckHandle);
 			}
 		}
 	}
@@ -920,6 +958,9 @@ ${transformed}
 		if (error instanceof Error) {
 			if (error.message.includes('Script execution timed out')) {
 				return `Execution timeout: Code took longer than ${this.options.timeout}ms to execute`;
+			}
+			if (error instanceof MemoryExceededError) {
+				return error.message; // Already formatted nicely
 			}
 			return error.message;
 		}
