@@ -1,7 +1,7 @@
 [mcp_servers.constellation]
 command = "mcp-constellation"
 enabled = true
-enabled_tools = [ "query_code_graph" ]
+enabled_tools = [ "code_intel" ]
 
   [mcp_servers.constellation.env]
   CONSTELLATION_ACCESS_KEY = "$CONSTELLATION_ACCESS_KEY"

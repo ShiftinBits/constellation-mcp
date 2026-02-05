@@ -38,7 +38,7 @@
 		"constellation": {
 			"type": "stdio",
 			"command": "mcp-constellation",
-			"tools": ["query_code_graph"]
+			"tools": ["code_intel"]
 		}
 	}
 }

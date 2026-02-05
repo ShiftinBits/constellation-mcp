@@ -1,7 +1,7 @@
 /**
  * Query Code Graph Tool Registration
  *
- * Registers the query_code_graph tool with the MCP server.
+ * Registers the code_intel tool with the MCP server.
  * This is the only tool in Code Mode, providing access to all Constellation API capabilities
  * through JavaScript code execution.
  *
@@ -109,7 +109,7 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 			'NO_CONFIG',
 			[
 				'Provide cwd parameter with the path to your project',
-				'Example: query_code_graph({ code: "...", cwd: "/path/to/project" })',
+				'Example: code_intel({ code: "...", cwd: "/path/to/project" })',
 				'Run the MCP server from within a git repository with constellation.json',
 			],
 		);
@@ -119,24 +119,21 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 }
 
 /**
- * Register the query_code_graph tool with the MCP server
+ * Register the code_intel tool with the MCP server
  *
  * @param server - The McpServer instance to register the tool with
  */
 export function registerQueryCodeGraphTool(server: McpServer): void {
 	server.registerTool(
-		'query_code_graph',
+		'code_intel',
 		{
-			title: 'Query Code Intelligence',
+			title: 'Code Intelligence',
 			description:
-				'DECISION RULE:\n' +
-				'• query_code_graph: definitions, callers/callees, dependencies, dependents, impact analysis, dead code, architecture\n' +
-				'• Grep: literal strings, log messages, config values, env vars\n' +
-				'• Glob: find files by name/pattern\n' +
-				'• Read: view source code content\n\n' +
+				'DECISION RULE: Structure questions → this tool. Text search → Grep.\n\n' +
+				'Before using Grep, ask: Is this a STRUCTURE question (definitions, callers, impact) or a TEXT question (strings, config)?\n\n' +
 				'Query codebase structure and relationships via AST-based code intelligence graph. ' +
 				'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks.\n\n' +
-				'TOP 5 QUESTIONS:\n' +
+				'TOP 5 QUESTIONS (query is case-insensitive substring match):\n' +
 				'• "Where is X defined?" / "Find function Y" → searchSymbols({query})\n' +
 				'• "What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})\n' +
 				'• "What does X depend on?" → getDependencies({filePath})\n' +
@@ -148,8 +145,9 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• Planning a refactor — trace dependencies and dependents\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
 				'QUICK START: const {symbols} = await api.searchSymbols({query: "AuthService"}); return symbols[0];\n\n' +
-				'PERFORMANCE: Queries return in <200ms. One query_code_graph call replaces 3-5 Grep/Glob calls for structural questions—fewer round-trips, complete results.\n\n' +
-				'Errors return structured JSON with `guidance[]` for recovery. Optionally run `api.getCapabilities()` to check indexing status.',
+				'PERFORMANCE: Queries return in <200ms. One code_intel call replaces 3-5 Grep/Glob calls for structural questions—fewer round-trips, complete results.\n\n' +
+				'EMPTY RESULTS? Check `resultContext.reason` — "no_matches" (broaden query) vs "branch_not_indexed" (run `constellation index`).\n\n' +
+				'Errors return structured JSON with `guidance[]` for recovery. First-time? Run `api.getCapabilities()` to verify indexing.',
 			inputSchema: {
 				code: z
 					.string()
@@ -203,9 +201,9 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 			},
 		},
 		async ({ code, timeout, cwd }) => {
-			console.error('[query_code_graph] Executing code mode script');
+			console.error('[code_intel] Executing code mode script');
 			if (cwd) {
-				console.error(`[query_code_graph] Using cwd: ${cwd}`);
+				console.error(`[code_intel] Using cwd: ${cwd}`);
 			}
 
 			// Resolve configuration context
@@ -213,13 +211,10 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 			try {
 				configContext = await resolveConfigContext(cwd);
 			} catch (error) {
-				console.error('[query_code_graph] Config resolution failed:', error);
+				console.error('[code_intel] Config resolution failed:', error);
 
 				// Create structured error for config resolution failures
-				const structuredError = createStructuredError(
-					error,
-					'query_code_graph',
-				);
+				const structuredError = createStructuredError(error, 'code_intel');
 
 				return {
 					content: [
@@ -236,13 +231,13 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				// Check for configuration errors (e.g., missing constellation.json)
 				if (configContext.initializationError) {
 					console.error(
-						'[query_code_graph] Configuration error detected, returning setup instructions',
+						'[code_intel] Configuration error detected, returning setup instructions',
 					);
 
 					// Create structured error for configuration issues
 					const structuredError = createStructuredError(
 						new ConfigurationError(configContext.initializationError),
-						'query_code_graph',
+						'code_intel',
 						configContext,
 					);
 
@@ -260,7 +255,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				// FIX SB-87: Validate code size to prevent DoS attacks
 				if (code.length > MAX_CODE_SIZE) {
 					console.error(
-						`[query_code_graph] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
+						`[code_intel] Code too large: ${code.length} bytes (max ${MAX_CODE_SIZE})`,
 					);
 					const error = new ValidationError(
 						`Code size (${code.length} bytes) exceeds maximum allowed (${MAX_CODE_SIZE} bytes / 100KB)`,
@@ -276,7 +271,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					);
 					const structuredError = createStructuredError(
 						error,
-						'query_code_graph',
+						'code_intel',
 						configContext,
 					);
 					return {
@@ -292,9 +287,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 
 				// FIX SB-87: Check for binary/control characters
 				if (BINARY_CHAR_PATTERN.test(code)) {
-					console.error(
-						'[query_code_graph] Code contains invalid binary characters',
-					);
+					console.error('[code_intel] Code contains invalid binary characters');
 					const error = new ValidationError(
 						'Code contains invalid binary or control characters',
 						{
@@ -308,7 +301,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					);
 					const structuredError = createStructuredError(
 						error,
-						'query_code_graph',
+						'code_intel',
 						configContext,
 					);
 					return {
@@ -338,9 +331,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 
 				// Check if response contains a structured error (from API/sandbox)
 				if (response.structuredError) {
-					console.error(
-						'[query_code_graph] Execution returned structured error',
-					);
+					console.error('[code_intel] Execution returned structured error');
 
 					return {
 						content: [
@@ -356,7 +347,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				// Format the result for successful execution
 				const formatted = runtime.formatResult(response);
 
-				console.error('[query_code_graph] Execution successful');
+				console.error('[code_intel] Execution successful');
 
 				// Return both text and structured content (schema-compliant)
 				return {
@@ -369,12 +360,12 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					structuredContent: toSchemaCompliantOutput(response),
 				};
 			} catch (error) {
-				console.error('[query_code_graph] Execution error:', error);
+				console.error('[code_intel] Execution error:', error);
 
 				// Create structured error for unexpected errors
 				const structuredError = createStructuredError(
 					error,
-					'query_code_graph',
+					'code_intel',
 					configContext,
 				);
 
@@ -391,5 +382,5 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 		},
 	);
 
-	console.error('[query_code_graph] Tool registered successfully');
+	console.error('[code_intel] Tool registered successfully');
 }

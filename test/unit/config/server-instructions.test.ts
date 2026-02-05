@@ -5,7 +5,7 @@
  * usage guidance to AI assistants about Constellation Code Mode.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { getServerInstructions } from '../../../src/config/server-instructions.js';
 
 describe('server-instructions', () => {
@@ -21,9 +21,9 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('# Constellation Code Mode');
 		});
 
-		it('should reference query_code_graph tool and api object', () => {
+		it('should reference code_intel tool and api object', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('query_code_graph');
+			expect(instructions).toContain('code_intel');
 			expect(instructions).toContain('api');
 		});
 
@@ -113,14 +113,14 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('getCapabilities()');
 		});
 
-		it('should include pre-flight guidance with graceful fallback', () => {
+		it('should include first-time guidance with graceful fallback', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('pre-flight');
+			expect(instructions).toContain('First-time?');
 			expect(instructions).toContain('getCapabilities()');
 			expect(instructions).toContain('guidance[]');
 		});
 
-		it('should include getCapabilities() pre-flight guidance in IMPORTANT block', () => {
+		it('should include getCapabilities() first-time guidance in IMPORTANT block', () => {
 			const instructions = getServerInstructions();
 			const importantMatch = instructions.match(
 				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
@@ -128,8 +128,7 @@ describe('server-instructions', () => {
 			expect(importantMatch).not.toBeNull();
 			const importantBlock = importantMatch![1];
 			expect(importantBlock).toContain('api.getCapabilities()');
-			// Changed: no longer requires "once per session"
-			expect(importantBlock).toContain('pre-flight');
+			expect(importantBlock).toContain('First-time?');
 		});
 
 		it('should include chained workflow example with Promise.all', () => {
@@ -221,10 +220,10 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('| Search for a literal string | Grep |');
 		});
 
-		it('should be concise (under 9500 chars)', () => {
+		it('should be concise (under 10500 chars)', () => {
 			const instructions = getServerInstructions();
-			// Raised to 9500 to accommodate Which Method, Empty Results, and presentation improvements.
-			expect(instructions.length).toBeLessThan(9500);
+			// Raised to 10500 to accommodate workflow templates and JS justification section.
+			expect(instructions.length).toBeLessThan(10500);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 

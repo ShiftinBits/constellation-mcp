@@ -6,7 +6,7 @@ This document defines a structured procedure for collecting tool design feedback
 
 ## Purpose
 
-The Constellation MCP server exposes a single `query_code_graph` tool designed for LLM consumption. To validate that the tool's name, description, activation triggers, and instructions effectively encourage proactive and appropriate use, we collect structured feedback from multiple AI CLI tools and compare their perspectives.
+The Constellation MCP server exposes a single `code_intel` tool designed for LLM consumption. To validate that the tool's name, description, activation triggers, and instructions effectively encourage proactive and appropriate use, we collect structured feedback from multiple AI CLI tools and compare their perspectives.
 
 **Goals:**
 
@@ -111,7 +111,7 @@ After collecting all responses, synthesize them into a single consolidated repor
 
 For each of the 7 feedback questions, compare what all 5 tools said:
 
-1. **Tool Selection** — Would they choose `query_code_graph` over Grep/Glob? What would make them more likely to?
+1. **Tool Selection** — Would they choose `code_intel` over Grep/Glob? What would make them more likely to?
 2. **Activation Triggers** — Are the 6 "USE THIS TOOL WHEN" categories clear? Any missing scenarios?
 3. **Proactive Usage Directive** — Does the `<IMPORTANT>` block influence behavior? Too strong or too weak?
 4. **Instructions Clarity** — Are the server instructions sufficient for first-use success?

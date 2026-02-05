@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { createStructuredError } from '../../../src/client/error-factory.js';
 import {
 	AuthenticationError,
 	AuthorizationError,
-	NotFoundError,
-	ToolNotFoundError,
 	ConfigurationError,
+	NotFoundError,
 	TimeoutError,
+	ToolNotFoundError,
 } from '../../../src/client/constellation-client.js';
+import { createStructuredError } from '../../../src/client/error-factory.js';
 import { MemoryExceededError } from '../../../src/code-mode/sandbox.js';
 import { ErrorCode } from '../../../src/types/mcp-errors.js';
-import { mapErrorToMessage } from '../../../src/client/error-mapper.js';
 
 // Mock config cache - include apiKey to simulate authenticated state
 jest.mock('../../../src/config/config-cache.js', () => ({
@@ -126,7 +125,7 @@ describe('createStructuredError', () => {
 	describe('ConfigurationError', () => {
 		it('should return NOT_CONFIGURED code', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'query_code_graph');
+			const result = createStructuredError(error, 'code_intel');
 
 			expect(result.success).toBe(false);
 			expect(result.error.code).toBe(ErrorCode.NOT_CONFIGURED);
@@ -135,14 +134,14 @@ describe('createStructuredError', () => {
 
 		it('should be recoverable', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'query_code_graph');
+			const result = createStructuredError(error, 'code_intel');
 
 			expect(result.error.recoverable).toBe(true);
 		});
 
 		it('should include init guidance', () => {
 			const error = new ConfigurationError('constellation.json not found');
-			const result = createStructuredError(error, 'query_code_graph');
+			const result = createStructuredError(error, 'code_intel');
 
 			expect(
 				result.error.guidance.some((g) => g.includes('constellation init')),

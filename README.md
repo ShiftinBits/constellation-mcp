@@ -6,7 +6,7 @@ Give your AI coding assistant instant, intelligent access to your entire codebas
 
 ## Quick Start
 
-[![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](vscode:mcp/install?%7B%22name%22%3A%22constellation%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%40latest%22%5D%2C%22tools%22%3A%5B%22query_code_graph%22%5D%2C%22env%22%3A%7B%22CONSTELLATION_ACCESS_KEY%22%3A%22CONSTELLATION_ACCESS_KEY%22%7D%7D) [![Add to Cursor](https://img.shields.io/badge/add%20to-Cursor-black.svg?logo=cursor)](https://cursor.com/en-US/install-mcp?name=constellation&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb25zdGVsbGF0aW9uZGV2L21jcEBsYXRlc3QifQ%3D%3D)
+[![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](vscode:mcp/install?%7B%22name%22%3A%22constellation%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%40latest%22%5D%2C%22tools%22%3A%5B%22code_intel%22%5D%2C%22env%22%3A%7B%22CONSTELLATION_ACCESS_KEY%22%3A%22CONSTELLATION_ACCESS_KEY%22%7D%7D) [![Add to Cursor](https://img.shields.io/badge/add%20to-Cursor-black.svg?logo=cursor)](https://cursor.com/en-US/install-mcp?name=constellation&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb25zdGVsbGF0aW9uZGV2L21jcEBsYXRlc3QifQ%3D%3D)
 
 Add the Constellation MCP server to your AI assistant project-level config (or system-level if your tooling doesn't support project-level configuration):
 

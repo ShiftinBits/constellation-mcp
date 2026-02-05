@@ -8,6 +8,6 @@
 cat << 'CONSTELLATION_EOF'
 {
   "cancel": false,
-  "contextModification": "You have Constellation access. `query_code_graph` is your PRIMARY tool for understanding this codebase—not an alternative, not a fallback, THE DEFAULT.\n\nMental model:\n- \"Where is X defined?\" → query_code_graph\n- \"What uses X?\" → query_code_graph\n- \"What would break?\" → query_code_graph\n- \"Find the string 'ERROR_CODE_123'\" → Grep\n\nGrep is for literal text. Everything else starts with query_code_graph."
+  "contextModification": "You have Constellation access. `code_intel` is your PRIMARY tool for understanding this codebase—not an alternative, not a fallback, THE DEFAULT.\n\nMental model:\n- \"Where is X defined?\" → code_intel\n- \"What uses X?\" → code_intel\n- \"What would break?\" → code_intel\n- \"Find the string 'ERROR_CODE_123'\" → Grep\n\nGrep is for literal text. Everything else starts with code_intel."
 }
 CONSTELLATION_EOF

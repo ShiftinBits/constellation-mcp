@@ -2,7 +2,7 @@
 
 ## A Revolutionary Approach to MCP
 
-This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `query_code_graph`. The AI writes TypeScript code to interact with the Constellation API.
+This is a **Code Mode-only** MCP server. Instead of providing multiple tools that the AI calls sequentially, we provide just ONE powerful tool: `code_intel`. The AI writes TypeScript code to interact with the Constellation API.
 
 ## Why Code Mode Only?
 
@@ -86,7 +86,7 @@ All 10 Constellation tools are available as API methods through the `api` object
 // Find all exported functions
 const functions = await api.searchSymbols({
 	filterByKind: ['function'],
-	filterByExported: true,
+	isExported: true,
 });
 return functions.symbols.map((f) => f.name);
 ```
@@ -96,7 +96,7 @@ return functions.symbols.map((f) => f.name);
 ```typescript
 // Find all exported symbols
 const symbols = await api.searchSymbols({
-	filterByExported: true,
+	isExported: true,
 	limit: 100,
 });
 

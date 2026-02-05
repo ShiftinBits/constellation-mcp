@@ -22,10 +22,10 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 ## Architecture
 
 ```
-AI Assistant → MCP (stdio) → query_code_graph → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
+AI Assistant → MCP (stdio) → code_intel → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-**Single tool design**: One `query_code_graph` tool executes JavaScript with `api` object providing 13 methods (10 API + ping + getCapabilities + listMethods).
+**Single tool design**: One `code_intel` tool executes JavaScript with `api` object providing 13 methods (10 API + ping + getCapabilities + listMethods).
 
 **Layer stack**:
 
@@ -124,8 +124,6 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 `src/types/api-types.d.ts` re-exports from the shared package for import convenience.
 
 **Adding types**: Add to `constellation-types/src/`, not locally. See `../CLAUDE.md` Section 3.
-
-**Parameter transformation** (in `sandbox.ts`): MCP `isExported` → Core `filterByExported` (search_symbols only).
 
 ## Error Handling
 

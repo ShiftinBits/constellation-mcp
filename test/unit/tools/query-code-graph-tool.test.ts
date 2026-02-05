@@ -88,24 +88,27 @@ describe('registerQueryCodeGraphTool', () => {
 	});
 
 	describe('tool registration', () => {
-		it('should register query_code_graph tool with server', () => {
+		it('should register code_intel tool with server', () => {
 			expect(mockServer.registerTool).toHaveBeenCalledWith(
-				'query_code_graph',
+				'code_intel',
 				expect.objectContaining({
-					title: expect.stringContaining('Query Code Intelligence'),
+					title: expect.stringContaining('Code Intelligence'),
 					description: expect.stringMatching(/^DECISION RULE:/),
 				}),
 				expect.any(Function),
 			);
 		});
 
-		it('should include expanded decision-rule classification in tool description', () => {
+		it('should include decision-rule classification in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('query_code_graph: definitions');
-			expect(config.description).toContain('Grep: literal strings');
-			expect(config.description).toContain('Glob: find files');
-			expect(config.description).toContain('Read: view source code');
+			// Pattern interrupt question
+			expect(config.description).toContain('Is this a STRUCTURE question');
+			expect(config.description).toContain('TEXT question');
+			// NOT FOR section clarifies what to use other tools for
+			expect(config.description).toContain('NOT FOR:');
+			expect(config.description).toContain('literal string search');
+			expect(config.description).toContain('Grep/Glob/Read');
 		});
 
 		it('should include proactive internal-reasoning triggers in tool description', () => {

@@ -1,7 +1,7 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import { registerQueryCodeGraphTool } from '../../src/tools/query-code-graph-tool.js';
 
-describe('query_code_graph ping smoke test', () => {
+describe('code_intel ping smoke test', () => {
 	it('returns pong from simple code execution', async () => {
 		// Minimal mock MCP server to capture the registered handler
 		let handler: any;

@@ -7,6 +7,6 @@
 
 cat << 'CONSTELLATION_EOF'
 {
-  "systemMessage": "Preserve: (1) The instruction that query_code_graph is the PRIMARY tool for code understanding—Grep is only for literal text, (2) Any architectural insights, dependency relationships, or impact analysis results discovered via Constellation."
+  "systemMessage": "Preserve: (1) The instruction that code_intel is the PRIMARY tool for code understanding—Grep is only for literal text, (2) Any architectural insights, dependency relationships, or impact analysis results discovered via Constellation."
 }
 CONSTELLATION_EOF

@@ -19,7 +19,7 @@ export const METHOD_SUMMARIES: Record<string, string> = {
 interface SearchSymbolsParams {
   query: string;                        // Name or pattern to search
   filterByKind?: SymbolKindCategory[];  // e.g., ['function', 'class', 'interface', 'variable']
-  filterByExported?: boolean;           // Only exported symbols
+  isExported?: boolean;                 // Only exported symbols
   limit?: number;                       // Max results (default: 50)
   offset?: number;                      // Pagination offset
   includeUsageCount?: boolean;          // Include usage count per symbol

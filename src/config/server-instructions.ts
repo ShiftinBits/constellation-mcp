@@ -16,28 +16,39 @@
 export function getServerInstructions(): string {
 	return `
 <IMPORTANT>
-The \`query_code_graph\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`query_code_graph\`, not Grep/Glob/Read.
+The \`code_intel\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`code_intel\`, not Grep/Glob/Read.
 
-Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`query_code_graph\` instead—it answers structural questions in one call that would take multiple text searches, and captures indirect references Grep misses.
+Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`code_intel\` instead—it answers structural questions in one call that would take multiple text searches, and captures indirect references Grep misses.
 
-Use \`query_code_graph\` for: symbols, definitions, dependencies, usage, impact, architecture
+When your instinct says "I'll just grep for this", pause—if you're looking for structure (definitions, callers, dependencies), code_intel is faster and finds indirect relationships Grep misses.
+
+Use \`code_intel\` for: symbols, definitions, dependencies, usage, impact, architecture
 Use Grep/Glob for: literal strings, log messages, config values, file patterns
 
-Optional pre-flight: \`await api.getCapabilities()\` checks auth + indexing status. If you skip it, errors self-recover with \`guidance[]\`.
+First-time? Run \`await api.getCapabilities()\` to check auth + indexing status. If you skip it, errors self-recover with \`guidance[]\`.
 
 | Task | Best Tool |
 |------|-----------|
-| Find where X is defined | query_code_graph |
-| What calls function X? | query_code_graph |
-| What breaks if I change X? | query_code_graph |
-| Dependencies of a file | query_code_graph |
-| Find dead/unused code | query_code_graph |
+| Find where X is defined | code_intel |
+| What calls function X? | code_intel |
+| What breaks if I change X? | code_intel |
+| Dependencies of a file | code_intel |
+| Find dead/unused code | code_intel |
+| New to this codebase? | code_intel (getArchitectureOverview) |
+| How does this code flow? | code_intel (getCallGraph) |
+| What changed that could cause this bug? | code_intel (trace callers) |
 | Search for a literal string | Grep |
 | Find config values or env vars | Grep |
 | Read/view source code | Read |
 | Find files by name pattern | Glob |
 
-Typical workflow: query_code_graph to find → Read to view source → Edit to modify
+DON'T use code_intel for:
+- Searching for literal strings (error messages, log text) → Grep
+- Finding task comments or annotations → Grep
+- Looking up environment variables or config values → Grep
+- Listing files by name pattern → Glob
+
+Typical workflow: code_intel to find → Read to view source → Edit to modify
 </IMPORTANT>
 
 # Constellation Code Mode
@@ -58,6 +69,11 @@ const [impact, deps] = await Promise.all([
 ]);
 return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
+
+## Top 3 Workflow
+1. \`searchSymbols({query})\` → find symbol → get \`id\`
+2. \`impactAnalysis({symbolId})\` → change risk
+3. \`getDependents({filePath})\` → what uses this
 
 ## Which Method?
 | Question | Call |
@@ -102,10 +118,18 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 
 *Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
 
-## Top 3 Workflow
-1. \`searchSymbols({query})\` → find symbol → get \`id\`
-2. \`impactAnalysis({symbolId})\` → change risk
-3. \`getDependents({filePath})\` → what uses this
+## Why JavaScript?
+
+This tool uses a JavaScript \`code\` parameter instead of structured parameters. This is intentional:
+
+**The JS interface does in ONE call what would take 3-5 back-and-forth tool calls.**
+
+Think of it as a tiny, safe "scratchpad":
+- Start simple: \`return await api.searchSymbols({query: "Auth"})\`
+- Add complexity only when needed: \`Promise.all()\` for parallel queries
+- Chain operations: search → get symbolId → run impactAnalysis
+
+The intimidation is optional. Simple queries are one-liners.
 
 ---
 
@@ -153,6 +177,35 @@ const orphans = await api.findOrphanedCode();
 return orphans.orphanedSymbols?.map(s => \`\${s.kind} \${s.name} in \${s.filePath}\`);
 \`\`\`
 
+### "PR Blast Radius" Workflow
+\`\`\`javascript
+// Assess impact of changes in a PR or multi-file edit
+const changedSymbols = ["updateUser", "validateInput", "AuthService"];
+const impacts = await Promise.all(
+  changedSymbols.map(name =>
+    api.searchSymbols({ query: name }).then(r =>
+      r.symbols[0] ? api.impactAnalysis({ symbolId: r.symbols[0].id }) : null
+    )
+  )
+);
+return impacts.filter(Boolean).map(i => ({
+  symbol: i.symbol?.name,
+  risk: i.breakingChangeRisk?.riskLevel
+}));
+\`\`\`
+
+### "Onboarding Quick Start" Workflow
+\`\`\`javascript
+// First 60 seconds in an unfamiliar codebase
+const arch = await api.getArchitectureOverview();
+const entryPoints = await api.searchSymbols({ query: "main" });
+return {
+  structure: arch.structure,
+  languages: arch.metadata?.languages,
+  entryPoints: entryPoints.symbols?.slice(0, 5)
+};
+\`\`\`
+
 ## Recovery Patterns
 Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alternativeApproach?, recoverable}}\`
 - **Read \`guidance[]\` first** — contains exact recovery steps
@@ -166,7 +219,7 @@ Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDE
 Default: Uses git root of the MCP server's startup directory. In monorepos with multiple \`constellation.json\` files, provide \`cwd\`:
 \`\`\`javascript
 // Tool call with cwd parameter
-query_code_graph({ code: 'return await api.searchSymbols({query:"User"})', cwd: "/path/to/project" })
+code_intel({ code: 'return await api.searchSymbols({query:"User"})', cwd: "/path/to/project" })
 \`\`\`
 `.trim();
 }
