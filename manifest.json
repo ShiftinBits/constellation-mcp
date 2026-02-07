@@ -1,6 +1,6 @@
 {
 	"manifest_version": "0.2",
-	"name": "@constellationdev/mcp",
+	"name": "constellation",
 	"display_name": "Constellation",
 	"version": "1.0.0",
 	"description": "Code Intelligence Tools for AI Coding Assistants",
