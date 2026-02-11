@@ -147,6 +147,16 @@ describe('createStructuredError', () => {
 				result.error.guidance.some((g) => g.includes('constellation init')),
 			).toBe(true);
 		});
+
+		it('should include cwd guidance with example path', () => {
+			const error = new ConfigurationError('constellation.json not found');
+			const result = createStructuredError(error, 'code_intel');
+
+			expect(result.error.guidance.some((g) => g.includes('cwd'))).toBe(true);
+			expect(
+				result.error.guidance.some((g) => g.includes('/path/to/project')),
+			).toBe(true);
+		});
 	});
 
 	describe('ToolNotFoundError', () => {

@@ -73,10 +73,10 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('constellation://types/api');
 		});
 
-		it('should include multi-project workspace guidance', () => {
+		it('should include cwd requirement guidance', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('cwd');
-			expect(instructions).toContain('monorepo');
+			expect(instructions).toContain('Required');
 		});
 
 		it('should return trimmed output without leading/trailing whitespace', () => {
@@ -199,9 +199,10 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('substring');
 		});
 
-		it('should clarify cwd default behavior', () => {
+		it('should clarify cwd requirement and project directory', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('Default:');
+			expect(instructions).toContain('Project Directory');
+			expect(instructions).toContain('Required');
 			expect(instructions).toContain('git root');
 		});
 
@@ -255,6 +256,16 @@ describe('server-instructions', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('limit: 10');
 			expect(instructions).toContain('limit: 50');
+		});
+
+		it('should include cwd requirement in rules section', () => {
+			const instructions = getServerInstructions();
+			const rulesSection = instructions.substring(
+				instructions.indexOf('## Rules'),
+				instructions.indexOf('## Why JavaScript?'),
+			);
+			expect(rulesSection).toContain('cwd');
+			expect(rulesSection).toContain('Required');
 		});
 
 		it('should document isExported parameter in method reference', () => {

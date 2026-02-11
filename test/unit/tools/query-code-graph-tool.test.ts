@@ -171,12 +171,20 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.description).toContain('Planning a refactor');
 		});
 
-		it('should register with correct input schema', () => {
+		it('should include cwd requirement in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('cwd');
+			expect(config.description).toContain('required');
+		});
+
+		it('should register with correct input schema including required cwd', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 
 			expect(config.inputSchema.code).toBeDefined();
 			expect(config.inputSchema.timeout).toBeDefined();
+			expect(config.inputSchema.cwd).toBeDefined();
 		});
 
 		it('should register with correct output schema', () => {

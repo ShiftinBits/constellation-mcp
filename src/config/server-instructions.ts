@@ -56,6 +56,8 @@ Typical workflow: code_intel to find → Read to view source → Edit to modify
 Write JavaScript with the \`api\` object to query the code intelligence graph.
 
 ## Quick Start
+**Required:** Always set \`cwd\` to the target project directory path.
+
 \`\`\`javascript
 // Simple lookup
 const result = await api.searchSymbols({ query: "UserService" });
@@ -115,6 +117,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays with \`resultContext.reason\` ("no_matches" or "branch_not_indexed"). Read \`guidance[]\` for recovery. If empty, try a broader query before falling back to Grep.
 6. **Performance** — Queries typically return in <200ms
 7. **Limits** — Good defaults: \`limit: 10\` (search), \`limit: 50\` (dead code). Impact analysis needs no limit.
+8. **Provide \`cwd\`** — Required. Set to the target project directory path for correct config resolution.
 
 *Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
 
@@ -215,10 +218,9 @@ Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alte
 
 Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term
 
-## Multi-Project Workspaces
-Default: Uses git root of the MCP server's startup directory. In monorepos with multiple \`constellation.json\` files, provide \`cwd\`:
+## Project Directory (\`cwd\`) — Required
+Set \`cwd\` to the absolute path of the project directory. Locates \`constellation.json\` via git root.
 \`\`\`javascript
-// Tool call with cwd parameter
 code_intel({ code: 'return await api.searchSymbols({query:"User"})', cwd: "/path/to/project" })
 \`\`\`
 `.trim();

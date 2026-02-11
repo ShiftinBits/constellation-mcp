@@ -100,17 +100,16 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 		return configCache.getConfigForPath(cwd);
 	}
 
-	// Fall back to default config
+	// Safety fallback — cwd is required by schema, but defend in depth
 	const defaultConfig = configCache.getDefaultConfig();
 	if (!defaultConfig) {
 		throw new ConfigCacheError(
-			'No project context available. ' +
-				'Provide the "cwd" parameter with your working directory to specify which project to query.',
+			'No project context available. The required `cwd` parameter was not provided.',
 			'NO_CONFIG',
 			[
-				'Provide cwd parameter with the path to your project',
-				'Example: code_intel({ code: "...", cwd: "/path/to/project" })',
-				'Run the MCP server from within a git repository with constellation.json',
+				'The cwd parameter is required — provide the absolute path to the target project directory',
+				'Example: code_intel({ code: "...", cwd: "/absolute/path/to/project" })',
+				'The project directory must be inside a git repository containing constellation.json',
 			],
 		);
 	}
@@ -144,6 +143,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• Exploring unfamiliar code — get architecture overview first\n' +
 				'• Planning a refactor — trace dependencies and dependents\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
+				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.\n\n' +
 				'QUICK START: const {symbols} = await api.searchSymbols({query: "AuthService"}); return symbols[0];\n\n' +
 				'PERFORMANCE: Queries return in <200ms. One code_intel call replaces 3-5 Grep/Glob calls for structural questions—fewer round-trips, complete results.\n\n' +
 				'EMPTY RESULTS? Check `resultContext.reason` — "no_matches" (broaden query) vs "branch_not_indexed" (run `constellation index`).\n\n' +
@@ -169,12 +169,11 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					),
 				cwd: z
 					.string()
-					.optional()
+					.min(1)
 					.describe(
-						'Working directory context for multi-project workspaces. ' +
+						'Absolute path to the project directory being queried. ' +
 							'Used to locate the correct constellation.json by finding the git repository root. ' +
-							"If omitted, uses the server's startup directory. " +
-							'Provide this when working in monorepos or workspaces with multiple indexed projects.',
+							'Set this to the root of the repository or workspace folder you are working in.',
 					),
 			},
 			outputSchema: {

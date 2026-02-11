@@ -5,6 +5,7 @@
  * machine-readable error codes and actionable guidance for AI assistants.
  */
 
+import { MemoryExceededError } from '../code-mode/sandbox.js';
 import {
 	configCache,
 	ConfigCacheError,
@@ -12,7 +13,6 @@ import {
 } from '../config/config-cache.js';
 import { DOCS_URLS } from '../constants/urls.js';
 import { ErrorCode, type McpErrorResponse } from '../types/mcp-errors.js';
-import { MemoryExceededError } from '../code-mode/sandbox.js';
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -142,9 +142,9 @@ export function createStructuredError(
 				message: 'Constellation is not configured for this project',
 				recoverable: true,
 				guidance: [
-					'Run: constellation init',
-					'Run: constellation auth',
-					'Run: constellation index',
+					'Provide the required `cwd` parameter with the absolute path to the project directory (e.g., cwd: "/path/to/project")',
+					'Verify the project has a constellation.json file at the git root',
+					'If no constellation.json exists, run: constellation init && constellation auth && constellation index',
 				],
 				context: baseContext,
 				docs: DOCS_URLS.setup,
