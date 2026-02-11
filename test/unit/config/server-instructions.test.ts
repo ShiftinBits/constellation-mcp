@@ -88,9 +88,9 @@ describe('server-instructions', () => {
 		it('should include proactive usage guidance with decision heuristic', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('designed for YOU');
-			expect(instructions).toContain('PROACTIVELY');
-			expect(instructions).toContain('Decision rule');
-			expect(instructions).toContain('Use Grep/Glob for');
+			expect(instructions).toContain('DEFAULT for code structure questions');
+			expect(instructions).toContain('BEFORE reaching for Grep/Glob');
+			expect(instructions).toContain('WRONG TOOL SIGNAL');
 			expect(instructions).toContain('Best Tool');
 		});
 
@@ -159,7 +159,6 @@ describe('server-instructions', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('Safe to Change?');
 			expect(instructions).toContain('Understand This Codebase');
-			expect(instructions).toContain('Find Dead Code');
 		});
 
 		it('should include recovery patterns section', () => {
@@ -201,7 +200,7 @@ describe('server-instructions', () => {
 
 		it('should clarify cwd requirement and project directory', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('Project Directory');
+			expect(instructions).toContain('project directory');
 			expect(instructions).toContain('Required');
 			expect(instructions).toContain('git root');
 		});
@@ -221,10 +220,10 @@ describe('server-instructions', () => {
 			expect(instructions).toContain('| Search for a literal string | Grep |');
 		});
 
-		it('should be concise (under 10500 chars)', () => {
+		it('should be concise (under 12500 chars)', () => {
 			const instructions = getServerInstructions();
-			// Raised to 10500 to accommodate workflow templates and JS justification section.
-			expect(instructions.length).toBeLessThan(10500);
+			// Raised to 12500 to accommodate disambiguation section and response shape examples.
+			expect(instructions.length).toBeLessThan(12500);
 			expect(instructions.length).toBeGreaterThan(1000);
 		});
 
@@ -262,7 +261,7 @@ describe('server-instructions', () => {
 			const instructions = getServerInstructions();
 			const rulesSection = instructions.substring(
 				instructions.indexOf('## Rules'),
-				instructions.indexOf('## Why JavaScript?'),
+				instructions.indexOf('\n---\n'),
 			);
 			expect(rulesSection).toContain('cwd');
 			expect(rulesSection).toContain('Required');
@@ -282,6 +281,42 @@ describe('server-instructions', () => {
 			const responseContractIdx = instructions.indexOf('## Response Contract');
 			expect(whichMethodIdx).toBeGreaterThan(0);
 			expect(whichMethodIdx).toBeLessThan(responseContractIdx);
+		});
+
+		it('should include "What uses X?" disambiguation section', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain(
+				'### "What uses X?" — Choosing the Right Method',
+			);
+			expect(instructions).toContain('getDependents');
+			expect(instructions).toContain('getCallGraph');
+			expect(instructions).toContain('traceSymbolUsage');
+			// Should be between Which Method and Response Contract
+			const disambigIdx = instructions.indexOf(
+				'### "What uses X?" — Choosing the Right Method',
+			);
+			const whichMethodIdx = instructions.indexOf('## Which Method?');
+			const responseContractIdx = instructions.indexOf('## Response Contract');
+			expect(disambigIdx).toBeGreaterThan(whichMethodIdx);
+			expect(disambigIdx).toBeLessThan(responseContractIdx);
+		});
+
+		it('should include top 3 method response shapes', () => {
+			const instructions = getServerInstructions();
+			expect(instructions).toContain('### Top 3 Method Response Shapes');
+			expect(instructions).toContain('searchSymbols');
+			expect(instructions).toContain('impactAnalysis');
+			expect(instructions).toContain('getDependents');
+			expect(instructions).toContain('breakingChangeRisk');
+			expect(instructions).toContain('directDependents');
+			// Should be between Response Contract and Empty Results
+			const shapesIdx = instructions.indexOf(
+				'### Top 3 Method Response Shapes',
+			);
+			const responseContractIdx = instructions.indexOf('## Response Contract');
+			const emptyResultsIdx = instructions.indexOf('## Empty Results?');
+			expect(shapesIdx).toBeGreaterThan(responseContractIdx);
+			expect(shapesIdx).toBeLessThan(emptyResultsIdx);
 		});
 	});
 });

@@ -114,27 +114,26 @@ describe('registerQueryCodeGraphTool', () => {
 		it('should include proactive internal-reasoning triggers in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('PROACTIVE SCENARIOS');
-			expect(config.description).toContain('About to modify');
-			expect(config.description).toContain('Exploring unfamiliar code');
-			expect(config.description).toContain('Planning a refactor');
+			expect(config.description).toContain('USE IMMEDIATELY WHEN');
+			expect(config.description).toContain('BEFORE using Edit');
+			expect(config.description).toContain(
+				'BEFORE exploring an unfamiliar codebase',
+			);
+			expect(config.description).toContain('BEFORE refactoring');
 		});
 
-		it('should lead with DECISION RULE before capability summary', () => {
+		it('should lead with DECISION RULE before quick start', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 			const decisionRuleIndex = config.description.indexOf('DECISION RULE:');
-			const capabilitySummaryIndex = config.description.indexOf(
-				'Query codebase structure and relationships',
-			);
+			const quickStartIndex = config.description.indexOf('QUICK START:');
 			expect(decisionRuleIndex).toBeGreaterThanOrEqual(0);
-			expect(capabilitySummaryIndex).toBeGreaterThan(decisionRuleIndex);
+			expect(quickStartIndex).toBeGreaterThan(decisionRuleIndex);
 		});
 
-		it('should include error handling and availability guidance in tool description', () => {
+		it('should include availability guidance in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('Errors return structured JSON');
 			expect(config.description).toContain('getCapabilities()');
 		});
 
@@ -151,24 +150,18 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.description).toContain('QUICK START');
 		});
 
-		it('should include performance expectations in tool description', () => {
+		it('should include wrong-tool detector in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('<200ms');
-		});
-
-		it('should include ROI justification in tool description', () => {
-			const call = mockServer.registerTool.mock.calls[0];
-			const config = call[1];
-			expect(config.description).toContain('replaces');
-			expect(config.description).toContain('Grep');
+			expect(config.description).toContain('3+ Grep calls');
+			expect(config.description).toContain('STOP');
 		});
 
 		it('should include refactoring and planning triggers in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
-			expect(config.description).toContain('PROACTIVE SCENARIOS');
-			expect(config.description).toContain('Planning a refactor');
+			expect(config.description).toContain('USE IMMEDIATELY WHEN');
+			expect(config.description).toContain('BEFORE refactoring');
 		});
 
 		it('should include cwd requirement in tool description', () => {

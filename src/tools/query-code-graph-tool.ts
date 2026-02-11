@@ -130,24 +130,21 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 			description:
 				'DECISION RULE: Structure questions → this tool. Text search → Grep.\n\n' +
 				'Before using Grep, ask: Is this a STRUCTURE question (definitions, callers, impact) or a TEXT question (strings, config)?\n\n' +
-				'Query codebase structure and relationships via AST-based code intelligence graph. ' +
-				'Understands symbols, dependencies, call hierarchies, and change impact—capabilities text search lacks.\n\n' +
+				'QUICK START: `return await api.searchSymbols({query: "AuthService"})` — simple queries are one-liners.\n\n' +
+				'USE IMMEDIATELY WHEN:\n' +
+				'• BEFORE using Edit on a function/class → run impactAnalysis({symbolId}) first\n' +
+				'• BEFORE exploring an unfamiliar codebase → run getArchitectureOverview()\n' +
+				'• BEFORE refactoring → trace getDependencies + getDependents for blast radius\n' +
+				'• Running 3+ Grep calls for structure? STOP → use code_intel instead\n\n' +
 				'TOP 5 QUESTIONS (query is case-insensitive substring match):\n' +
 				'• "Where is X defined?" / "Find function Y" → searchSymbols({query})\n' +
 				'• "What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})\n' +
 				'• "What does X depend on?" → getDependencies({filePath})\n' +
 				'• "Safe to modify X?" / "Blast radius?" → impactAnalysis({symbolId})\n' +
 				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n\n' +
-				'PROACTIVE SCENARIOS:\n' +
-				'• About to modify a function/class — check impact first with impactAnalysis\n' +
-				'• Exploring unfamiliar code — get architecture overview first\n' +
-				'• Planning a refactor — trace dependencies and dependents\n\n' +
-				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n\n' +
-				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.\n\n' +
-				'QUICK START: const {symbols} = await api.searchSymbols({query: "AuthService"}); return symbols[0];\n\n' +
-				'PERFORMANCE: Queries return in <200ms. One code_intel call replaces 3-5 Grep/Glob calls for structural questions—fewer round-trips, complete results.\n\n' +
-				'EMPTY RESULTS? Check `resultContext.reason` — "no_matches" (broaden query) vs "branch_not_indexed" (run `constellation index`).\n\n' +
-				'Errors return structured JSON with `guidance[]` for recovery. First-time? Run `api.getCapabilities()` to verify indexing.',
+				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
+				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n\n' +
+				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
 			inputSchema: {
 				code: z
 					.string()

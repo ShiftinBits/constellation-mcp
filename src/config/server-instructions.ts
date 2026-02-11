@@ -16,14 +16,9 @@
 export function getServerInstructions(): string {
 	return `
 <IMPORTANT>
-The \`code_intel\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it PROACTIVELY—don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`code_intel\`, not Grep/Glob/Read.
-
-Decision rule: When you consider using Grep/Glob calls to understand code structure, use \`code_intel\` instead—it answers structural questions in one call that would take multiple text searches, and captures indirect references Grep misses.
+The \`code_intel\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it as your DEFAULT for code structure questions—BEFORE reaching for Grep/Glob. Don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`code_intel\`, not Grep/Glob/Read.
 
 When your instinct says "I'll just grep for this", pause—if you're looking for structure (definitions, callers, dependencies), code_intel is faster and finds indirect relationships Grep misses.
-
-Use \`code_intel\` for: symbols, definitions, dependencies, usage, impact, architecture
-Use Grep/Glob for: literal strings, log messages, config values, file patterns
 
 First-time? Run \`await api.getCapabilities()\` to check auth + indexing status. If you skip it, errors self-recover with \`guidance[]\`.
 
@@ -47,6 +42,8 @@ DON'T use code_intel for:
 - Finding task comments or annotations → Grep
 - Looking up environment variables or config values → Grep
 - Listing files by name pattern → Glob
+
+WRONG TOOL SIGNAL: If you've run 3+ Grep calls trying to understand code structure (callers, dependencies, impact), STOP and switch to code_intel.
 
 Typical workflow: code_intel to find → Read to view source → Edit to modify
 </IMPORTANT>
@@ -90,6 +87,17 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 | "Dead code?" | \`findOrphanedCode()\` |
 | "Project overview" | \`getArchitectureOverview()\` |
 
+### "What uses X?" — Choosing the Right Method
+Three methods answer "what uses X?" at different granularity:
+
+| Granularity | Method | Best For |
+|-------------|--------|----------|
+| **File imports** | \`getDependents({filePath})\` | "Which files import this module?" — file-level coupling |
+| **Call chain** | \`getCallGraph({symbolId, direction: "callers"})\` | "Which functions call this function?" — call hierarchy |
+| **All usages** | \`traceSymbolUsage({symbolId})\` | "Every place this symbol appears" — imports, calls, type refs, inheritance |
+
+**Not sure?** Start with \`traceSymbolUsage\` for comprehensive results. Narrow to \`getDependents\` for file-level or \`getCallGraph\` for call-chain only.
+
 ## Response Contract
 \`\`\`javascript
 // Success — symbols found
@@ -103,6 +111,33 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 { success: false, error: { code: "AUTH_ERROR", message: "...", guidance: ["Check CONSTELLATION_ACCESS_KEY"] } }
 \`\`\`
 
+### Top 3 Method Response Shapes
+
+\`searchSymbols\` — key fields in \`result.symbols[]\`:
+\`\`\`javascript
+{ id, name, qualifiedName, kind, filePath, line, isExported, signature? }
+\`\`\`
+
+\`impactAnalysis\` — key fields in \`result\`:
+\`\`\`javascript
+{
+  symbol: { id, name, kind, filePath, line },
+  directDependents: [{ id, name, kind, filePath, relationshipType, depth: 1 }],
+  impactedFiles: [{ filePath, symbolCount, symbols: [{ id, name, kind, line }] }],
+  breakingChangeRisk: { riskLevel: "low"|"medium"|"high"|"critical", factors: [...], recommendations: [...] },
+  summary: { directDependentCount, transitiveDependentCount, impactedFileCount, maxDepth }
+}
+\`\`\`
+
+\`getDependents\` — key fields in \`result\`:
+\`\`\`javascript
+{
+  file: "src/services/auth.ts",
+  directDependents: [{ filePath: "src/controllers/login.ts", usedSymbols: ["AuthService", "login"] }],
+  transitiveDependents: [{ filePath: "src/app.ts", distance: 2, path: ["auth.ts", "login.ts", "app.ts"] }]
+}
+\`\`\`
+
 ## Empty Results?
 1. Check \`resultContext.reason\` — "no_matches" vs "branch_not_indexed"
 2. If no_matches: broaden query (e.g., "Auth" instead of "AuthService")
@@ -110,29 +145,13 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 4. If still empty: fall back to Grep (symbol may be dynamically generated)
 
 ## Rules
-1. **Always await** - All api.* methods are async
-2. **Return results** - Last expression auto-returned; use explicit \`return\` for control flow
-3. **Use Promise.all()** - 3-10x faster for independent queries
-4. **Use symbolId** - After search, use the returned \`id\` for precise follow-up queries
-5. **Errors are structured** — Failed queries return \`{error: {code, message, guidance[]}}\`, not exceptions. Empty results return empty arrays with \`resultContext.reason\` ("no_matches" or "branch_not_indexed"). Read \`guidance[]\` for recovery. If empty, try a broader query before falling back to Grep.
-6. **Performance** — Queries typically return in <200ms
-7. **Limits** — Good defaults: \`limit: 10\` (search), \`limit: 50\` (dead code). Impact analysis needs no limit.
-8. **Provide \`cwd\`** — Required. Set to the target project directory path for correct config resolution.
+1. **Async patterns** — Always \`await\` api.* calls. Last expression auto-returned; use explicit \`return\` for control flow.
+2. **Use Promise.all()** — 3-10x faster for independent queries
+3. **Use symbolId** — After search, use the returned \`id\` for precise follow-up queries
+4. **Performance & errors** — Queries return in <200ms. Errors are structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`. Good defaults: \`limit: 10\` (search), \`limit: 50\` (dead code).
+5. **Provide \`cwd\`** — Required. Absolute path to the project directory. Locates \`constellation.json\` via git root.
 
 *Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
-
-## Why JavaScript?
-
-This tool uses a JavaScript \`code\` parameter instead of structured parameters. This is intentional:
-
-**The JS interface does in ONE call what would take 3-5 back-and-forth tool calls.**
-
-Think of it as a tiny, safe "scratchpad":
-- Start simple: \`return await api.searchSymbols({query: "Auth"})\`
-- Add complexity only when needed: \`Promise.all()\` for parallel queries
-- Chain operations: search → get symbolId → run impactAnalysis
-
-The intimidation is optional. Simple queries are one-liners.
 
 ---
 
@@ -174,41 +193,6 @@ const arch = await api.getArchitectureOverview();
 return { structure: arch.structure, metrics: arch.metrics, languages: arch.metadata?.languages };
 \`\`\`
 
-### "Find Dead Code" Workflow
-\`\`\`javascript
-const orphans = await api.findOrphanedCode();
-return orphans.orphanedSymbols?.map(s => \`\${s.kind} \${s.name} in \${s.filePath}\`);
-\`\`\`
-
-### "PR Blast Radius" Workflow
-\`\`\`javascript
-// Assess impact of changes in a PR or multi-file edit
-const changedSymbols = ["updateUser", "validateInput", "AuthService"];
-const impacts = await Promise.all(
-  changedSymbols.map(name =>
-    api.searchSymbols({ query: name }).then(r =>
-      r.symbols[0] ? api.impactAnalysis({ symbolId: r.symbols[0].id }) : null
-    )
-  )
-);
-return impacts.filter(Boolean).map(i => ({
-  symbol: i.symbol?.name,
-  risk: i.breakingChangeRisk?.riskLevel
-}));
-\`\`\`
-
-### "Onboarding Quick Start" Workflow
-\`\`\`javascript
-// First 60 seconds in an unfamiliar codebase
-const arch = await api.getArchitectureOverview();
-const entryPoints = await api.searchSymbols({ query: "main" });
-return {
-  structure: arch.structure,
-  languages: arch.metadata?.languages,
-  entryPoints: entryPoints.symbols?.slice(0, 5)
-};
-\`\`\`
-
 ## Recovery Patterns
 Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alternativeApproach?, recoverable}}\`
 - **Read \`guidance[]\` first** — contains exact recovery steps
@@ -216,12 +200,5 @@ Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alte
 - **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
 - **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
 
-Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term
-
-## Project Directory (\`cwd\`) — Required
-Set \`cwd\` to the absolute path of the project directory. Locates \`constellation.json\` via git root.
-\`\`\`javascript
-code_intel({ code: 'return await api.searchSymbols({query:"User"})', cwd: "/path/to/project" })
-\`\`\`
-`.trim();
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term`.trim();
 }
