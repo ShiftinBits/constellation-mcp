@@ -20,6 +20,9 @@ export interface MetricsSnapshot {
 	durations: number[];
 }
 
+/** Maximum number of duration samples retained per histogram */
+const MAX_HISTOGRAM_SIZE = 1000;
+
 /**
  * Lightweight metrics singleton for sandbox execution monitoring
  */
@@ -61,6 +64,10 @@ export class Metrics {
 	recordDuration(name: string, ms: number): void {
 		const values = this.histograms.get(name) ?? [];
 		values.push(ms);
+		// Cap to rolling window to prevent unbounded growth
+		if (values.length > MAX_HISTOGRAM_SIZE) {
+			values.splice(0, values.length - MAX_HISTOGRAM_SIZE);
+		}
 		this.histograms.set(name, values);
 	}
 
@@ -76,7 +83,7 @@ export class Metrics {
 			validationFailures: this.counters.get('validation_failures') ?? 0,
 			avgDuration: this.average(durations),
 			p95Duration: this.percentile(durations, 95),
-			durations,
+			durations: [...durations],
 		};
 	}
 

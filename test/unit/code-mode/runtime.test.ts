@@ -5,6 +5,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
+import { IsolatedSandbox } from '../../../src/code-mode/isolated-sandbox.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 
@@ -15,6 +16,8 @@ jest.mock('../../../src/code-mode/worker-path.js', () => ({
 
 // Mock the sandbox module
 jest.mock('../../../src/code-mode/sandbox.js');
+// Mock the isolated sandbox module
+jest.mock('../../../src/code-mode/isolated-sandbox.js');
 
 const MockedCodeModeSandbox = CodeModeSandbox as jest.MockedClass<
 	typeof CodeModeSandbox
@@ -89,6 +92,23 @@ describe('CodeModeRuntime', () => {
 					configContext: mockConfigContext,
 				}),
 			);
+		});
+
+		it('should create IsolatedSandbox when isolation is hardened', () => {
+			jest.clearAllMocks(); // Clear beforeEach's CodeModeSandbox call
+
+			new CodeModeRuntime({
+				configContext: mockConfigContext,
+				isolation: 'hardened',
+			});
+
+			expect(IsolatedSandbox).toHaveBeenCalledWith(
+				expect.objectContaining({
+					configContext: mockConfigContext,
+				}),
+			);
+			// Should NOT create a CodeModeSandbox for hardened mode
+			expect(MockedCodeModeSandbox).not.toHaveBeenCalled();
 		});
 	});
 

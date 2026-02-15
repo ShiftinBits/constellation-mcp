@@ -60,10 +60,12 @@ function createMockChild() {
 	const child = new EventEmitter() as EventEmitter & {
 		send: jest.Mock;
 		kill: jest.Mock;
+		unref: jest.Mock;
 		pid: number;
 	};
 	child.send = jest.fn();
 	child.kill = jest.fn();
+	child.unref = jest.fn();
 	child.pid = 12345;
 	return child;
 }

@@ -93,6 +93,8 @@ export class IsolatedSandbox {
 				clearTimeout(timeoutHandle);
 				if (resolved) return;
 				cleanup();
+				// Detach child so it doesn't keep parent alive if exit is delayed
+				child.unref();
 
 				if (message.type === 'result') {
 					resolve(message.result);
@@ -136,7 +138,7 @@ export class IsolatedSandbox {
 						executionTime: Date.now() - startTime,
 					});
 				}
-				// exitCode 0 without a message means result was already sent
+				// exitCode 0 here (not yet resolved) means result IPC was missed — rare edge case
 			});
 
 			// Send execution request to worker
@@ -149,6 +151,11 @@ export class IsolatedSandbox {
 					apiKey: configContext.apiKey,
 					projectId: configContext.projectId,
 					branchName: configContext.branchName,
+					languages: configContext.config.languages as Record<
+						string,
+						{ fileExtensions: string[] }
+					>,
+					gitRoot: configContext.gitRoot,
 				},
 				options: {
 					timeout: this.timeout,

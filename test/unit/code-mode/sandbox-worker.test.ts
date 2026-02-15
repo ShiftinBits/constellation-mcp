@@ -96,6 +96,8 @@ describe('sandbox-worker', () => {
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',
+				languages: { typescript: { fileExtensions: ['.ts'] } },
+				gitRoot: '/test/project',
 			},
 			options: {
 				timeout: 5000,
@@ -127,6 +129,8 @@ describe('sandbox-worker', () => {
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',
+				languages: { typescript: { fileExtensions: ['.ts'] } },
+				gitRoot: '/test/project',
 			},
 			options: {},
 		};
@@ -140,6 +144,7 @@ describe('sandbox-worker', () => {
 			type: 'error',
 			error: 'Execution failed',
 		});
+		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 
 	it('should handle unknown message types', () => {
@@ -167,6 +172,8 @@ describe('sandbox-worker', () => {
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',
+				languages: { typescript: { fileExtensions: ['.ts'] } },
+				gitRoot: '/test/project',
 			},
 			options: {},
 		};
@@ -193,6 +200,8 @@ describe('sandbox-worker', () => {
 				apiKey: 'key-123',
 				projectId: 'proj-1',
 				branchName: 'feature',
+				languages: { typescript: { fileExtensions: ['.ts', '.tsx'] } },
+				gitRoot: '/test/project',
 			},
 			options: {
 				timeout: 10000,

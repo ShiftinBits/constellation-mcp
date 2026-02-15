@@ -26,6 +26,8 @@ export interface WorkerRequest {
 		apiKey: string;
 		projectId: string;
 		branchName: string;
+		languages: Record<string, { fileExtensions: string[] }>;
+		gitRoot: string;
 	};
 	options: {
 		timeout?: number;
@@ -78,14 +80,14 @@ async function executeCode(request: WorkerRequest): Promise<SandboxResult> {
 		config: new ConstellationConfig(
 			config.apiUrl,
 			config.branchName,
-			{ typescript: { fileExtensions: ['.ts', '.tsx'] } },
+			config.languages,
 			config.projectId,
 		),
 		projectId: config.projectId,
 		branchName: config.branchName,
 		apiKey: config.apiKey,
 		configLoaded: true,
-		gitRoot: process.cwd(),
+		gitRoot: config.gitRoot,
 	};
 
 	const sandboxOptions: SandboxOptions = {
@@ -113,7 +115,8 @@ function sendResponse(response: WorkerResponse): void {
 		process.send(response);
 	}
 	// Exit after sending result — worker is single-use
-	process.exit(0);
+	// Use exit code 1 for errors so monitoring/logging can distinguish
+	process.exit(response.type === 'error' ? 1 : 0);
 }
 
 // Listen for IPC messages from parent
