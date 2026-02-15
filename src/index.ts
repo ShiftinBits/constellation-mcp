@@ -90,7 +90,7 @@ async function startServer() {
 			'constellation://types/api',
 			{
 				description:
-					'DEPRECATED: Prefer constellation://types/api/{methodName} for individual methods. ' +
+					'Prefer constellation://types/api/{methodName} for individual methods. ' +
 					'This resource is ~147KB and may consume excessive context. ' +
 					'Full TypeScript type definitions for all Code Mode API methods.',
 				mimeType: 'text/typescript',

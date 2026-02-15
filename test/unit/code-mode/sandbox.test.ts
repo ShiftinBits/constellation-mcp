@@ -1585,6 +1585,19 @@ describe('CodeModeSandbox', () => {
 			).toBe(true);
 		});
 
+		it('should filter methods by query matching quickExample', async () => {
+			const code = 'return api.listMethods({ query: "includeMetrics" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.methods.length).toBeGreaterThanOrEqual(1);
+			expect(
+				result.result.methods.some(
+					(m: any) => m.name === 'getArchitectureOverview',
+				),
+			).toBe(true);
+		});
+
 		it('should filter methods by query matching description', async () => {
 			const code = 'return api.listMethods({ query: "unused" });';
 			const result = await sandbox.execute(code);

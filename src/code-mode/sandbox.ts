@@ -804,7 +804,8 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 							(m) =>
 								m.name.toLowerCase().includes(q) ||
 								m.description.toLowerCase().includes(q) ||
-								m.triggerPhrases.some((t) => t.toLowerCase().includes(q)),
+								m.triggerPhrases.some((t) => t.toLowerCase().includes(q)) ||
+								m.quickExample.toLowerCase().includes(q),
 						);
 					}
 					return {
