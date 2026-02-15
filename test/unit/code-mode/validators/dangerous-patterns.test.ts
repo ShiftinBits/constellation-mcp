@@ -393,9 +393,46 @@ describe('dangerous-patterns', () => {
 		});
 	});
 
+	describe('computed-dynamic-property pattern (SB-258)', () => {
+		it('should match obj[variable] with dynamic computed access', () => {
+			const matches = findPatternMatches('const x = obj[variable]');
+			expect(
+				matches.some((m) => m.pattern === 'computed-dynamic-property'),
+			).toBe(true);
+		});
+
+		it('should not match arr[0] (numeric literal)', () => {
+			const matches = findPatternMatches('const x = arr[0]');
+			expect(
+				matches.some((m) => m.pattern === 'computed-dynamic-property'),
+			).toBe(false);
+		});
+
+		it('should not match obj["key"] (string literal — handled by computed-dangerous-property)', () => {
+			const matches = findPatternMatches('const x = obj["safe"]');
+			expect(
+				matches.some((m) => m.pattern === 'computed-dynamic-property'),
+			).toBe(false);
+		});
+
+		it('should match obj[fn()] with computed call expression', () => {
+			const matches = findPatternMatches('const x = obj[fn()]');
+			expect(
+				matches.some((m) => m.pattern === 'computed-dynamic-property'),
+			).toBe(true);
+		});
+
+		it('should not match dot notation access', () => {
+			const matches = findPatternMatches('const x = obj.prop');
+			expect(
+				matches.some((m) => m.pattern === 'computed-dynamic-property'),
+			).toBe(false);
+		});
+	});
+
 	describe('DANGEROUS_PATTERNS array', () => {
-		it('should have 8 pattern checkers', () => {
-			expect(DANGEROUS_PATTERNS.length).toBe(8);
+		it('should have 9 pattern checkers', () => {
+			expect(DANGEROUS_PATTERNS.length).toBe(9);
 		});
 
 		it('should have unique pattern IDs', () => {

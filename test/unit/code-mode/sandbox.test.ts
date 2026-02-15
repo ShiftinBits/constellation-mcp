@@ -1768,9 +1768,11 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.logs).toBeDefined();
-			expect(result.logs!.length).toBe(1);
+			// Find the console.log output (filter out AST warnings from computed property access)
+			const consoleLogs = result.logs!.filter((l) => !l.startsWith('[WARN]'));
+			expect(consoleLogs.length).toBe(1);
 			// Should be truncated with ...
-			expect(result.logs![0].endsWith('...')).toBe(true);
+			expect(consoleLogs[0].endsWith('...')).toBe(true);
 		});
 
 		it('should use compact JSON for medium-sized objects', async () => {
@@ -1786,8 +1788,10 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.logs).toBeDefined();
+			// Find the console.log output (filter out AST warnings)
+			const consoleLogs = result.logs!.filter((l) => !l.startsWith('[WARN]'));
 			// Should be logged (not truncated for medium objects)
-			expect(result.logs![0]).toContain('k0');
+			expect(consoleLogs[0]).toContain('k0');
 		});
 
 		it('should handle objects that fail JSON.stringify', async () => {

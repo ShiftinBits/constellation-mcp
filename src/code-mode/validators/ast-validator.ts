@@ -17,6 +17,8 @@ export interface AstValidationError {
 export interface AstValidationResult {
 	valid: boolean;
 	errors: AstValidationError[];
+	/** Warning-level AST findings that don't block execution (SB-258) */
+	warnings: string[];
 	parseError?: string;
 }
 
@@ -64,22 +66,35 @@ export function validateAst(code: string): AstValidationResult {
 		return {
 			valid: true,
 			errors: [],
+			warnings: [],
 			parseError: `AST parse warning: ${message} (validation skipped, VM will catch syntax errors)`,
 		};
 	}
 
 	const errors: AstValidationError[] = [];
+	const warnings: string[] = [];
+
+	// Patterns that produce warnings instead of errors (SB-258)
+	const WARNING_PATTERNS = new Set(['computed-dynamic-property']);
 
 	walk(ast, {
 		enter(node, parent) {
 			const matches = checkAllPatterns(node, parent);
 			for (const match of matches) {
-				const location = offsetToLocation(code, node.start);
-				errors.push({
-					pattern: match.pattern,
-					message: match.message,
-					location,
-				});
+				if (WARNING_PATTERNS.has(match.pattern)) {
+					const location = offsetToLocation(code, node.start);
+					const locationStr = location
+						? ` (line ${location.line}, col ${location.column})`
+						: '';
+					warnings.push(`${match.message}${locationStr}`);
+				} else {
+					const location = offsetToLocation(code, node.start);
+					errors.push({
+						pattern: match.pattern,
+						message: match.message,
+						location,
+					});
+				}
 			}
 		},
 	});
@@ -87,5 +102,6 @@ export function validateAst(code: string): AstValidationResult {
 	return {
 		valid: errors.length === 0,
 		errors,
+		warnings,
 	};
 }

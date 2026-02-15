@@ -1059,6 +1059,11 @@ ${transformed}
 		// === Warnings for common mistakes (informational, don't block execution) ===
 		const warnings: string[] = [];
 
+		// Add AST-level warnings (e.g., computed-dynamic-property, SB-258)
+		if (astResult.warnings.length > 0) {
+			warnings.push(...astResult.warnings.map((w) => `[AST] ${w}`));
+		}
+
 		// Add parse warning if AST couldn't parse (syntax error - VM will catch it)
 		if (astResult.parseError) {
 			warnings.push(astResult.parseError);
