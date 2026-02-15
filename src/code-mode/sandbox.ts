@@ -351,6 +351,7 @@ export class CodeModeSandbox {
 				branchIndexed: boolean;
 				indexedFileCount: number;
 			} | null,
+			timerCleanup: null as (() => void) | null,
 		};
 
 		try {
@@ -453,6 +454,8 @@ export class CodeModeSandbox {
 			if (memoryCheckHandle) {
 				clearInterval(memoryCheckHandle);
 			}
+			// Clean up sandbox timers to prevent callbacks from outliving execution (SB-258)
+			executionState.timerCleanup?.();
 		}
 	}
 
@@ -527,6 +530,7 @@ export class CodeModeSandbox {
 				branchIndexed: boolean;
 				indexedFileCount: number;
 			} | null;
+			timerCleanup: (() => void) | null;
 		},
 	): any {
 		// Helper to convert snake_case to camelCase for display
@@ -909,12 +913,43 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 			});
 		}
 
-		// Conditionally add timers (generally not recommended for security)
+		// Conditionally add timers with lifecycle tracking (SB-258 Step 3.2)
+		// Wraps timer functions to track active timers and clean them up
+		// when sandbox execution completes, preventing callbacks from outliving the sandbox.
 		if (this.options.allowTimers) {
-			sandbox.setTimeout = setTimeout;
-			sandbox.setInterval = setInterval;
-			sandbox.clearTimeout = clearTimeout;
-			sandbox.clearInterval = clearInterval;
+			// Track active timer/interval handles for cleanup (type varies by runtime)
+			const activeTimers = new Set<any>();
+			const activeIntervals = new Set<any>();
+
+			sandbox.setTimeout = (fn: Function, ms: number, ...args: any[]) => {
+				const id = setTimeout(() => {
+					activeTimers.delete(id);
+					fn(...args);
+				}, ms);
+				activeTimers.add(id);
+				return id;
+			};
+			sandbox.setInterval = (fn: Function, ms: number, ...args: any[]) => {
+				const id = setInterval(fn, ms, ...args);
+				activeIntervals.add(id);
+				return id;
+			};
+			sandbox.clearTimeout = (id: any) => {
+				activeTimers.delete(id);
+				clearTimeout(id);
+			};
+			sandbox.clearInterval = (id: any) => {
+				activeIntervals.delete(id);
+				clearInterval(id);
+			};
+
+			// Store cleanup callback for execute()'s finally block
+			executionState.timerCleanup = () => {
+				activeTimers.forEach((id) => clearTimeout(id));
+				activeIntervals.forEach((id) => clearInterval(id));
+				activeTimers.clear();
+				activeIntervals.clear();
+			};
 		}
 
 		// Freeze the sandbox object to prevent adding/removing properties (SB-102)

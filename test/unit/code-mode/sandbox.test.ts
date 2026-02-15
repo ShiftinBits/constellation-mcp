@@ -1959,4 +1959,57 @@ describe('CodeModeSandbox', () => {
 			expect(result.result).toBeUndefined();
 		});
 	});
+
+	describe('Timer lifecycle safety (SB-258)', () => {
+		let timerSandbox: CodeModeSandbox;
+
+		beforeEach(() => {
+			timerSandbox = new CodeModeSandbox({
+				configContext: mockConfigContext,
+				allowTimers: true,
+				timeout: 5000,
+			});
+		});
+
+		it('should allow clearTimeout from within sandbox', async () => {
+			const code = `
+				const id = setTimeout(() => {}, 1000);
+				clearTimeout(id);
+				return 'cleared';
+			`;
+			const result = await timerSandbox.execute(code);
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('cleared');
+		});
+
+		it('should allow clearInterval from within sandbox', async () => {
+			const code = `
+				const id = setInterval(() => {}, 1000);
+				clearInterval(id);
+				return 'cleared';
+			`;
+			const result = await timerSandbox.execute(code);
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('cleared');
+		});
+
+		it('should execute successfully with timers enabled', async () => {
+			const code = 'return 42;';
+			const result = await timerSandbox.execute(code);
+			expect(result.success).toBe(true);
+			expect(result.result).toBe(42);
+		});
+
+		it('should not expose timers when allowTimers is false', async () => {
+			const noTimerSandbox = new CodeModeSandbox({
+				configContext: mockConfigContext,
+				allowTimers: false,
+				timeout: 5000,
+			});
+			const code = 'return typeof setTimeout;';
+			const result = await noTimerSandbox.execute(code);
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('undefined');
+		});
+	});
 });
