@@ -6,6 +6,7 @@
  */
 
 import { CodeModeSandbox, SandboxOptions, SandboxResult } from './sandbox.js';
+import { IsolatedSandbox } from './isolated-sandbox.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import {
@@ -17,6 +18,15 @@ import {
 } from '../constants/index.js';
 
 /**
+ * Sandbox isolation level (SB-258 Step 3.1)
+ *
+ * - 'convenience': Default. Uses Node.js vm module (fast, same-process).
+ * - 'hardened': Uses child_process.fork() for true process-level isolation
+ *   (hard memory limits, SIGKILL timeout, crash isolation).
+ */
+export type SandboxIsolation = 'convenience' | 'hardened';
+
+/**
  * Options for CodeModeRuntime
  */
 export interface CodeModeRuntimeOptions extends SandboxOptions {
@@ -25,6 +35,16 @@ export interface CodeModeRuntimeOptions extends SandboxOptions {
 	 * Required - must be provided by the caller.
 	 */
 	configContext: ConfigContext;
+
+	/**
+	 * Sandbox isolation level (SB-258 Step 3.1).
+	 * - 'convenience': Same-process vm sandbox (default)
+	 * - 'hardened': Child process isolation
+	 *
+	 * Can also be set via CONSTELLATION_SANDBOX_ISOLATION env var.
+	 * @default 'convenience'
+	 */
+	isolation?: SandboxIsolation;
 }
 
 /**
@@ -148,18 +168,40 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 	};
 }
 
+/** Shared interface for sandbox implementations */
+interface SandboxExecutor {
+	execute(code: string): Promise<SandboxResult>;
+	validateCode(code: string): {
+		valid: boolean;
+		errors?: string[];
+		warnings?: string[];
+	};
+}
+
 /**
  * Code Mode Runtime Engine
  */
 export class CodeModeRuntime {
-	private sandbox: CodeModeSandbox;
+	private sandbox: SandboxExecutor;
 
 	constructor(options: CodeModeRuntimeOptions) {
-		// Pass the configContext to the sandbox
-		this.sandbox = new CodeModeSandbox({
-			...options,
-			configContext: options.configContext,
-		});
+		// Determine isolation level: explicit option > env var > default
+		const isolation: SandboxIsolation =
+			options.isolation ||
+			(process.env.CONSTELLATION_SANDBOX_ISOLATION as SandboxIsolation) ||
+			'convenience';
+
+		if (isolation === 'hardened') {
+			this.sandbox = new IsolatedSandbox({
+				...options,
+				configContext: options.configContext,
+			});
+		} else {
+			this.sandbox = new CodeModeSandbox({
+				...options,
+				configContext: options.configContext,
+			});
+		}
 	}
 
 	/**

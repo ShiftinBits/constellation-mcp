@@ -24,6 +24,11 @@ const createMockConfigContext = (): ConfigContext => ({
 	gitRoot: '/test/project',
 });
 
+// Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
+jest.mock('../../../src/code-mode/worker-path.js', () => ({
+	WORKER_PATH: '/mocked/path/sandbox-worker.js',
+}));
+
 // Mock dependencies
 jest.mock('../../../src/code-mode/runtime.js');
 jest.mock('../../../src/config/config-cache.js', () => ({

@@ -8,6 +8,11 @@ import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 
+// Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
+jest.mock('../../../src/code-mode/worker-path.js', () => ({
+	WORKER_PATH: '/mocked/path/sandbox-worker.js',
+}));
+
 // Mock the sandbox module
 jest.mock('../../../src/code-mode/sandbox.js');
 
