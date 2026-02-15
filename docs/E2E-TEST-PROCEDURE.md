@@ -773,18 +773,18 @@ return {
 
 ```cypher
 MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(dep:File)
+OPTIONAL MATCH (f)-[:IMPORTS]->(dep)
 RETURN f.path as file,
        count(dep) as depCount,
-       collect(dep.path)[0..3] as firstThreeDeps
+       collect(CASE WHEN dep:File THEN dep.path WHEN dep:Package THEN dep.name END)[0..5] as firstDeps
 ```
 
 **Cross-Validation:**
 
-- API `directDependencyCount` should match Neo4j `depCount`
-- API `firstThreeDeps` should be subset of Neo4j imported files
+- API `directDependencyCount` should match Neo4j `depCount` (includes both File and Package imports)
+- API `firstThreeDeps` should be subset of Neo4j imported targets
 
-**Validates:** Basic dependency analysis, Neo4j IMPORTS relationship
+**Validates:** Basic dependency analysis, Neo4j IMPORTS relationship (File + Package targets)
 
 ---
 
@@ -1184,13 +1184,15 @@ return {
 	success: !!result.symbol,
 	symbolName: result.symbol?.name,
 	directUsageCount: result.directUsages?.length || 0,
+	totalUsageCount: result.summary?.totalUsages || 0,
 };
 ```
 
 **Expected:**
 
 - `success: true`
-- `directUsageCount > 0`
+- `totalUsageCount > 0`
+- `directUsageCount > 0` (may be capped by pagination limit)
 
 **Neo4j Validation:**
 
@@ -1207,10 +1209,11 @@ RETURN s.name as symbolName,
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `usageCount`
+- API `totalUsageCount` should match Neo4j `usageCount` (true total, not capped)
+- `directUsageCount` may be less than `totalUsageCount` due to pagination (default limit: 50)
 - Symbol should be found by name+path in Neo4j
 
-**Validates:** Usage tracing by name+path, Neo4j precise symbol lookup
+**Validates:** Usage tracing by name+path, pagination behavior, Neo4j precise symbol lookup
 
 ---
 
@@ -1371,10 +1374,10 @@ RETURN s.name as symbolName,
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `nonTestUsageCount` when tests excluded
-- No test file paths should appear in results
+- `hasTestFiles: false` — the primary assertion (no test file paths in returned results)
+- API `directUsageCount` may differ from Neo4j `nonTestUsageCount` due to different test-file exclusion granularity (API uses regex patterns at symbol level; Neo4j `CONTAINS` operates at file path level). Count comparison is informational, not a pass/fail criterion.
 
-**Validates:** `excludeTests` filter, Neo4j path exclusion filtering
+**Validates:** `excludeTests` filter behavioral correctness (test files excluded from results)
 
 ---
 
@@ -1652,7 +1655,114 @@ RETURN s.name as symbolName,
 
 ---
 
-### TC-IMPACT-002 through TC-IMPACT-009
+### TC-IMPACT-009: findOrphanedCode - excludeTests Parameter
+
+**Code:**
+
+```javascript
+const withExclude = await api.findOrphanedCode({ excludeTests: true });
+const withoutExclude = await api.findOrphanedCode({ excludeTests: false });
+
+const testFilePattern = /[._](test|spec)[._]|(__tests__|\/test\/|\/tests\/|\/testing\/|\/spec\/)/;
+const withoutExcludeTestFiles = withoutExclude.orphanedFiles?.filter(
+    f => testFilePattern.test(f.filePath)
+) ?? [];
+
+return {
+    excludeTrue: {
+        orphanedFileCount: withExclude.orphanedFiles?.length || 0,
+    },
+    excludeFalse: {
+        orphanedFileCount: withoutExclude.orphanedFiles?.length || 0,
+    },
+    testFilesVisibleWhenNotExcluded: withoutExcludeTestFiles.length > 0,
+    testFileCount: withoutExcludeTestFiles.length,
+    testFileSamples: withoutExcludeTestFiles.slice(0, 3).map(f => f.filePath),
+    fileDifference: (withoutExclude.orphanedFiles?.length || 0) - (withExclude.orphanedFiles?.length || 0),
+};
+```
+
+**Expected:**
+
+- `testFilesVisibleWhenNotExcluded: true` — test files appear as orphaned when not excluded
+- `fileDifference > 0` — more orphaned files when test files are included
+- `excludeTrue.orphanedFileCount < excludeFalse.orphanedFileCount`
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File)
+WHERE f.projectId = 'proj:00000000000040008000000000000033'
+  AND f.branch = 'main'
+  AND (f.path =~ '.*[._](test|spec)[._].*' OR f.path =~ '(^|.*/)(__tests__|test|tests|testing|spec)/.*')
+OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
+WITH f, count(DISTINCT dependent) as dependentCount
+WHERE dependentCount = 0
+RETURN count(f) as orphanedTestFileCount,
+       collect(f.path)[0..5] as sampleTestFiles
+```
+
+**Cross-Validation:**
+
+- API `testFileCount` should approximate Neo4j `orphanedTestFileCount`
+- API `fileDifference` should approximate Neo4j `orphanedTestFileCount`
+
+**Validates:** `excludeTests` parameter filtering, Cypher regex test file patterns, default behavior
+
+---
+
+### TC-IMPACT-007: findOrphanedCode - filePattern Filter
+
+**Code:**
+
+```javascript
+const result = await api.findOrphanedCode({ filePattern: 'sandbox' });
+const allMatchPattern = (result.orphanedSymbols || []).every(
+	(s) => s.filePath?.includes('sandbox')
+);
+const fileAllMatch = (result.orphanedFiles || []).every(
+	(f) => f.filePath?.includes('sandbox')
+);
+return {
+	orphanedSymbolCount: result.orphanedSymbols?.length || 0,
+	orphanedFileCount: result.orphanedFiles?.length || 0,
+	allSymbolsMatchPattern: allMatchPattern,
+	allFilesMatchPattern: fileAllMatch,
+	sampleSymbols: (result.orphanedSymbols || []).slice(0, 3).map((s) => s.name),
+	sampleFiles: (result.orphanedFiles || []).slice(0, 3).map((f) => f.filePath),
+};
+```
+
+**Expected:**
+
+- `allSymbolsMatchPattern: true` — all returned orphaned symbols match the file pattern
+- `allFilesMatchPattern: true` — all returned orphaned files match the file pattern
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (s:Symbol)
+WHERE s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.branch = 'main'
+  AND s.filePath CONTAINS 'sandbox'
+  AND s.isExported = true
+OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WHERE ref.filePath <> s.filePath
+WITH s, count(ref) as crossFileRefs
+WHERE crossFileRefs = 0
+RETURN count(s) as exportedNoXFileRefs
+```
+
+**Cross-Validation:**
+
+- `allSymbolsMatchPattern` and `allFilesMatchPattern` are the primary assertions (filter correctness)
+- API `orphanedSymbolCount` may be less than Neo4j `exportedNoXFileRefs` because the API applies stricter orphan detection criteria (entry point exclusion, dynamic load detection) beyond simple cross-file reference counting. Count comparison is informational.
+
+**Validates:** `filePattern` filter correctness, API orphan detection strictness vs raw Neo4j counting
+
+---
+
+### TC-IMPACT-002 through TC-IMPACT-006, TC-IMPACT-008
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
@@ -1724,7 +1834,49 @@ RETURN count(*) as totalDependencies
 
 ---
 
-### TC-ARCH-002 through TC-ARCH-004
+### TC-ARCH-003: getArchitectureOverview - Structure Details
+
+**Code:**
+
+```javascript
+const result = await api.getArchitectureOverview({});
+return {
+	hasStructure: !!result.structure,
+	structureKeys: result.structure ? Object.keys(result.structure) : [],
+	hasFiles: !!result.structure?.files,
+	hasSymbols: !!result.structure?.symbols,
+	hasModules: !!result.structure?.modules,
+	fileCount: result.structure?.files?.length || 0,
+	symbolCount: result.structure?.symbols?.length || 0,
+	moduleCount: result.structure?.modules?.length || 0,
+};
+```
+
+**Expected:**
+
+- `hasStructure: true`
+- `hasFiles: true` — structure uses `files` field (not `directories`)
+- `hasSymbols: true` — structure uses `symbols` field
+- `hasModules: true` — structure uses `modules` field
+
+**Neo4j Validation:**
+
+```cypher
+MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+RETURN count(f) as totalFiles
+```
+
+**Cross-Validation:**
+
+- `structureKeys` should include `files`, `symbols`, `modules`
+- Note: The API uses `files`/`symbols`/`modules` (not `directories`/`entryPoints`) in the structure section. These may be summary objects rather than arrays, so `.length` may return 0 even when data is present.
+- Neo4j `totalFiles` confirms data exists for the project
+
+**Validates:** Architecture structure field names, section presence
+
+---
+
+### TC-ARCH-002, TC-ARCH-004
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
@@ -3218,7 +3370,7 @@ mcp__neo4j__read-cypher
 
 #### Unimplemented Features
 
-- **TC-IMPACT-009**: `excludeTests` parameter not implemented in `findOrphanedCode` executor (BUG)
+None.
 
 #### Test Design Notes
 
