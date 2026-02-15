@@ -8,6 +8,7 @@ import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
+import { getCodeModeGuide } from './config/code-mode-guide.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
 import {
@@ -89,8 +90,9 @@ async function startServer() {
 			'constellation://types/api',
 			{
 				description:
-					'Full TypeScript interfaces for ALL Constellation API methods. ' +
-					'Large (~147KB). Prefer constellation://types/api/{methodName} for individual methods.',
+					'Prefer constellation://types/api/{methodName} for individual methods. ' +
+					'This resource is ~147KB and may consume excessive context. ' +
+					'Full TypeScript type definitions for all Code Mode API methods.',
 				mimeType: 'text/typescript',
 			},
 			async () => ({
@@ -143,8 +145,30 @@ async function startServer() {
 			},
 		);
 
+		// Register Code Mode usage guide resource
+		// On-demand reference material: method tables, response shapes, recipes, recovery patterns
+		server.registerResource(
+			'code-mode-guide',
+			'constellation://docs/guide',
+			{
+				description:
+					'Full method reference, response shapes, composition recipes, and error recovery patterns. ' +
+					'Read this when writing code_intel queries.',
+				mimeType: 'text/markdown',
+			},
+			async () => ({
+				contents: [
+					{
+						uri: 'constellation://docs/guide',
+						mimeType: 'text/markdown',
+						text: getCodeModeGuide(),
+					},
+				],
+			}),
+		);
+
 		console.error(
-			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}',
+			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide',
 		);
 
 		console.error('[CONSTELLATION] Server configured successfully');
