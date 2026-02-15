@@ -479,6 +479,20 @@ describe('Symbol/File errors from message', () => {
 
 		expect(result.error.guidance.some((g) => g.includes('file'))).toBe(true);
 	});
+
+	it('should NOT classify generic "symbol" mention as SYMBOL_NOT_FOUND', () => {
+		const error = new Error('Invalid symbol table in compiled module');
+		const result = createStructuredError(error, 'get_symbol_details');
+
+		expect(result.error.code).not.toBe(ErrorCode.SYMBOL_NOT_FOUND);
+	});
+
+	it('should NOT classify generic "file" mention as FILE_NOT_FOUND', () => {
+		const error = new Error('Cannot process the file format');
+		const result = createStructuredError(error, 'get_dependencies');
+
+		expect(result.error.code).not.toBe(ErrorCode.FILE_NOT_FOUND);
+	});
 });
 
 describe('Error code consistency', () => {
