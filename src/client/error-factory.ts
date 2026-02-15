@@ -455,7 +455,11 @@ function createErrorFromMessage(
 	}
 
 	// Symbol not found
-	if (message.includes('symbol not found') || message.includes('symbol')) {
+	if (
+		message.includes('symbol not found') ||
+		message.includes('no symbol') ||
+		message.includes('symbol does not exist')
+	) {
 		const errorDetails: McpErrorResponse['error'] = {
 			code: ErrorCode.SYMBOL_NOT_FOUND,
 			type: 'SymbolNotFoundError',
@@ -498,7 +502,12 @@ return results.symbols.map(s => ({
 	}
 
 	// File not found
-	if (message.includes('file not found') || message.includes('file')) {
+	if (
+		message.includes('file not found') ||
+		message.includes('no file') ||
+		message.includes('no such file') ||
+		message.includes('file does not exist')
+	) {
 		const errorDetails: McpErrorResponse['error'] = {
 			code: ErrorCode.FILE_NOT_FOUND,
 			type: 'FileNotFoundError',

@@ -130,7 +130,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 			description:
 				'DECISION RULE: Structure questions → this tool. Text search → Grep.\n\n' +
 				'Before using Grep, ask: Is this a STRUCTURE question (definitions, callers, impact) or a TEXT question (strings, config)?\n\n' +
-				'QUICK START: `return await api.searchSymbols({query: "AuthService"})` — simple queries are one-liners.\n\n' +
+				'QUICK START: `return await api.searchSymbols({query: "AuthService"})` — simple queries are one-liners.\n' +
+				'Run `api.listMethods()` for full API reference with signatures and descriptions.\n\n' +
 				'USE IMMEDIATELY WHEN:\n' +
 				'• BEFORE using Edit on a function/class → run impactAnalysis({symbolId}) first\n' +
 				'• BEFORE exploring an unfamiliar codebase → run getArchitectureOverview()\n' +
@@ -144,6 +145,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
 				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n\n' +
+				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
+				'Typical workflow: code_intel to find → Read to view source → Edit to modify\n\n' +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
 			inputSchema: {
 				code: z
