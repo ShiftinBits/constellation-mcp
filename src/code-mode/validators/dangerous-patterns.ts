@@ -29,6 +29,9 @@ export const DANGEROUS_GLOBALS = new Set([
 	'Function',
 	'Proxy',
 	'Reflect',
+	'Atomics',
+	'SharedArrayBuffer',
+	'WebAssembly',
 ]);
 
 export interface PatternMatch {

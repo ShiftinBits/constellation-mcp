@@ -149,7 +149,11 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'DECISION RULE: Structure questions → this tool. Text search → Grep.\n\n' +
 				'Before using Grep, ask: Is this a STRUCTURE question (definitions, callers, impact) or a TEXT question (strings, config)?\n\n' +
 				'QUICK START: `return await api.searchSymbols({query: "AuthService"})` — simple queries are one-liners.\n' +
-				'Run `api.listMethods()` for full API reference with signatures and descriptions.\n\n' +
+				'Run `api.listMethods()` for full API reference with signatures and descriptions.\n' +
+				'Run `api.help("methodName")` for inline TypeScript type definitions — no resource reads needed.\n' +
+				'Compose: `const [impact, deps] = await Promise.all([api.impactAnalysis({symbolId}), api.getDependents({filePath})]);`\n\n' +
+				'WHY THIS TOOL: Graph-backed intelligence finds indirect relationships, transitive dependencies, and breaking change risks that text search cannot detect.\n\n' +
+				'"What uses X?" disambiguation: getDependents (file imports) vs getCallGraph (call chain) vs traceSymbolUsage (all usages).\n\n' +
 				'USE IMMEDIATELY WHEN:\n' +
 				'• BEFORE using Edit on a function/class → run impactAnalysis({symbolId}) first\n' +
 				'• BEFORE exploring an unfamiliar codebase → run getArchitectureOverview()\n' +

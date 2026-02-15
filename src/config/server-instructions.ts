@@ -62,5 +62,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 
 *Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
 
+*Tip: \`api.listMethods()\` for full API reference, or \`api.listMethods({query: "impact"})\` to filter. \`api.help("methodName")\` for inline TypeScript types — no resource reads needed.*
+
 For full method reference, response shapes, and recipes: read \`constellation://docs/guide\``.trim();
 }

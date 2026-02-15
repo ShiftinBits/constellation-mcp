@@ -517,6 +517,26 @@ describe('CodeModeRuntime', () => {
 	});
 
 	describe('formatResult', () => {
+		it('should output compact JSON without whitespace indentation', () => {
+			const response = {
+				success: true,
+				result: { data: 'test', nested: { key: 'value' } },
+				executionTime: 100,
+			};
+
+			const formatted = runtime.formatResult(response);
+
+			// Must be compact (no newlines, no indentation)
+			expect(formatted).not.toContain('\n');
+			// Must still be valid JSON
+			const parsed = JSON.parse(formatted);
+			expect(parsed.success).toBe(true);
+			expect(parsed.result).toEqual({
+				data: 'test',
+				nested: { key: 'value' },
+			});
+		});
+
 		it('should format successful result with data', () => {
 			const response = {
 				success: true,

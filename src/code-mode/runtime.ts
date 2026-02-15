@@ -334,7 +334,7 @@ export class CodeModeRuntime {
 			}
 		}
 
-		return JSON.stringify(output, null, 2);
+		return JSON.stringify(output);
 	}
 }
 

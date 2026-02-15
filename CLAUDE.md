@@ -25,7 +25,7 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 AI Assistant → MCP (stdio) → code_intel → CodeModeSandbox → ConstellationClient → Core:3000 → Neo4j
 ```
 
-**Single tool design**: One `code_intel` tool executes JavaScript with `api` object providing 13 methods (10 API + ping + getCapabilities + listMethods).
+**Single tool design**: One `code_intel` tool executes JavaScript with `api` object providing 14 methods (10 API + ping + getCapabilities + listMethods + help).
 
 **Layer stack**:
 
@@ -76,7 +76,7 @@ src/
     └── error-messages.ts               Error message templates
 ```
 
-## API Methods (13 total)
+## API Methods (14 total)
 
 | Method                     | Purpose                      | Type |
 | -------------------------- | ---------------------------- | ---- |
@@ -93,6 +93,7 @@ src/
 | `ping`                     | Verify auth + connectivity   | Util |
 | `getCapabilities`          | Check indexing status        | Util |
 | `listMethods`              | Method discovery (sync)      | Util |
+| `help`                     | Inline type summaries (sync) | Util |
 
 ## Configuration
 
@@ -151,7 +152,7 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 
 **Code validation** (`validators/`): Acorn AST parser (not TypeScript compiler — faster) walks tree checking:
 
-- **Dangerous globals**: `process`, `global`, `globalThis`, `require`, `module`, `exports`, `__dirname`, `__filename`, `Buffer`, `eval`, `Function`, `Proxy`, `Reflect`
+- **Dangerous globals**: `process`, `global`, `globalThis`, `require`, `module`, `exports`, `__dirname`, `__filename`, `Buffer`, `eval`, `Function`, `Proxy`, `Reflect`, `Atomics`, `SharedArrayBuffer`, `WebAssembly`
 - **Dangerous properties**: `constructor`, `__proto__`, `prototype`, `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`
 - **Patterns**: Computed property chains, dynamic import(), with statements
 - **Warnings**: Missing `return` or `await`

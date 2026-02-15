@@ -6,7 +6,10 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { getCodeModeGuide } from '../../../src/config/code-mode-guide.js';
+import {
+	getCodeModeGuide,
+	GUIDE_SECTIONS,
+} from '../../../src/config/code-mode-guide.js';
 
 describe('code-mode-guide', () => {
 	describe('getCodeModeGuide', () => {
@@ -141,18 +144,84 @@ describe('code-mode-guide', () => {
 
 		it('should order sections logically', () => {
 			const guide = getCodeModeGuide();
+			// Sections are grouped by sub-resource:
+			// Methods: Which Method? → Method Reference
+			// Recipes: Response Contract → Recipes
+			// Recovery: Common Mistakes → Empty Results? → Recovery Patterns
 			const whichMethodIdx = guide.indexOf('## Which Method?');
-			const responseContractIdx = guide.indexOf('## Response Contract');
-			const emptyResultsIdx = guide.indexOf('## Empty Results?');
 			const methodRefIdx = guide.indexOf('## Method Reference');
+			const responseContractIdx = guide.indexOf('## Response Contract');
 			const recipesIdx = guide.indexOf('## Recipes');
+			const commonMistakesIdx = guide.indexOf('## Common Mistakes');
+			const emptyResultsIdx = guide.indexOf('## Empty Results?');
 			const recoveryIdx = guide.indexOf('## Recovery Patterns');
 
-			expect(whichMethodIdx).toBeLessThan(responseContractIdx);
-			expect(responseContractIdx).toBeLessThan(emptyResultsIdx);
-			expect(emptyResultsIdx).toBeLessThan(methodRefIdx);
-			expect(methodRefIdx).toBeLessThan(recipesIdx);
-			expect(recipesIdx).toBeLessThan(recoveryIdx);
+			// Methods section comes first
+			expect(whichMethodIdx).toBeLessThan(methodRefIdx);
+			// Recipes section comes after methods
+			expect(methodRefIdx).toBeLessThan(responseContractIdx);
+			expect(responseContractIdx).toBeLessThan(recipesIdx);
+			// Recovery section comes last
+			expect(recipesIdx).toBeLessThan(commonMistakesIdx);
+			expect(commonMistakesIdx).toBeLessThan(emptyResultsIdx);
+			expect(emptyResultsIdx).toBeLessThan(recoveryIdx);
+		});
+
+		it('should include sub-resource tip', () => {
+			const guide = getCodeModeGuide();
+			expect(guide).toContain('constellation://docs/guide/methods');
+			expect(guide).toContain('constellation://docs/guide/recipes');
+			expect(guide).toContain('constellation://docs/guide/recovery');
+		});
+	});
+
+	describe('GUIDE_SECTIONS', () => {
+		it('should export 3 sections: methods, recipes, recovery', () => {
+			expect(Object.keys(GUIDE_SECTIONS)).toEqual([
+				'methods',
+				'recipes',
+				'recovery',
+			]);
+		});
+
+		it('should have name, description, and getter for each section', () => {
+			for (const [key, section] of Object.entries(GUIDE_SECTIONS)) {
+				expect(section.name).toBeTruthy();
+				expect(section.description).toBeTruthy();
+				expect(typeof section.getter).toBe('function');
+				const content = section.getter();
+				expect(typeof content).toBe('string');
+				expect(content.length).toBeGreaterThan(0);
+			}
+		});
+
+		it('methods section should include method reference and disambiguation', () => {
+			const content = GUIDE_SECTIONS.methods.getter();
+			expect(content).toContain('## Which Method?');
+			expect(content).toContain('## Method Reference');
+			expect(content).toContain('"What uses X?"');
+		});
+
+		it('recipes section should include response contract and workflows', () => {
+			const content = GUIDE_SECTIONS.recipes.getter();
+			expect(content).toContain('## Response Contract');
+			expect(content).toContain('## Recipes');
+			expect(content).toContain('Safe to Change?');
+		});
+
+		it('recovery section should include common mistakes and recovery patterns', () => {
+			const content = GUIDE_SECTIONS.recovery.getter();
+			expect(content).toContain('## Common Mistakes');
+			expect(content).toContain('## Empty Results?');
+			expect(content).toContain('## Recovery Patterns');
+			expect(content).toContain('AUTH_ERROR');
+		});
+
+		it('each section should be smaller than the full guide', () => {
+			const fullGuide = getCodeModeGuide();
+			for (const section of Object.values(GUIDE_SECTIONS)) {
+				expect(section.getter().length).toBeLessThan(fullGuide.length);
+			}
 		});
 	});
 });

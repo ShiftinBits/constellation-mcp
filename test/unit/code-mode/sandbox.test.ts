@@ -1641,6 +1641,60 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(true);
 			expect(result.result.methods).toHaveLength(12);
 		});
+
+		it('should include reference to docs guide in listMethods response', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.reference).toBe('constellation://docs/guide');
+		});
+	});
+
+	describe('API help', () => {
+		it('should return type summary for a valid method name', async () => {
+			const code = 'return api.help("searchSymbols");';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toContain('SearchSymbolsParams');
+			expect(result.result).toContain('SearchSymbolsResult');
+		});
+
+		it('should return type summary for getSymbolDetails', async () => {
+			const code = 'return api.help("getSymbolDetails");';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toContain('GetSymbolDetailsParams');
+		});
+
+		it('should return error message for unknown method', async () => {
+			const code = 'return api.help("nonExistentMethod");';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toContain('Unknown method');
+			expect(result.result).toContain('listMethods');
+		});
+
+		it('should list all available methods when called without arguments', async () => {
+			const code = 'return api.help();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toContain('searchSymbols');
+			expect(result.result).toContain('impactAnalysis');
+			expect(result.result).toContain('api.help("methodName")');
+		});
+
+		it('should be synchronous (no await needed)', async () => {
+			const code = 'const h = api.help("ping"); return typeof h;';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('string');
+		});
 	});
 
 	describe('API error context formatting', () => {

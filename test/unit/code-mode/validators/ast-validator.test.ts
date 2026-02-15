@@ -163,6 +163,30 @@ describe('ast-validator', () => {
 				const result = validateAst('Function');
 				expect(result.valid).toBe(false);
 			});
+
+			it('should block Atomics', () => {
+				const result = validateAst('Atomics');
+				expect(result.valid).toBe(false);
+				expect(
+					result.errors.some((e) => e.pattern === 'dangerous-global'),
+				).toBe(true);
+			});
+
+			it('should block SharedArrayBuffer', () => {
+				const result = validateAst('SharedArrayBuffer');
+				expect(result.valid).toBe(false);
+				expect(
+					result.errors.some((e) => e.pattern === 'dangerous-global'),
+				).toBe(true);
+			});
+
+			it('should block WebAssembly', () => {
+				const result = validateAst('WebAssembly');
+				expect(result.valid).toBe(false);
+				expect(
+					result.errors.some((e) => e.pattern === 'dangerous-global'),
+				).toBe(true);
+			});
 		});
 
 		describe('dangerous statements', () => {

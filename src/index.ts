@@ -8,7 +8,7 @@ import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
-import { getCodeModeGuide } from './config/code-mode-guide.js';
+import { getCodeModeGuide, GUIDE_SECTIONS } from './config/code-mode-guide.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
 import {
@@ -168,6 +168,48 @@ async function startServer() {
 			}),
 		);
 
+		// Register guide sub-resources for granular access
+		// LLMs can read only the section they need (~600-1,200 tokens each vs ~3,500 monolithic)
+		server.registerResource(
+			'code-mode-guide-section',
+			new ResourceTemplate('constellation://docs/guide/{section}', {
+				list: async () => ({
+					resources: Object.entries(GUIDE_SECTIONS).map(([key, section]) => ({
+						uri: `constellation://docs/guide/${key}`,
+						name: section.name,
+						description: section.description,
+						mimeType: 'text/markdown',
+					})),
+				}),
+			}),
+			{
+				description:
+					'Individual guide sections for granular access. ' +
+					'Available: methods, recipes, recovery. ' +
+					'Smaller than the full guide (~600-1,200 tokens each vs ~3,500).',
+				mimeType: 'text/markdown',
+			},
+			async (uri, variables) => {
+				const section = variables.section as string;
+				const sectionDef = GUIDE_SECTIONS[section];
+				if (!sectionDef) {
+					const available = Object.keys(GUIDE_SECTIONS).join(', ');
+					throw new Error(
+						`Unknown guide section: "${section}". Available: ${available}`,
+					);
+				}
+				return {
+					contents: [
+						{
+							uri: uri.href,
+							mimeType: 'text/markdown',
+							text: sectionDef.getter(),
+						},
+					],
+				};
+			},
+		);
+
 		// Register metrics resource for runtime monitoring (SB-258 Step 3.5)
 		server.registerResource(
 			'metrics',
@@ -189,7 +231,7 @@ async function startServer() {
 		);
 
 		console.error(
-			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide, constellation://metrics',
+			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide, constellation://docs/guide/{section}, constellation://metrics',
 		);
 
 		console.error('[CONSTELLATION] Server configured successfully');

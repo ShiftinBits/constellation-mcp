@@ -41,6 +41,7 @@ import {
 } from '../constants/index.js';
 import { AuditLogger } from '../utils/audit-logger.js';
 import { Metrics } from '../utils/metrics.js';
+import { METHOD_SUMMARIES } from '../types/method-summaries.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -123,6 +124,7 @@ export interface ListMethodsResult {
 	decisionGuide?: Record<string, string>;
 	compositionPatterns?: CompositionPattern[];
 	tip: string;
+	reference: string;
 }
 
 /**
@@ -167,6 +169,7 @@ export interface ConstellationApi {
 	// Utility
 	ping(): Promise<PingResult>;
 	listMethods(params?: { query?: string }): ListMethodsResult;
+	help(methodName?: string): string;
 	getCapabilities(): Promise<ProjectCapabilities>;
 }
 
@@ -880,7 +883,20 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 							"const result = await api.searchSymbols({ query: 'User' });",
 						...(params?.query ? {} : { decisionGuide, compositionPatterns }),
 						tip: 'Use Promise.all() for parallel queries (3-10x faster).',
+						reference: 'constellation://docs/guide',
 					};
+				},
+				// Inline type help - returns method's TypeScript interface summary
+				help: (methodName?: string): string => {
+					if (!methodName) {
+						const methods = Object.keys(METHOD_SUMMARIES);
+						return `Available methods: ${methods.join(', ')}\n\nUsage: api.help("methodName") for parameters and return types.`;
+					}
+					const summary = METHOD_SUMMARIES[methodName];
+					if (!summary) {
+						return `Unknown method "${methodName}". Run api.listMethods() to see available methods.`;
+					}
+					return summary;
 				},
 				// Capability check method - allows AI to verify project state
 				getCapabilities: async (): Promise<ProjectCapabilities> => {
@@ -892,6 +908,9 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					// Handle special methods on target
 					if (prop === 'listMethods') {
 						return target.listMethods;
+					}
+					if (prop === 'help') {
+						return target.help;
 					}
 					if (prop === 'getCapabilities') {
 						return target.getCapabilities;
