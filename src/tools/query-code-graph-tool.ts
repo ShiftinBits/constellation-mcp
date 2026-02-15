@@ -27,6 +27,7 @@ import {
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
 } from '../constants/index.js';
+import type { McpErrorResponse } from '../types/mcp-errors.js';
 
 /**
  * Regex to detect invalid binary/control characters in code
@@ -81,6 +82,23 @@ function toSchemaCompliantOutput(
 	}
 
 	return output;
+}
+
+/**
+ * Transform an McpErrorResponse to SchemaCompliantOutput for error structuredContent.
+ * Allows LLMs to access error state without parsing JSON from text content.
+ *
+ * Note: MCP SDK skips outputSchema validation when isError is true,
+ * so this content passes through without validation. We conform to
+ * SchemaCompliantOutput for consistency and forward compatibility.
+ */
+function toErrorStructuredContent(
+	errorResponse: McpErrorResponse,
+): SchemaCompliantOutput {
+	return {
+		success: false,
+		error: errorResponse.error.message,
+	};
 }
 
 /**
@@ -222,6 +240,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							text: JSON.stringify(structuredError, null, 2),
 						},
 					],
+					structuredContent: toErrorStructuredContent(structuredError),
 					isError: true,
 				};
 			}
@@ -247,6 +266,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
+						structuredContent: toErrorStructuredContent(structuredError),
 						isError: true,
 					};
 				}
@@ -280,6 +300,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
+						structuredContent: toErrorStructuredContent(structuredError),
 						isError: true,
 					};
 				}
@@ -310,6 +331,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(structuredError, null, 2),
 							},
 						],
+						structuredContent: toErrorStructuredContent(structuredError),
 						isError: true,
 					};
 				}
@@ -339,6 +361,9 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(response.structuredError, null, 2),
 							},
 						],
+						structuredContent: toErrorStructuredContent(
+							response.structuredError,
+						),
 						isError: true,
 					};
 				}
@@ -375,6 +400,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							text: JSON.stringify(structuredError, null, 2),
 						},
 					],
+					structuredContent: toErrorStructuredContent(structuredError),
 					isError: true,
 				};
 			}

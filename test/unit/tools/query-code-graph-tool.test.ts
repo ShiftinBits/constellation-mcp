@@ -301,6 +301,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(result.content[0].text).toContain('"success": false');
 			expect(result.content[0].text).toContain('Execution failed');
 			expect(result.isError).toBe(true);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.any(String),
+			});
 		});
 
 		it('should handle non-Error exceptions', async () => {
@@ -313,6 +317,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(result.content[0].text).toContain('"success": false');
 			expect(result.content[0].text).toContain('String error');
 			expect(result.isError).toBe(true);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.any(String),
+			});
 		});
 
 		it('should include logs in response', async () => {
@@ -500,6 +508,8 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(result.isError).toBe(true);
 			expect(result.content[0].text.toLowerCase()).toContain('configuration');
 			expect(mockRuntime.execute).not.toHaveBeenCalled();
+			expect(result.structuredContent).toBeDefined();
+			expect(result.structuredContent.success).toBe(false);
 
 			// Restore original mock
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
@@ -559,14 +569,18 @@ describe('registerQueryCodeGraphTool', () => {
 			});
 		});
 
-		it('should not include structured content for errors', async () => {
+		it('should include structured content for errors', async () => {
 			mockRuntime.execute.mockRejectedValue(new Error('Test error'));
 
 			const result = await registeredHandler({
 				code: 'throw new Error();',
 			});
 
-			expect(result.structuredContent).toBeUndefined();
+			expect(result.structuredContent).toBeDefined();
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.any(String),
+			});
 			expect(result.isError).toBe(true);
 		});
 	});
@@ -592,6 +606,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.guidance).toContain(
 				'Reduce code size by removing unnecessary code',
 			);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.stringContaining('exceeds maximum'),
+			});
 
 			// Should not call runtime.execute
 			expect(mockRuntime.execute).not.toHaveBeenCalled();
@@ -638,6 +656,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.guidance).toContain(
 				'Ensure code is valid UTF-8 text',
 			);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.stringContaining('binary or control'),
+			});
 
 			// Should not call runtime.execute
 			expect(mockRuntime.execute).not.toHaveBeenCalled();
@@ -725,6 +747,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.success).toBe(false);
 			expect(parsed.error.code).toBe('AUTH_ERROR');
 			expect(parsed.error.type).toBe('AuthenticationError');
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: 'Invalid API key',
+			});
 		});
 
 		it('should include error.code in structured JSON response', async () => {
@@ -948,6 +974,10 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.code).toBe('NOT_CONFIGURED');
 			expect(parsed.error.type).toBe('ConfigurationError');
 			expect(parsed.error.recoverable).toBe(true);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.any(String),
+			});
 
 			// Restore original mock
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
@@ -980,6 +1010,59 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.code).toBeDefined();
 			expect(parsed.error.type).toBe('ExecutionError');
 			expect(parsed.error.message).toContain('Unexpected error');
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: expect.stringContaining('Unexpected error'),
+			});
+		});
+
+		it('should return flat SchemaCompliantOutput in structuredContent, not full McpErrorResponse', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'AUTH_ERROR' as const,
+					type: 'AuthenticationError',
+					message: 'Invalid API key',
+					recoverable: true,
+					guidance: ['Run: constellation auth'],
+					context: {
+						tool: 'code_intel',
+						projectId: 'test-project',
+						branchName: 'main',
+					},
+					docs: 'https://docs.example.com/auth',
+				},
+				formattedMessage: 'Authentication failed - check your key',
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Authentication failed',
+				structuredError,
+				executionTime: 10,
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({});',
+			});
+
+			// structuredContent should be flat SchemaCompliantOutput, not nested McpErrorResponse
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: 'Invalid API key',
+			});
+			// Should NOT contain nested error object properties
+			expect(result.structuredContent.error).toBe('Invalid API key');
+			expect(typeof result.structuredContent.error).toBe('string');
+
+			// Full error details remain in text content for backwards compatibility
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.code).toBe('AUTH_ERROR');
+			expect(parsed.error.guidance).toContain('Run: constellation auth');
+			expect(parsed.error.context.projectId).toBe('test-project');
+			expect(parsed.formattedMessage).toBe(
+				'Authentication failed - check your key',
+			);
 		});
 	});
 });
