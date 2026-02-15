@@ -1804,7 +1804,7 @@ See E2E-TEST-RESULTS.md for complete test cases.
 
 ---
 
-## Category 7: Error Handling (6 Tests)
+## Category 7: Error Handling (7 Tests)
 
 ### TC-ERR-001: AUTH_ERROR Structure (Documentation)
 
@@ -1835,11 +1835,49 @@ return {
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Note:** Error handling tests (TC-ERR-001 through TC-ERR-006) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying Neo4j data. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
+---
+
+### TC-ERR-007: MEMORY_EXCEEDED Error and structuredContent (Documentation)
+
+**Code:**
+
+```javascript
+return {
+	documentedMemoryExceeded: {
+		code: 'MEMORY_EXCEEDED',
+		type: 'MemoryExceededError',
+		recoverable: true,
+		memoryLimit: '128MB (DEFAULT_MEMORY_LIMIT_MB)',
+		checkInterval: '50ms (MEMORY_CHECK_INTERVAL_MS)',
+		enforcement: 'Best-effort periodic heap checking via process.memoryUsage()',
+		guidance: [
+			'Reduce the amount of data being processed',
+			'Use pagination (limit parameter) to process in smaller batches',
+			'Avoid creating large arrays or objects in loops',
+		],
+	},
+	documentedStructuredContent: {
+		note: 'All error responses include structuredContent for programmatic parsing (SB-259)',
+		schema: { success: false, error: 'Human-readable error message string' },
+		purpose: 'Allows AI assistants to parse error state without regex on text',
+	},
+};
+```
+
+**Expected:**
+
+- Documents MEMORY_EXCEEDED error structure (SB-156)
+- Documents structuredContent behavior for error responses (SB-259)
+- `recoverable: true` — user can retry with smaller dataset
+- Memory limit: 128MB, checked every 50ms (best-effort)
+
+**Validates:** MEMORY_EXCEEDED error code (SB-156), structuredContent in error responses (SB-259)
+
+**Note:** Error handling tests (TC-ERR-001 through TC-ERR-007) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying Neo4j data. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
 
 ---
 
-## Category 8: Sandbox Security (12 Tests)
+## Category 8: Sandbox Security (17 Tests)
 
 ### TC-SEC-001: Block require()
 
@@ -2089,7 +2127,104 @@ return {
 
 ---
 
-**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-012) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Additional tests (TC-SEC-010 through TC-SEC-012) validate input size limits and output truncation. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
+### TC-SEC-013: Block Atomics Global
+
+**Code:**
+
+```javascript
+const buf = new SharedArrayBuffer(16);
+const result = Atomics.load(new Int32Array(buf), 0);
+return result;
+```
+
+**Expected:**
+
+- Rejected at AST validation phase (not runtime)
+- Error includes: "Access to 'Atomics' is not allowed" or "Access to 'SharedArrayBuffer' is not allowed"
+
+**Validates:** Atomics blocking (v4 dangerous globals, commit e450614)
+
+---
+
+### TC-SEC-014: Block SharedArrayBuffer Global
+
+**Code:**
+
+```javascript
+const buffer = new SharedArrayBuffer(1024);
+return { size: buffer.byteLength };
+```
+
+**Expected:**
+
+- Rejected at AST validation phase (not runtime)
+- Error includes: "Access to 'SharedArrayBuffer' is not allowed"
+
+**Validates:** SharedArrayBuffer blocking (v4 dangerous globals, commit e450614)
+
+---
+
+### TC-SEC-015: Block WebAssembly Global
+
+**Code:**
+
+```javascript
+const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109]));
+return { type: typeof module };
+```
+
+**Expected:**
+
+- Rejected at AST validation phase (not runtime)
+- Error includes: "Access to 'WebAssembly' is not allowed"
+
+**Validates:** WebAssembly blocking (v4 dangerous globals, commit e450614)
+
+---
+
+### TC-SEC-016: Computed Dynamic Property Warning (Not Error)
+
+**Code:**
+
+```javascript
+const obj = { a: 1, b: 2 };
+const key = 'a';
+return obj[key];
+```
+
+**Expected:**
+
+- Code executes successfully (NOT rejected)
+- Returns `1`
+- Logs may contain a warning: `[WARN] [AST] Dynamic computed property access detected`
+- This is a **warning**, not an error — defense-in-depth security auditing (SB-258)
+
+**Validates:** Computed dynamic property warning behavior (SB-258), distinction between warnings and errors in AST validation
+
+---
+
+### TC-SEC-017: Block Legacy Property Access
+
+**Code:**
+
+```javascript
+const obj = {};
+obj.__defineGetter__('x', function () {
+	return 42;
+});
+return obj.x;
+```
+
+**Expected:**
+
+- Rejected at AST validation phase (not runtime)
+- Error includes: "Access to .**defineGetter** is not allowed"
+
+**Validates:** Legacy property access blocking (**defineGetter**, **defineSetter**, **lookupGetter**, **lookupSetter**)
+
+---
+
+**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-017) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Additional tests (TC-SEC-010 through TC-SEC-012) validate input size limits and output truncation. Tests TC-SEC-013 through TC-SEC-015 block v4 dangerous globals (Atomics, SharedArrayBuffer, WebAssembly). TC-SEC-016 validates computed property warnings, and TC-SEC-017 validates legacy property blocking. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
 
 ---
 
@@ -2316,7 +2451,7 @@ LIMIT 1
 
 ---
 
-## Category 11: Code Mode Specific (15 Tests)
+## Category 11: Code Mode Specific (21 Tests)
 
 ### TC-CODE-001: Top-Level Await
 
@@ -2407,8 +2542,9 @@ return [1, 2, 3, 4, 5];
 // TC-CODE-005: Return Primitive
 return 42;
 
-// TC-CODE-006: No Return
+// TC-CODE-006: Auto-Return (SB-151)
 const x = 1 + 1;
+// Auto-return adds implicit `return x;` — returns 2
 
 // TC-CODE-007: Return Null
 return null;
@@ -2454,7 +2590,7 @@ return { done: true };
 **Code:**
 
 ```javascript
-// TC-CODE-014: All 12 Methods Listed
+// TC-CODE-014: All 12 Registry Methods Listed
 const info = api.listMethods();
 const methodNames = info.methods.map((m) => m.name);
 const expected = [
@@ -2476,6 +2612,8 @@ return {
 	methodCount: info.methods?.length || 0,
 	missing,
 	allPresent: missing.length === 0,
+	hasDecisionGuide: !!info.decisionGuide,
+	hasReference: !!info.reference,
 };
 ```
 
@@ -2483,10 +2621,157 @@ return {
 
 - `allPresent: true`
 - `methodCount: 12`
+- `hasDecisionGuide: true`
+- `hasReference: true` (v4: bridges Tier 4 → Tier 3)
 
-**Note:** listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+**Note:** listMethods and help are 2 additional utility methods on the `api` object but not included in the registry output (total API surface: 14 methods). listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
 
 **Validates:** Complete method list and documentation
+
+---
+
+### TC-CODE-016: Auto-Return on Expression Statement (SB-151)
+
+**Code:**
+
+```javascript
+const search = await api.searchSymbols({ query: 'Error', limit: 3 });
+search.symbols?.length || 0
+```
+
+**Expected:**
+
+- Returns a number (the length or 0)
+- Auto-return prepends `return` to the last bare expression statement
+- No explicit `return` needed for final expression
+
+**Validates:** Auto-return on ExpressionStatement (SB-151)
+
+---
+
+### TC-CODE-017: Auto-Return Preserves Explicit Return (SB-151)
+
+**Code:**
+
+```javascript
+const x = 42;
+return x * 2;
+```
+
+**Expected:**
+
+- Returns `84`
+- When an explicit `return` is present, auto-return does not modify the code
+
+**Validates:** Auto-return does not interfere with explicit return statements (SB-151)
+
+---
+
+### TC-CODE-018: listMethods Query Filter (SB-257)
+
+**Code:**
+
+```javascript
+const all = api.listMethods();
+const filtered = api.listMethods({ query: 'dep' });
+return {
+	allCount: all.methods.length,
+	filteredCount: filtered.methods.length,
+	filteredNames: filtered.methods.map((m) => m.name),
+	isSubset: filtered.methods.length <= all.methods.length,
+	hasDecisionGuide: !!all.decisionGuide,
+};
+```
+
+**Expected:**
+
+- `allCount === 12`
+- `filteredCount > 0` and `filteredCount < allCount`
+- `filteredNames` includes methods matching 'dep' (e.g., getDependencies, getDependents)
+- `isSubset: true`
+- `hasDecisionGuide: true` (unfiltered response includes decision guide)
+
+**Validates:** listMethods query parameter filtering (SB-257), decision guide presence
+
+---
+
+### TC-CODE-019: help() Method — Inline Type Summaries
+
+**Code:**
+
+```javascript
+const noArg = api.help();
+const withMethod = api.help('searchSymbols');
+const unknown = api.help('nonExistentMethod');
+return {
+	noArgType: typeof noArg,
+	noArgHasContent: noArg.length > 0,
+	withMethodType: typeof withMethod,
+	withMethodHasInterface: withMethod.includes('interface') || withMethod.includes('SearchSymbols'),
+	unknownHasError: unknown.includes('Unknown') || unknown.includes('not found'),
+};
+```
+
+**Expected:**
+
+- `noArgType === 'string'`
+- `noArgHasContent: true`
+- `withMethodType === 'string'`
+- `withMethodHasInterface: true` (returns TypeScript interface types)
+- `unknownHasError: true` (unknown method returns error message)
+
+**Validates:** help() method with no args, valid method name, and unknown method name
+
+---
+
+### TC-CODE-020: Response Metadata (asOfCommit, lastIndexedAt, resultContext)
+
+**Code:**
+
+```javascript
+const result = await api.searchSymbols({ query: 'CodeModeSandbox', limit: 1 });
+return {
+	hasResult: result.symbols?.length > 0,
+	symbolName: result.symbols?.[0]?.name,
+};
+```
+
+**Expected:**
+
+- `hasResult: true`
+- The **tool response envelope** (not the code result) includes:
+  - `asOfCommit`: A git commit hash string (40 hex characters)
+  - `lastIndexedAt`: An ISO 8601 timestamp string
+  - `resultContext`: Present when query has context (e.g., `reason: "no_matches"`)
+- These metadata fields are populated from Core API response headers
+
+**Note:** These fields appear in the MCP tool response, not in the sandbox result object. The test executor should verify their presence in the tool response envelope.
+
+**Validates:** Response metadata passthrough (asOfCommit, lastIndexedAt, resultContext)
+
+---
+
+### TC-CODE-021: Timer Lifecycle Safety (Documentation)
+
+**Code:**
+
+```javascript
+return {
+	documentedBehavior: {
+		defaultTimerSetting: 'allowTimers: false (timers not available in sandbox)',
+		whenEnabled: 'Active timers tracked and cleared in finally block after execution',
+		implementation: 'SB-258 Step 3.2 - executionState.timerCleanup in sandbox.ts',
+	},
+};
+```
+
+**Expected:**
+
+- Documents timer lifecycle safety behavior
+- Timers are disabled by default (`allowTimers: false`)
+- When enabled, automatic cleanup prevents callback leaks after execution
+
+**Validates:** Timer lifecycle safety documentation (SB-258)
 
 ---
 
@@ -2862,13 +3147,13 @@ RETURN count(s) as neo4jOrphanCount,
 | Impact Methods         | 9       | Full             |
 | Architecture Methods   | 4       | Full             |
 | Parameter Validation   | 11      | N/A (API-layer)  |
-| Error Handling         | 6       | N/A (API-layer)  |
-| Sandbox Security       | 12      | N/A (Sandbox)    |
+| Error Handling         | 7       | N/A (API-layer)  |
+| Sandbox Security       | 17      | N/A (Sandbox)    |
 | Edge Cases             | 8       | Partial          |
 | Combined Workflows     | 5       | Full             |
-| Code Mode Specific     | 15      | Partial          |
+| Code Mode Specific     | 21      | Partial          |
 | Neo4j Cross-Validation | 10      | Full             |
-| **TOTAL**              | **112** |                  |
+| **TOTAL**              | **124** |                  |
 
 ### Neo4j Validation Commands
 
@@ -2904,7 +3189,7 @@ RETURN s.name, s.kind, s.filePath, s.line
 **Constellation API Test:**
 
 ```
-mcp__plugin_constellation_constellation__query_code
+mcp__plugin_constellation_constellation__code_intel
 ```
 
 **Neo4j Validation Query:**
@@ -2921,6 +3206,7 @@ mcp__neo4j__read-cypher
 - ~~**TC-DISC-003**: MCP uses `isExported` but Core expects `filterByExported`~~ ✅ FIXED (sandbox now transforms parameters)
 - ~~**TC-TRACE-006**: `includeContext` parameter defined but context data not populated in response~~ ✅ FIXED (context now returns usage location strings)
 - ~~**TC-DEP-007**: `includeImpactMetrics` parameter defined but `detailedMetrics` not populated~~ ✅ FIXED (returns byDepth, criticalPaths, mostImpactedFiles)
+- ~~**isExported parameter**: Broken `isExported` parameter transformation removed~~ ✅ FIXED (SB-155: MCP sandbox now passes `isExported` directly to Core)
 
 #### API Validation Constraints (By Design)
 
@@ -2938,6 +3224,10 @@ mcp__neo4j__read-cypher
 - **TC-XVAL-001**: Uses `query: 'e'` since API requires min 1 character (matches most symbols)
 - **TC-IMPACT-006**: `impactAnalysis` returns `breakingChangeRisk`, not `metrics` field
 - **TC-DISC-011/012**: `ping` and `getCapabilities` are utility methods for connectivity/status checks
+- **TC-CODE-006**: Now returns `2` due to auto-return (SB-151) — previously returned `undefined`
+- **TC-CODE-014**: `listMethods()` returns 12 registry entries; `listMethods` and `help` are 2 additional utility methods (total API surface: 14 methods)
+- **Process-level isolation**: `CONSTELLATION_SANDBOX_ISOLATION=hardened` enables child-process isolation with hard memory limits and SIGKILL timeout. This is an env var setting, not testable via the `code_intel` tool
+- **MEMORY_EXCEEDED**: New error code (SB-156) for sandbox heap limit enforcement. 128MB limit checked every 50ms (best-effort)
 
 #### Neo4j Query Behavior Notes
 
@@ -2945,6 +3235,24 @@ mcp__neo4j__read-cypher
 - **IMPORTS targets**: `IMPORTS` relationships connect files to both `File` and `Package` nodes. Validation queries must use `(f)-[:IMPORTS]->(dep)` without label filtering to count all targets.
 - **filterByUsageType vs filterByRelationshipType**: `filterByUsageType` filters by `usage.kind` (symbol kind of the using node). `filterByRelationshipType` filters by `type(r)` (Neo4j relationship type). These are distinct parameters with different semantics.
 - **visibility vs isExported**: The TS extractor sets `visibility` (`public`/`private`) only on class members with explicit access modifiers. `isExported` is set on module-level exports. These properties apply to different symbol categories and never co-exist as `visibility='public'` + `isExported=true`.
+
+#### AST Validation Pattern Checkers
+
+The sandbox AST validator (Acorn-based) checks 9 patterns before execution:
+
+| ID                            | Pattern                                                      | Severity    | Tested By                 |
+| ----------------------------- | ------------------------------------------------------------ | ----------- | ------------------------- |
+| `constructor-access`          | `.constructor` access                                        | Error       | TC-SEC-003                |
+| `proto-access`                | `.__proto__` access                                          | Error       | TC-SEC-006                |
+| `prototype-access`            | `.prototype` access                                          | Error       | TC-SEC-006                |
+| `dangerous-global`            | process, eval, Atomics, SharedArrayBuffer, WebAssembly, etc. | Error       | TC-SEC-001-005, 013-015   |
+| `dynamic-import`              | `import()` expression                                        | Error       | TC-SEC-002                |
+| `with-statement`              | `with (...)` statement                                       | Error       | (implicit in strict mode) |
+| `computed-dangerous-property` | `obj["constructor"]` etc.                                    | Error       | TC-SEC-003                |
+| `legacy-property-access`      | `__defineGetter__` etc.                                      | Error       | TC-SEC-017                |
+| `computed-dynamic-property`   | `obj[variable]`                                              | **Warning** | TC-SEC-016                |
+
+Source: `src/code-mode/validators/dangerous-patterns.ts`
 
 ### Pass Criteria
 
