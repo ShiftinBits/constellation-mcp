@@ -1564,6 +1564,70 @@ describe('CodeModeSandbox', () => {
 			);
 			expect(result.result.compositionPatterns[0]).toHaveProperty('code');
 		});
+
+		it('should filter methods by query matching name', async () => {
+			const code = 'return api.listMethods({ query: "depend" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			const methods = result.result.methods;
+			// getDependencies, getDependents, findCircularDependencies
+			expect(methods.length).toBe(3);
+			expect(
+				methods.every(
+					(m: any) =>
+						m.name.toLowerCase().includes('depend') ||
+						m.description.toLowerCase().includes('depend') ||
+						m.triggerPhrases.some((t: string) =>
+							t.toLowerCase().includes('depend'),
+						),
+				),
+			).toBe(true);
+		});
+
+		it('should filter methods by query matching description', async () => {
+			const code = 'return api.listMethods({ query: "unused" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(
+				result.result.methods.some((m: any) => m.name === 'findOrphanedCode'),
+			).toBe(true);
+		});
+
+		it('should return empty methods array for non-matching query', async () => {
+			const code = 'return api.listMethods({ query: "xyznonexistent" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.methods).toHaveLength(0);
+		});
+
+		it('should exclude decisionGuide and compositionPatterns when query is provided', async () => {
+			const code = 'return api.listMethods({ query: "search" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.decisionGuide).toBeUndefined();
+			expect(result.result.compositionPatterns).toBeUndefined();
+		});
+
+		it('should include decisionGuide and compositionPatterns when no query', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.decisionGuide).toBeDefined();
+			expect(result.result.compositionPatterns).toBeDefined();
+		});
+
+		it('should return all 12 methods when no query provided (backwards compatible)', async () => {
+			const code = 'return api.listMethods();';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.result.methods).toHaveLength(12);
+		});
 	});
 
 	describe('API error context formatting', () => {

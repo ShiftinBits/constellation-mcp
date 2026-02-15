@@ -118,8 +118,8 @@ export interface ListMethodsResult {
 	methods: MethodInfo[];
 	usage: string;
 	example: string;
-	decisionGuide: Record<string, string>;
-	compositionPatterns: CompositionPattern[];
+	decisionGuide?: Record<string, string>;
+	compositionPatterns?: CompositionPattern[];
 	tip: string;
 }
 
@@ -164,7 +164,7 @@ export interface ConstellationApi {
 
 	// Utility
 	ping(): Promise<PingResult>;
-	listMethods(): ListMethodsResult;
+	listMethods(params?: { query?: string }): ListMethodsResult;
 	getCapabilities(): Promise<ProjectCapabilities>;
 }
 
@@ -796,14 +796,26 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 		const api: ConstellationApi = new Proxy(
 			{
 				// Special method for discoverability with enhanced metadata
-				listMethods: (): ListMethodsResult => ({
-					methods: availableMethods,
-					usage: 'Call any method with: await api.methodName(params)',
-					example: "const result = await api.searchSymbols({ query: 'User' });",
-					decisionGuide,
-					compositionPatterns,
-					tip: 'Use Promise.all() for parallel queries (3-10x faster).',
-				}),
+				listMethods: (params?: { query?: string }): ListMethodsResult => {
+					let filtered = availableMethods;
+					if (params?.query) {
+						const q = params.query.toLowerCase();
+						filtered = availableMethods.filter(
+							(m) =>
+								m.name.toLowerCase().includes(q) ||
+								m.description.toLowerCase().includes(q) ||
+								m.triggerPhrases.some((t) => t.toLowerCase().includes(q)),
+						);
+					}
+					return {
+						methods: filtered,
+						usage: 'Call any method with: await api.methodName(params)',
+						example:
+							"const result = await api.searchSymbols({ query: 'User' });",
+						...(params?.query ? {} : { decisionGuide, compositionPatterns }),
+						tip: 'Use Promise.all() for parallel queries (3-10x faster).',
+					};
+				},
 				// Capability check method - allows AI to verify project state
 				getCapabilities: async (): Promise<ProjectCapabilities> => {
 					return getProjectCapabilities(client, projectContext);
