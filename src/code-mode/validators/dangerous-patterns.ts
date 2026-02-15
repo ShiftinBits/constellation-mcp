@@ -244,6 +244,25 @@ export const DANGEROUS_PATTERNS: PatternChecker[] = [
 			return null;
 		},
 	},
+	{
+		id: 'computed-dynamic-property',
+		description:
+			'Warn on dynamic computed property access (defense-in-depth, SB-258)',
+		check(node: Node): PatternMatch | null {
+			if (!isMemberExpression(node)) return null;
+			if (!node.computed) return null;
+			// String/numeric literal computed access is handled by computed-dangerous-property
+			if (isLiteral(node.property)) return null;
+			return {
+				pattern: 'computed-dynamic-property',
+				message:
+					'Dynamic computed property access detected. ' +
+					'This is allowed but logged as a warning for security auditing. ' +
+					'Use dot notation or literal keys when possible.',
+				node,
+			};
+		},
+	},
 ];
 
 export function checkAllPatterns(

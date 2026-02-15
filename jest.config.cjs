@@ -9,6 +9,8 @@ module.exports = {
 		'!src/**/*.d.ts',
 		'!src/index.ts', // MCP server entry point (uses import.meta.url)
 		'!src/codegen/api-generator.ts', // CLI utility (uses import.meta.url)
+		'!src/code-mode/worker-path.ts', // Isolated import.meta.url (SB-258)
+		'!src/code-mode/sandbox-worker.ts', // Child process entry point (SB-258, tested via IPC mocks)
 		'!src/types/**', // Type definitions
 		'!src/tools/ConfigInfoTool.ts', // Example tool
 		'!src/tools/ExampleTool.ts', // Example tool

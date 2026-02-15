@@ -1,5 +1,10 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { registerQueryCodeGraphTool } from '../../src/tools/query-code-graph-tool.js';
+
+// Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
+jest.mock('../../src/code-mode/worker-path.js', () => ({
+	WORKER_PATH: '/mocked/path/sandbox-worker.js',
+}));
 
 describe('code_intel ping smoke test', () => {
 	it('returns pong from simple code execution', async () => {

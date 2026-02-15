@@ -395,4 +395,35 @@ describe('ast-validator', () => {
 			});
 		});
 	});
+
+	describe('AST warnings (SB-258)', () => {
+		it('should produce warning for dynamic computed property, not error', () => {
+			const result = validateAst('const x = obj[variable]');
+			expect(result.valid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+			expect(result.warnings.length).toBeGreaterThan(0);
+			expect(result.warnings[0]).toContain('Dynamic computed property access');
+		});
+
+		it('should include location info in warnings', () => {
+			const result = validateAst('const x = obj[variable]');
+			expect(result.warnings[0]).toMatch(/line \d+/);
+		});
+
+		it('should not produce warnings for literal computed access', () => {
+			const result = validateAst('const x = arr[0]');
+			expect(result.valid).toBe(true);
+			expect(result.warnings).toHaveLength(0);
+		});
+
+		it('should return empty warnings array for safe code', () => {
+			const result = validateAst('const x = 1 + 2');
+			expect(result.warnings).toEqual([]);
+		});
+
+		it('should return empty warnings array on parse error', () => {
+			const result = validateAst('const x = {{{');
+			expect(result.warnings).toEqual([]);
+		});
+	});
 });

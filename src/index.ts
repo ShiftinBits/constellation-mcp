@@ -15,6 +15,7 @@ import {
 	METHOD_SUMMARIES,
 	resolveMethodName,
 } from './types/method-summaries.js';
+import { Metrics } from './utils/metrics.js';
 
 const require = createRequire(import.meta.url);
 const packageJson = require('../package.json');
@@ -167,8 +168,28 @@ async function startServer() {
 			}),
 		);
 
+		// Register metrics resource for runtime monitoring (SB-258 Step 3.5)
+		server.registerResource(
+			'metrics',
+			'constellation://metrics',
+			{
+				description:
+					'Runtime metrics: execution counts, durations, error rates, and API call patterns.',
+				mimeType: 'application/json',
+			},
+			async () => ({
+				contents: [
+					{
+						uri: 'constellation://metrics',
+						mimeType: 'application/json',
+						text: JSON.stringify(Metrics.get().getSnapshot(), null, 2),
+					},
+				],
+			}),
+		);
+
 		console.error(
-			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide',
+			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide, constellation://metrics',
 		);
 
 		console.error('[CONSTELLATION] Server configured successfully');

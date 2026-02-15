@@ -39,6 +39,8 @@ import {
 	MAX_CONSOLE_OBJECT_SIZE,
 	MEMORY_CHECK_INTERVAL_MS,
 } from '../constants/index.js';
+import { AuditLogger } from '../utils/audit-logger.js';
+import { Metrics } from '../utils/metrics.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -318,11 +320,25 @@ export class CodeModeSandbox {
 		const startTime = Date.now();
 		const logs: string[] = [];
 
+		// Track execution metrics and audit trail (SB-258 Steps 3.4, 3.5)
+		Metrics.get().increment('executions');
+		AuditLogger.get().log({
+			timestamp: new Date().toISOString(),
+			event: 'execution_start',
+			code: code.slice(0, 500),
+		});
+
 		// Self-protective validation (defense in depth)
 		// Even if validation happens externally (runtime.ts), we validate here too
 		// to protect against direct instantiation bypassing external checks
 		const validation = this.validateCode(code);
 		if (!validation.valid) {
+			Metrics.get().increment('validation_failures');
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'validation_failure',
+				code: code.slice(0, 500),
+			});
 			return {
 				success: false,
 				error: `Security validation failed: ${validation.errors?.join(', ')}`,
@@ -351,6 +367,7 @@ export class CodeModeSandbox {
 				branchIndexed: boolean;
 				indexedFileCount: number;
 			} | null,
+			timerCleanup: null as (() => void) | null,
 		};
 
 		try {
@@ -411,11 +428,20 @@ export class CodeModeSandbox {
 				memoryCheckPromise,
 			]);
 
+			const executionTime = Date.now() - startTime;
+			Metrics.get().recordDuration('execution_duration', executionTime);
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'execution_end',
+				success: true,
+				duration: executionTime,
+			});
+
 			return {
 				success: true,
 				result,
 				logs,
-				executionTime: Date.now() - startTime,
+				executionTime,
 				asOfCommit: executionState.asOfCommit ?? undefined,
 				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
 				resultContext: executionState.resultContext ?? undefined,
@@ -423,6 +449,16 @@ export class CodeModeSandbox {
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
 			hasTerminated = true;
+
+			const executionTime = Date.now() - startTime;
+			Metrics.get().increment('errors');
+			Metrics.get().recordDuration('execution_duration', executionTime);
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'error',
+				error: error instanceof Error ? error.message : String(error),
+				duration: executionTime,
+			});
 
 			// Create structured error to preserve error type information
 			// Pass configContext for accurate project/branch info in multi-project scenarios
@@ -437,7 +473,7 @@ export class CodeModeSandbox {
 				error: this.formatError(error),
 				structuredError,
 				logs,
-				executionTime: Date.now() - startTime,
+				executionTime,
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -453,6 +489,8 @@ export class CodeModeSandbox {
 			if (memoryCheckHandle) {
 				clearInterval(memoryCheckHandle);
 			}
+			// Clean up sandbox timers to prevent callbacks from outliving execution (SB-258)
+			executionState.timerCleanup?.();
 		}
 	}
 
@@ -527,6 +565,7 @@ export class CodeModeSandbox {
 				branchIndexed: boolean;
 				indexedFileCount: number;
 			} | null;
+			timerCleanup: (() => void) | null;
 		},
 	): any {
 		// Helper to convert snake_case to camelCase for display
@@ -562,6 +601,7 @@ export class CodeModeSandbox {
 				);
 			}
 
+			Metrics.get().increment('api_calls');
 			const startTime = Date.now();
 
 			try {
@@ -574,6 +614,14 @@ export class CodeModeSandbox {
 				if (!result.success) {
 					const duration = Date.now() - startTime;
 					const paramsPreview = summarizeParams(params);
+					AuditLogger.get().log({
+						timestamp: new Date().toISOString(),
+						event: 'api_call',
+						method: snakeToCamel(toolName),
+						duration,
+						success: false,
+						error: result.error || 'Unknown error',
+					});
 					throw new Error(
 						`API call failed: api.${snakeToCamel(toolName)}()\n` +
 							`  Parameters: ${paramsPreview}\n` +
@@ -581,6 +629,15 @@ export class CodeModeSandbox {
 							`  Error: ${result.error || 'Unknown error'}`,
 					);
 				}
+
+				const duration = Date.now() - startTime;
+				AuditLogger.get().log({
+					timestamp: new Date().toISOString(),
+					event: 'api_call',
+					method: snakeToCamel(toolName),
+					duration,
+					success: true,
+				});
 
 				// Track index metadata from API response
 				if (result.metadata?.asOfCommit) {
@@ -606,6 +663,14 @@ export class CodeModeSandbox {
 
 				const duration = Date.now() - startTime;
 				const paramsPreview = summarizeParams(params);
+				AuditLogger.get().log({
+					timestamp: new Date().toISOString(),
+					event: 'api_call',
+					method: snakeToCamel(toolName),
+					duration,
+					success: false,
+					error: error instanceof Error ? error.message : String(error),
+				});
 				throw new Error(
 					`API call failed: api.${snakeToCamel(toolName)}()\n` +
 						`  Parameters: ${paramsPreview}\n` +
@@ -909,12 +974,43 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 			});
 		}
 
-		// Conditionally add timers (generally not recommended for security)
+		// Conditionally add timers with lifecycle tracking (SB-258 Step 3.2)
+		// Wraps timer functions to track active timers and clean them up
+		// when sandbox execution completes, preventing callbacks from outliving the sandbox.
 		if (this.options.allowTimers) {
-			sandbox.setTimeout = setTimeout;
-			sandbox.setInterval = setInterval;
-			sandbox.clearTimeout = clearTimeout;
-			sandbox.clearInterval = clearInterval;
+			// Track active timer/interval handles for cleanup (type varies by runtime)
+			const activeTimers = new Set<any>();
+			const activeIntervals = new Set<any>();
+
+			sandbox.setTimeout = (fn: Function, ms: number, ...args: any[]) => {
+				const id = setTimeout(() => {
+					activeTimers.delete(id);
+					fn(...args);
+				}, ms);
+				activeTimers.add(id);
+				return id;
+			};
+			sandbox.setInterval = (fn: Function, ms: number, ...args: any[]) => {
+				const id = setInterval(fn, ms, ...args);
+				activeIntervals.add(id);
+				return id;
+			};
+			sandbox.clearTimeout = (id: any) => {
+				activeTimers.delete(id);
+				clearTimeout(id);
+			};
+			sandbox.clearInterval = (id: any) => {
+				activeIntervals.delete(id);
+				clearInterval(id);
+			};
+
+			// Store cleanup callback for execute()'s finally block
+			executionState.timerCleanup = () => {
+				activeTimers.forEach((id) => clearTimeout(id));
+				activeIntervals.forEach((id) => clearInterval(id));
+				activeTimers.clear();
+				activeIntervals.clear();
+			};
 		}
 
 		// Freeze the sandbox object to prevent adding/removing properties (SB-102)
@@ -1023,6 +1119,11 @@ ${transformed}
 
 		// === Warnings for common mistakes (informational, don't block execution) ===
 		const warnings: string[] = [];
+
+		// Add AST-level warnings (e.g., computed-dynamic-property, SB-258)
+		if (astResult.warnings.length > 0) {
+			warnings.push(...astResult.warnings.map((w) => `[AST] ${w}`));
+		}
 
 		// Add parse warning if AST couldn't parse (syntax error - VM will catch it)
 		if (astResult.parseError) {
