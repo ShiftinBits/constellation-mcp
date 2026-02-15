@@ -17,7 +17,7 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 | Type check    | `npm run type-check`                    |
 | Benchmark     | `npm run benchmark`                     |
 
-**Engines**: Node.js 24+, npm 11+
+**Engines**: Node.js 20+, npm 10+
 
 ## Architecture
 
