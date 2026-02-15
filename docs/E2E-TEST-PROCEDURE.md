@@ -2303,7 +2303,7 @@ MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMP
 RETURN max(length(path)) as maxDepth
 ```
 
-**Note:** Some edge case tests (TC-EDGE-006: undefined/null handling) validate API-layer behavior and don't require Neo4j validation.
+**Note:** Some edge case tests (TC-EDGE-006: undefined/null handling) validate API-layer behavior and don't require Neo4j validation. TC-EDGE-006 sends `offset: null` — Zod strict validation correctly rejects this with a type error. The `.default(0)` only applies when `offset` is omitted (`undefined`), not when `null` is explicitly sent. Score PASS when validation error is returned.
 
 ---
 
@@ -3211,7 +3211,8 @@ mcp__neo4j__read-cypher
 #### API Validation Constraints (By Design)
 
 - **TC-EDGE-005**: Query strings have a 200-character maximum (`z.string().max(200)`)
-- **TC-VALID-008**: Zod coerces string `"true"` to boolean `true` - expected behavior
+- **TC-VALID-008**: Zod uses strict boolean validation (not coercion). String `"true"` is correctly rejected with a validation error. Callers should send `true` (boolean), not `"true"` (string). Score PASS when validation error is returned.
+- **TC-EDGE-006**: Zod uses strict number validation for `offset`. `null` is correctly rejected with a validation error. The `.default(0)` applies when the field is omitted (`undefined`), not when `null` is explicitly sent. Omit the field to use the default. Score PASS when validation error is returned.
 - **TC-SEC-010**: Code size limit is 100KB (prevents DoS attacks)
 - **TC-SEC-012**: Result size warning at 100KB, hard limit at 1MB with truncation
 
