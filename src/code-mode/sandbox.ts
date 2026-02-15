@@ -39,6 +39,8 @@ import {
 	MAX_CONSOLE_OBJECT_SIZE,
 	MEMORY_CHECK_INTERVAL_MS,
 } from '../constants/index.js';
+import { AuditLogger } from '../utils/audit-logger.js';
+import { Metrics } from '../utils/metrics.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -318,11 +320,25 @@ export class CodeModeSandbox {
 		const startTime = Date.now();
 		const logs: string[] = [];
 
+		// Track execution metrics and audit trail (SB-258 Steps 3.4, 3.5)
+		Metrics.get().increment('executions');
+		AuditLogger.get().log({
+			timestamp: new Date().toISOString(),
+			event: 'execution_start',
+			code: code.slice(0, 500),
+		});
+
 		// Self-protective validation (defense in depth)
 		// Even if validation happens externally (runtime.ts), we validate here too
 		// to protect against direct instantiation bypassing external checks
 		const validation = this.validateCode(code);
 		if (!validation.valid) {
+			Metrics.get().increment('validation_failures');
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'validation_failure',
+				code: code.slice(0, 500),
+			});
 			return {
 				success: false,
 				error: `Security validation failed: ${validation.errors?.join(', ')}`,
@@ -412,11 +428,20 @@ export class CodeModeSandbox {
 				memoryCheckPromise,
 			]);
 
+			const executionTime = Date.now() - startTime;
+			Metrics.get().recordDuration('execution_duration', executionTime);
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'execution_end',
+				success: true,
+				duration: executionTime,
+			});
+
 			return {
 				success: true,
 				result,
 				logs,
-				executionTime: Date.now() - startTime,
+				executionTime,
 				asOfCommit: executionState.asOfCommit ?? undefined,
 				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
 				resultContext: executionState.resultContext ?? undefined,
@@ -424,6 +449,16 @@ export class CodeModeSandbox {
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
 			hasTerminated = true;
+
+			const executionTime = Date.now() - startTime;
+			Metrics.get().increment('errors');
+			Metrics.get().recordDuration('execution_duration', executionTime);
+			AuditLogger.get().log({
+				timestamp: new Date().toISOString(),
+				event: 'error',
+				error: error instanceof Error ? error.message : String(error),
+				duration: executionTime,
+			});
 
 			// Create structured error to preserve error type information
 			// Pass configContext for accurate project/branch info in multi-project scenarios
@@ -438,7 +473,7 @@ export class CodeModeSandbox {
 				error: this.formatError(error),
 				structuredError,
 				logs,
-				executionTime: Date.now() - startTime,
+				executionTime,
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -566,6 +601,7 @@ export class CodeModeSandbox {
 				);
 			}
 
+			Metrics.get().increment('api_calls');
 			const startTime = Date.now();
 
 			try {
@@ -578,6 +614,14 @@ export class CodeModeSandbox {
 				if (!result.success) {
 					const duration = Date.now() - startTime;
 					const paramsPreview = summarizeParams(params);
+					AuditLogger.get().log({
+						timestamp: new Date().toISOString(),
+						event: 'api_call',
+						method: snakeToCamel(toolName),
+						duration,
+						success: false,
+						error: result.error || 'Unknown error',
+					});
 					throw new Error(
 						`API call failed: api.${snakeToCamel(toolName)}()\n` +
 							`  Parameters: ${paramsPreview}\n` +
@@ -585,6 +629,15 @@ export class CodeModeSandbox {
 							`  Error: ${result.error || 'Unknown error'}`,
 					);
 				}
+
+				const duration = Date.now() - startTime;
+				AuditLogger.get().log({
+					timestamp: new Date().toISOString(),
+					event: 'api_call',
+					method: snakeToCamel(toolName),
+					duration,
+					success: true,
+				});
 
 				// Track index metadata from API response
 				if (result.metadata?.asOfCommit) {
@@ -610,6 +663,14 @@ export class CodeModeSandbox {
 
 				const duration = Date.now() - startTime;
 				const paramsPreview = summarizeParams(params);
+				AuditLogger.get().log({
+					timestamp: new Date().toISOString(),
+					event: 'api_call',
+					method: snakeToCamel(toolName),
+					duration,
+					success: false,
+					error: error instanceof Error ? error.message : String(error),
+				});
 				throw new Error(
 					`API call failed: api.${snakeToCamel(toolName)}()\n` +
 						`  Parameters: ${paramsPreview}\n` +
