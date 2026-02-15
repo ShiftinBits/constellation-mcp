@@ -209,46 +209,57 @@ RETURN count(s) as totalCount,
 **Code:**
 
 ```javascript
-const result = await api.searchSymbols({
-	query: 'execute',
-	filterByVisibility: ['public'],
-	isExported: true,
+const exported = await api.searchSymbols({
+	query: 'Error',
+	filterByVisibility: ['exported'],
+	limit: 10,
+});
+const privateOnly = await api.searchSymbols({
+	query: 'code',
+	filterByVisibility: ['private'],
 	limit: 10,
 });
 return {
-	symbolCount: result.symbols?.length || 0,
-	symbols:
-		result.symbols?.slice(0, 5).map((s) => ({
+	exportedCount: exported.symbols?.length || 0,
+	allExported: exported.symbols?.every((s) => s.isExported === true) ?? true,
+	exportedSymbols:
+		exported.symbols?.slice(0, 5).map((s) => ({
 			name: s.name,
-			visibility: s.visibility,
-			exported: s.isExported,
+			isExported: s.isExported,
 		})) || [],
+	privateCount: privateOnly.symbols?.length || 0,
+	allPrivate: privateOnly.symbols?.every((s) => s.visibility === 'private') ?? true,
 };
 ```
 
 **Expected:**
 
-- All returned symbols should have `visibility: "public"` or similar
-- All returned symbols should be exported
+- `exportedCount > 0`
+- `allExported: true` (all returned symbols have `isExported: true`)
+- `privateCount >= 0` (private symbols exist if class members match)
+- `allPrivate: true` (if any returned, all have `visibility: 'private'`)
 
 **Neo4j Validation:**
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.name CONTAINS 'execute'
+WHERE s.name CONTAINS 'Error'
   AND s.isExported = true
   AND s.projectId = 'proj:00000000000040008000000000000033'
   AND s.branch = 'main'
-RETURN count(s) as count,
+RETURN count(s) as exportedCount,
        collect({name: s.name, isExported: s.isExported})[0..10] as symbols
 ```
 
 **Cross-Validation:**
 
+- API `exportedCount` should be <= Neo4j `exportedCount` (API applies limit)
 - All API symbols should have `isExported: true`
-- API `symbolCount` should match or be subset of Neo4j `count`
+- Note: `filterByVisibility: ['exported']` maps to `s.isExported = true` in Core
+- Note: `filterByVisibility: ['public']` maps to `s.visibility = 'public'` (class members only)
+- The TS extractor sets `visibility` only on class members, and `isExported` only on module-level exports — the two never co-exist as `public` + `true`
 
-**Validates:** `filterByVisibility`, `isExported` filters, Neo4j export filtering
+**Validates:** `filterByVisibility` parameter (both 'exported' and 'private' variants), Neo4j visibility/export filtering
 
 ---
 
@@ -1208,44 +1219,53 @@ RETURN s.name as symbolName,
 **Code:**
 
 ```javascript
-const search = await api.searchSymbols({ query: 'ErrorCode', limit: 1 });
+const search = await api.searchSymbols({ query: 'createStructuredError', limit: 1 });
 if (search.symbols?.length === 0) {
 	return { error: 'No symbols found' };
 }
-const result = await api.traceSymbolUsage({
+const allUsages = await api.traceSymbolUsage({
 	symbolId: search.symbols[0].id,
-	filterByUsageType: ['import'],
+});
+const functionOnly = await api.traceSymbolUsage({
+	symbolId: search.symbols[0].id,
+	filterByUsageType: ['function'],
 });
 return {
-	success: !!result.symbol,
-	symbolName: result.symbol?.name,
-	directUsageCount: result.directUsages?.length || 0,
+	success: !!allUsages.symbol,
+	symbolName: allUsages.symbol?.name,
+	allUsageCount: allUsages.directUsages?.length || 0,
+	functionOnlyCount: functionOnly.directUsages?.length || 0,
+	isSubset: functionOnly.directUsages?.length <= allUsages.directUsages?.length,
 	symbolId: search.symbols[0].id,
 };
 ```
 
 **Expected:**
 
-- Only usages of type "import" returned
+- `allUsageCount > 0`
+- `functionOnlyCount <= allUsageCount` (filtered is subset of all)
+- `isSubset: true`
 
 **Neo4j Validation:**
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.name = 'ErrorCode'
+WHERE s.name = 'createStructuredError'
   AND s.projectId = 'proj:00000000000040008000000000000033'
   AND s.branch = 'main'
-OPTIONAL MATCH (usage)-[r:IMPORTS]->(s)
+OPTIONAL MATCH (usage:Symbol)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
+WHERE usage.kind = 'function'
 RETURN s.name as symbolName,
-       count(usage) as importCount
+       count(usage) as functionUsageCount
 ```
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `importCount` when filtered by import
-- Only IMPORTS relationships should be counted
+- API `functionOnlyCount` should match Neo4j `functionUsageCount`
+- `filterByUsageType` filters by the **symbol kind** of the using node (not the relationship type)
+- To filter by relationship type, use `filterByRelationshipType` parameter instead
 
-**Validates:** `filterByUsageType` filter, Neo4j relationship type filtering
+**Validates:** `filterByUsageType` filter (symbol kind filtering), Neo4j usage.kind matching
 
 ---
 
@@ -2478,7 +2498,7 @@ This category contains dedicated tests for validating data consistency between t
 
 **Purpose:** Verify API symbol count matches Neo4j total count
 
-**Note:** This test uses a common character query since the API requires at least 1 character. The `'e'` query matches most symbols via fuzzy matching.
+**Note:** This test uses a common character query since the API requires at least 1 character. The Core executor uses `s.name CONTAINS $query` which is **case-sensitive** in Neo4j — the query `'e'` matches only symbols with lowercase 'e' in their name.
 
 **Code:**
 
@@ -2494,12 +2514,14 @@ return {
 
 ```cypher
 MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+WHERE s.name CONTAINS 'e'
 RETURN count(s) as neo4jCount
 ```
 
 **Cross-Validation:**
 
 - `apiCount` should equal `neo4jCount` (exact match expected)
+- Note: Neo4j `CONTAINS` is case-sensitive — `'e'` only matches lowercase
 - Discrepancy indicates indexing issue or stale data
 
 **Validates:** Total symbol count consistency
@@ -2551,15 +2573,18 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/index.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS]->(dep:File)
-RETURN collect(dep.path) as neo4jDeps, count(dep) as neo4jDepCount
-ORDER BY dep.path
+MATCH (f:File {path: 'src/index.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS]->(dep)
+RETURN count(dep) as neo4jDepCount,
+       collect(CASE WHEN dep:File THEN dep.path ELSE dep.name END) as neo4jDeps,
+       count(CASE WHEN dep:File THEN 1 END) as fileDepCount,
+       count(CASE WHEN dep:Package THEN 1 END) as packageDepCount
 ```
 
 **Cross-Validation:**
 
-- `depCount` should equal `neo4jDepCount`
-- `apiDeps` array should contain same paths as `neo4jDeps`
+- `depCount` should equal `neo4jDepCount` (includes both File and Package targets)
+- File dependencies have `filePath` set; Package dependencies have `filePath: null` and `name` set
+- `fileDepCount + packageDepCount` should equal `neo4jDepCount`
 
 **Validates:** IMPORTS relationship consistency
 
@@ -2645,9 +2670,9 @@ RETURN symmetricCount, count(*) as totalCalls, symmetricCount = count(*) as isSy
 
 ```javascript
 const result = await api.searchSymbols({
-	query: '',
+	query: 'e',
 	isExported: true,
-	limit: 1000,
+	limit: 100,
 });
 return {
 	exportedCount: result.pagination?.total || result.symbols?.length || 0,
@@ -2660,13 +2685,15 @@ return {
 ```cypher
 MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
 WHERE s.isExported = true
+  AND s.name CONTAINS 'e'
 RETURN count(s) as neo4jExportedCount,
        collect(s.name)[0..5] as sampleNames
 ```
 
 **Cross-Validation:**
 
-- `exportedCount` should equal `neo4jExportedCount`
+- `exportedCount` should equal `neo4jExportedCount` (both filtered by case-sensitive `CONTAINS 'e'`)
+- Note: Neo4j `CONTAINS` is case-sensitive — total exported count (100) will be higher than the 'e'-filtered count
 - Sample symbols should exist in Neo4j exported symbols
 
 **Validates:** isExported flag consistency
@@ -2892,6 +2919,8 @@ mcp__neo4j__read-cypher
 
 - ~~**TC-IMPACT-007**: `filePattern` uses regex, not glob syntax~~ ✅ FIXED
 - ~~**TC-DISC-003**: MCP uses `isExported` but Core expects `filterByExported`~~ ✅ FIXED (sandbox now transforms parameters)
+- ~~**TC-TRACE-006**: `includeContext` parameter defined but context data not populated in response~~ ✅ FIXED (context now returns usage location strings)
+- ~~**TC-DEP-007**: `includeImpactMetrics` parameter defined but `detailedMetrics` not populated~~ ✅ FIXED (returns byDepth, criticalPaths, mostImpactedFiles)
 
 #### API Validation Constraints (By Design)
 
@@ -2902,8 +2931,6 @@ mcp__neo4j__read-cypher
 
 #### Unimplemented Features
 
-- **TC-TRACE-006**: `includeContext` parameter defined but context data not populated in response
-- **TC-DEP-007**: `includeImpactMetrics` parameter defined but `detailedMetrics` not populated
 - **TC-IMPACT-009**: `excludeTests` parameter not implemented in `findOrphanedCode` executor (BUG)
 
 #### Test Design Notes
@@ -2911,6 +2938,13 @@ mcp__neo4j__read-cypher
 - **TC-XVAL-001**: Uses `query: 'e'` since API requires min 1 character (matches most symbols)
 - **TC-IMPACT-006**: `impactAnalysis` returns `breakingChangeRisk`, not `metrics` field
 - **TC-DISC-011/012**: `ping` and `getCapabilities` are utility methods for connectivity/status checks
+
+#### Neo4j Query Behavior Notes
+
+- **Case sensitivity**: Neo4j `CONTAINS` is case-sensitive. `s.name CONTAINS 'e'` does NOT match 'E'. Validation queries must match the Core executor's case-sensitive behavior — do not use `toLower()` for comparison.
+- **IMPORTS targets**: `IMPORTS` relationships connect files to both `File` and `Package` nodes. Validation queries must use `(f)-[:IMPORTS]->(dep)` without label filtering to count all targets.
+- **filterByUsageType vs filterByRelationshipType**: `filterByUsageType` filters by `usage.kind` (symbol kind of the using node). `filterByRelationshipType` filters by `type(r)` (Neo4j relationship type). These are distinct parameters with different semantics.
+- **visibility vs isExported**: The TS extractor sets `visibility` (`public`/`private`) only on class members with explicit access modifiers. `isExported` is set on module-level exports. These properties apply to different symbol categories and never co-exist as `visibility='public'` + `isExported=true`.
 
 ### Pass Criteria
 
