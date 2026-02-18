@@ -13,7 +13,7 @@ This document provides a complete, reproducible test procedure for validating th
    ```bash
    cd constellation-core
    npm run docker:up
-   npm run start:client-api:dev
+   npm run start:intel-api:dev
    ```
 
 2. **Valid access key** configured (stored in `CONSTELLATION_ACCESS_KEY` env var)

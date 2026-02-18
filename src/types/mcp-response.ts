@@ -6,7 +6,7 @@
  */
 
 /**
- * MCP Tool Result interface matching client-api response format.
+ * MCP Tool Result interface matching intel-api response format.
  *
  * All api.* method calls return this structure from constellation-core.
  *
