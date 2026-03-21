@@ -1,0 +1,11 @@
+{
+	"mcpServers": {
+		"constellation": {
+			"command": "mcp-constellation",
+			"alwaysAllow": ["code_intel"],
+			"env": {
+				"CONSTELLATION_ACCESS_KEY": "${env:CONSTELLATION_ACCESS_KEY}"
+			}
+		}
+	}
+}

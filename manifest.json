@@ -1,0 +1,53 @@
+{
+	"manifest_version": "0.2",
+	"name": "constellation",
+	"display_name": "Constellation",
+	"version": "1.0.0",
+	"description": "Code Intelligence Tools for AI Coding Assistants",
+	"author": {
+		"name": "ShiftinBits Inc",
+		"email": "hello@shiftinbits.com",
+		"url": "https://shiftinbits.com"
+	},
+	"homepage": "https://constellationdev.io",
+	"documentation": "https://docs.constellationdev.io",
+	"support": "https://constellationdev.io",
+	"icon": "logo.png",
+	"server": {
+		"type": "node",
+		"entry_point": "dist/index.js",
+		"mcp_config": {
+			"command": "node",
+			"args": ["${__dirname}/dist/index.js"],
+			"env": {}
+		}
+	},
+	"tools": [
+		{
+			"name": "code_intel",
+			"description": "Code intelligence tool"
+		}
+	],
+	"user_config": {
+		"CONSTELLATION_ACCESS_KEY": {
+			"type": "string",
+			"title": "Constellation Access Key",
+			"description": "Your user account access key from Constellation",
+			"required": true,
+			"sensitive": true
+		}
+	},
+	"keywords": [
+		"constellation",
+		"code graph",
+		"knowledge graph",
+		"symbols",
+		"impact analysis",
+		"code navigation"
+	],
+	"license": "AGPL-3.0-only",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ShiftinBits/constellation-mcp"
+	}
+}

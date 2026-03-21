@@ -1,0 +1,7 @@
+{
+	"mcpServers": {
+		"constellation": {
+			"command": "mcp-constellation"
+		}
+	}
+}

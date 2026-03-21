@@ -1,0 +1,76 @@
+{
+	"name": "@constellationdev/mcp",
+	"version": "1.0.0",
+	"author": "ShiftinBits Inc",
+	"description": "Code Intelligence Tools for AI Coding Assistants",
+	"type": "module",
+	"license": "AGPL-3.0-only",
+	"bin": {
+		"mcp-constellation": "./dist/index.js"
+	},
+	"files": [
+		"dist"
+	],
+	"sideEffects": false,
+	"exports": {
+		".": "./dist/index.js",
+		"./*": "./dist/*"
+	},
+	"scripts": {
+		"build": "rimraf dist && tsup && node utils/postbuild.js",
+		"watch": "tsc --watch",
+		"start": "npm run build && node dist/index.js",
+		"inspector": "npm run build && npx @modelcontextprotocol/inspector@latest node dist/index.js",
+		"lint": "eslint",
+		"lint:fix": "eslint --fix",
+		"lint:errors": "eslint --quiet",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"test:ci": "jest --ci --coverage --maxWorkers=2",
+		"type-check": "tsc --noEmit -p tsconfig.build.json",
+		"benchmark": "npx tsx scripts/benchmark-queries.ts",
+		"prepare": "husky",
+		"postinstall": "node -e \"if(process.env.CI) { console.log('Using github sourced @constellationdev/types') } else { try { require('child_process').execSync('npm link @constellationdev/types', {stdio: 'inherit'}); console.log('Using locally linked @constellationdev/types') } catch(e) { console.log('Note: @constellationdev/types not linked globally, using GitHub version') } }\""
+	},
+	"dependencies": {
+		"@constellationdev/types": "github:ShiftinBits/constellation-types#main",
+		"@modelcontextprotocol/sdk": "^1.26.0",
+		"acorn": "^8.15.0",
+		"zod": "^3.23.8"
+	},
+	"devDependencies": {
+		"@eslint/compat": "^1",
+		"@jest/globals": "^30.2.0",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^20",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.5",
+		"husky": "^9.1.7",
+		"jest": "^30.2.0",
+		"lint-staged": "^16.2.7",
+		"prettier": "^3.8.1",
+		"rimraf": "^6.1.2",
+		"ts-jest": "^29.4.6",
+		"tsup": "^8.5.1",
+		"typescript": "~5.9.3"
+	},
+	"engines": {
+		"node": ">=20.0.0",
+		"npm": ">=10.0.0"
+	},
+	"lint-staged": {
+		"*.{ts,tsx}": [
+			"eslint --fix --quiet",
+			"prettier --write"
+		],
+		"*.{js,jsx,mjs}": [
+			"eslint --fix --quiet",
+			"prettier --write"
+		],
+		"*.{json,md,css}": [
+			"prettier --write"
+		]
+	}
+}

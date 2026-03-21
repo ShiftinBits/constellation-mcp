@@ -1,0 +1,12 @@
+{
+	"projectId": "proj:00000000000040008000000000000033",
+	"branch": "main",
+	"languages": {
+		"javascript": {
+			"fileExtensions": [".js", ".jsx"]
+		},
+		"typescript": {
+			"fileExtensions": [".ts", ".tsx"]
+		}
+	}
+}

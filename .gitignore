@@ -1,0 +1,29 @@
+
+# Claude Local Settings
+.claude/settings.local.json
+
+# Git worktrees
+.worktrees/
+
+# Temporary Folders
+tmp/
+temp/
+
+coverage/
+
+**/node_modules/**
+**/dist/**
+**/build/**
+**/release/**
+**/releases/**
+
+*-debug.log
+*-error.log
+**/.DS_Store
+/.idea
+/dist
+/tmp
+/node_modules
+
+yarn.lock
+pnpm-lock.yaml
