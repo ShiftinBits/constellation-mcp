@@ -32,11 +32,11 @@ jobs:
           git add package.json package-lock.json
           git commit -m "chore: bumped version to $VERSION for release"
           git push origin main
-      - name: Install Dependencies ⤵️ |
+      - name: Install Dependencies ⤵️
+        run: |
           npm update @constellationdev/types
           npm ci
-        run: npm ci
       - name: Build 🏗️
         run: npm run build
       - name: Publish 🚀
-        run: npm publish
+        run: npm publish --provenance

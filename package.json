@@ -1,16 +1,22 @@
 {
 	"name": "@constellationdev/mcp",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"author": "ShiftinBits Inc",
 	"description": "Code Intelligence Tools for AI Coding Assistants",
 	"type": "module",
 	"license": "AGPL-3.0-only",
 	"bin": {
-		"mcp-constellation": "./dist/index.js"
+		"mcp-constellation": "dist/index.js"
 	},
 	"files": [
 		"dist"
 	],
+	"homepage": "https://constellationdev.io",
+	"bugs": "https://github.com/ShiftinBits/constellation-mcp/issues",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ShiftinBits/constellation-mcp.git"
+	},
 	"sideEffects": false,
 	"exports": {
 		".": "./dist/index.js",
