@@ -1,6 +1,6 @@
 # Constellation MCP Server
 
-[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-3DA639?logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-3DA639?logo=opensourceinitiative&logoColor=white)](LICENSE) [![Snyk Monitored](https://img.shields.io/badge/Security-Monitored-8A2BE2?logo=snyk)](https://snyk.io/test/github/ShiftinBits/constellation-mcp)
 
 Give your AI coding assistant instant, intelligent access to your entire codebase's structure, dependencies, and relationships without transmitting any source code. Constellation provides code intelligence as a service to AI coding assistant tools.
 
