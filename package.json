@@ -2,7 +2,7 @@
 	"name": "@constellationdev/mcp",
 	"version": "0.1.0",
 	"author": "ShiftinBits Inc",
-	"description": "Code Intelligence Tools for AI Coding Assistants",
+	"description": "Code Intelligence Platform for AI Coding Assistants",
 	"type": "module",
 	"license": "AGPL-3.0-only",
 	"bin": {
