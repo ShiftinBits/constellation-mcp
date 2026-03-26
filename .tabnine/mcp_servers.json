@@ -1,7 +1,8 @@
 {
 	"mcpServers": {
 		"constellation": {
-			"command": "mcp-constellation"
+			"command": "npx",
+			"args": ["-y", "@constellationdev/mcp@latest"]
 		}
 	}
 }
