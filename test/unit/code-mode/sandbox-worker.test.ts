@@ -6,12 +6,12 @@
  */
 
 import {
-	describe,
-	it,
-	expect,
-	jest,
-	beforeEach,
 	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
 } from '@jest/globals';
 import type {
 	WorkerRequest,
@@ -92,7 +92,7 @@ describe('sandbox-worker', () => {
 			type: 'execute',
 			code: 'await api.searchSymbols({ query: "test" })',
 			config: {
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',
@@ -125,7 +125,7 @@ describe('sandbox-worker', () => {
 			type: 'execute',
 			code: 'throw new Error("boom")',
 			config: {
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',
@@ -168,7 +168,7 @@ describe('sandbox-worker', () => {
 			type: 'execute',
 			code: '42',
 			config: {
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				apiKey: 'test-key',
 				projectId: 'test-project',
 				branchName: 'main',

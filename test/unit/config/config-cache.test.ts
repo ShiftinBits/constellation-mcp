@@ -6,21 +6,19 @@
  */
 
 import {
-	describe,
-	it,
-	expect,
-	beforeEach,
 	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
 	jest,
 } from '@jest/globals';
-import path from 'path';
 import {
 	configCache,
 	ConfigCacheError,
-	type ConfigContext,
 } from '../../../src/config/config-cache.js';
-import { FileUtils } from '../../../src/utils/file.utils.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
+import { FileUtils } from '../../../src/utils/file.utils.js';
 
 // Mock FileUtils
 jest.mock('../../../src/utils/file.utils.js', () => ({
@@ -133,7 +131,7 @@ describe('ConfigCache', () => {
 		it('should load config from git root', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -156,7 +154,7 @@ describe('ConfigCache', () => {
 		it('should cache config by git root', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -189,7 +187,7 @@ describe('ConfigCache', () => {
 		it('should return degraded config when constellation.json not found', async () => {
 			const defaultConfig = {
 				projectId: 'default-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -212,7 +210,7 @@ describe('ConfigCache', () => {
 
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -268,7 +266,7 @@ describe('ConfigCache', () => {
 		it('should set default config on success', async () => {
 			const mockConfig = {
 				projectId: 'default-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -303,7 +301,7 @@ describe('ConfigCache', () => {
 		it('should use process.cwd() if no startDir provided', async () => {
 			const mockConfig = {
 				projectId: 'cwd-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -330,7 +328,7 @@ describe('ConfigCache', () => {
 		it('should return default config after successful initialization', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -359,7 +357,7 @@ describe('ConfigCache', () => {
 		it('should return true after successful initialization', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -382,7 +380,7 @@ describe('ConfigCache', () => {
 		it('should clear cached configs and default config', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -407,7 +405,7 @@ describe('ConfigCache', () => {
 		it('should force reload on next getConfigForPath', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -437,7 +435,7 @@ describe('ConfigCache', () => {
 		it('should return correct stats', async () => {
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -483,7 +481,7 @@ describe('ConfigCache', () => {
 
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -506,7 +504,7 @@ describe('ConfigCache', () => {
 
 			const mockConfig = {
 				projectId: 'test-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -532,7 +530,7 @@ describe('ConfigCache', () => {
 		it('should handle invalid JSON in config file', async () => {
 			const defaultConfig = {
 				projectId: 'default-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;
@@ -552,7 +550,7 @@ describe('ConfigCache', () => {
 		it('should handle config validation errors', async () => {
 			const defaultConfig = {
 				projectId: 'default-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 			} as unknown as ConstellationConfig;

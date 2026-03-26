@@ -6,17 +6,17 @@
  */
 
 import {
-	describe,
-	it,
-	expect,
-	beforeEach,
 	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
 	jest,
 } from '@jest/globals';
 import path from 'path';
+import { ConstellationConfig } from '../../../src/config/config.js';
 import { ConfigLoader } from '../../../src/config/config.loader.js';
 import { FileUtils } from '../../../src/utils/file.utils.js';
-import { ConstellationConfig } from '../../../src/config/config.js';
 
 // Mock FileUtils
 jest.mock('../../../src/utils/file.utils.js', () => ({
@@ -67,7 +67,7 @@ describe('ConfigLoader', () => {
 			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			const mockConfig = {
 				projectId: 'test',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
 
@@ -102,7 +102,7 @@ describe('ConfigLoader', () => {
 		it('should parse JSON and validate config', async () => {
 			const configJson = {
 				projectId: 'my-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 			};
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(true);
@@ -181,7 +181,7 @@ describe('ConfigLoader', () => {
 			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			const mockConfig = {
 				projectId: 'test',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
@@ -380,7 +380,7 @@ describe('ConfigLoader', () => {
 			);
 			const mockConfig = {
 				projectId: 'my-project',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'develop',
 			} as unknown as ConstellationConfig;
 			mockConstellationConfig.fromJSON.mockReturnValueOnce(mockConfig);
@@ -391,7 +391,7 @@ describe('ConfigLoader', () => {
 				'[Constellation] Project: my-project',
 			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
-				'[Constellation] API URL: http://localhost:3000',
+				'[Constellation] API URL: https://api.constellationdev.io',
 			);
 			expect(consoleErrorSpy).toHaveBeenCalledWith(
 				'[Constellation] Branch: develop',
@@ -443,7 +443,7 @@ describe('ConfigLoader', () => {
 			mockFileUtils.readFile.mockResolvedValueOnce('{"projectId": "test"}');
 			mockConstellationConfig.fromJSON.mockReturnValueOnce({
 				projectId: 'test',
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'main',
 			} as unknown as ConstellationConfig);
 

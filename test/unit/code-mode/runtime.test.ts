@@ -2,12 +2,12 @@
  * CodeModeRuntime Unit Tests
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { IsolatedSandbox } from '../../../src/code-mode/isolated-sandbox.js';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
-import { IsolatedSandbox } from '../../../src/code-mode/isolated-sandbox.js';
-import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
+import { ConstellationConfig } from '../../../src/config/config.js';
 
 // Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
 jest.mock('../../../src/code-mode/worker-path.js', () => ({
@@ -26,7 +26,7 @@ const MockedCodeModeSandbox = CodeModeSandbox as jest.MockedClass<
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
 	config: {
-		apiUrl: 'http://localhost:3000',
+		apiUrl: 'https://api.constellationdev.io',
 		branch: 'test-branch',
 		languages: { typescript: { fileExtensions: ['.ts'] } },
 		projectId: 'test-project',

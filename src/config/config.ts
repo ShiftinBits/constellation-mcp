@@ -142,7 +142,7 @@ export class ConstellationConfig implements IConstellationConfig {
 	 */
 	static createDefault(): ConstellationConfig {
 		return new ConstellationConfig(
-			'http://localhost:3000',
+			'https://api.constellationdev.io',
 			'main',
 			{
 				typescript: {

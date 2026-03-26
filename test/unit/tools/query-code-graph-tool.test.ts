@@ -11,7 +11,7 @@ import { registerQueryCodeGraphTool } from '../../../src/tools/query-code-graph-
 // Create a mock config for testing
 const createMockConfigContext = (): ConfigContext => ({
 	config: {
-		apiUrl: 'http://localhost:3000',
+		apiUrl: 'https://api.constellationdev.io',
 		branch: 'test-branch',
 		languages: { typescript: { fileExtensions: ['.ts'] } },
 		projectId: 'test-project',
@@ -36,7 +36,7 @@ jest.mock('../../../src/config/config-cache.js', () => ({
 		getConfigForPath: jest.fn(),
 		getDefaultConfig: jest.fn(() => ({
 			config: {
-				apiUrl: 'http://localhost:3000',
+				apiUrl: 'https://api.constellationdev.io',
 				branch: 'test-branch',
 				languages: { typescript: { fileExtensions: ['.ts'] } },
 				projectId: 'test-project',
@@ -480,7 +480,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Mock configCache to return config with initialization error
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
 				config: {
-					apiUrl: 'http://localhost:3000',
+					apiUrl: 'https://api.constellationdev.io',
 					branch: '',
 					languages: {},
 					projectId: '',
@@ -514,7 +514,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Restore original mock
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
 				config: {
-					apiUrl: 'http://localhost:3000',
+					apiUrl: 'https://api.constellationdev.io',
 					branch: 'test-branch',
 					languages: { typescript: { fileExtensions: ['.ts'] } },
 					projectId: 'test-project',
@@ -941,7 +941,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Mock configCache to return config with initialization error
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
 				config: {
-					apiUrl: 'http://localhost:3000',
+					apiUrl: 'https://api.constellationdev.io',
 					branch: '',
 					languages: {},
 					projectId: '',
@@ -982,7 +982,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Restore original mock
 			(configCache.getDefaultConfig as jest.Mock).mockReturnValue({
 				config: {
-					apiUrl: 'http://localhost:3000',
+					apiUrl: 'https://api.constellationdev.io',
 					branch: 'test-branch',
 					languages: { typescript: { fileExtensions: ['.ts'] } },
 					projectId: 'test-project',

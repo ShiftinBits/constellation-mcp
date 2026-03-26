@@ -17,7 +17,7 @@ export function createMockConfigContext(overrides: Record<string, any> = {}): {
 	initializationError: string | null;
 } {
 	return {
-		config: { apiUrl: 'http://localhost:3000' },
+		config: { apiUrl: 'https://api.constellationdev.io' },
 		projectId: 'test-project-id',
 		branchName: 'main',
 		namespace: 'test-namespace',
