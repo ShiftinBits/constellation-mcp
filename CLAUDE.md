@@ -32,20 +32,33 @@ AI Assistant → MCP (stdio) → code_intel → CodeModeSandbox → Constellatio
 | Layer   | File                             | Responsibility                                        |
 | ------- | -------------------------------- | ----------------------------------------------------- |
 | Tool    | `tools/query-code-graph-tool.ts` | Input validation, config resolution, error transform  |
-| Runtime | `code-mode/runtime.ts`           | Orchestration, result formatting, size limits         |
+| Runtime | `code-mode/runtime.ts`           | Orchestration, isolation selection, result formatting |
 | Sandbox | `code-mode/sandbox.ts`           | VM isolation, dual timeout, AST validation, API proxy |
 | Client  | `client/constellation-client.ts` | HTTP with retry/backoff, auth headers                 |
 | Config  | `config/config-cache.ts`         | Multi-project resolution, LRU cache by git root       |
+
+**Sandbox isolation levels** (SB-258):
+
+| Aspect          | `CodeModeSandbox` (default)  | `IsolatedSandbox` (hardened)               |
+| --------------- | ---------------------------- | ------------------------------------------ |
+| Activation      | Default                      | `CONSTELLATION_SANDBOX_ISOLATION=hardened` |
+| Execution       | VM (same process)            | Child process fork                         |
+| Memory limit    | Periodic check (best-effort) | Hard limit via `--max-old-space-size`      |
+| Timeout         | VM timeout + Promise.race    | SIGKILL (no escape)                        |
+| Crash isolation | None (crashes MCP server)    | Child crash contained                      |
 
 ## Key Files
 
 ```
 src/
-├── index.ts                            Entry point, registers tool + resources
+├── index.ts                            Entry point, registers tool + 5 MCP resources
 ├── tools/query-code-graph-tool.ts      MCP tool handler (input validation, error transform)
 ├── code-mode/
 │   ├── sandbox.ts                      VM execution, dual timeout, API proxy
-│   ├── runtime.ts                      Orchestration, result size enforcement
+│   ├── isolated-sandbox.ts             Child-process sandbox (hardened mode, SB-258)
+│   ├── sandbox-worker.ts               Child process entry point for IsolatedSandbox
+│   ├── worker-path.ts                  Worker path resolution (import.meta.url)
+│   ├── runtime.ts                      Orchestration, isolation selection, result truncation
 │   ├── auto-return.ts                  REPL-like implicit return (AST-based)
 │   ├── capabilities.ts                 Project state detection
 │   └── validators/
@@ -54,13 +67,14 @@ src/
 │       └── ast-walker.ts               Generic AST traversal
 ├── client/
 │   ├── constellation-client.ts         HTTP client with retry/backoff
-│   ├── error-factory.ts                Structured error creation (17 error codes)
+│   ├── error-factory.ts                Structured error creation (18 error codes)
 │   └── error-mapper.ts                 Error message formatting
 ├── config/
 │   ├── config-cache.ts                 Multi-project config resolution & LRU cache
 │   ├── config.loader.ts                Load constellation.json from git root
+│   ├── config.ts                       ConstellationConfig class
 │   ├── server-instructions.ts          AI assistant guidance (MCP instructions)
-│   └── config.ts                       ConstellationConfig class
+│   └── code-mode-guide.ts             On-demand reference material (MCP resource)
 ├── types/
 │   ├── api-types.d.ts                  Re-exports from @constellationdev/types
 │   ├── mcp-errors.ts                   Error codes & structured error interfaces
@@ -73,7 +87,9 @@ src/
 │   └── index.ts                        Re-exports
 └── utils/
     ├── file.utils.ts                   File/git root operations
-    └── error-messages.ts               Error message templates
+    ├── error-messages.ts               Error message templates
+    ├── metrics.ts                      In-memory execution metrics (singleton)
+    └── audit-logger.ts                 Opt-in JSON audit trail (stderr)
 ```
 
 ## API Methods (14 total)
@@ -95,15 +111,31 @@ src/
 | `listMethods`              | Method discovery (sync)      | Util |
 | `help`                     | Inline type summaries (sync) | Util |
 
+## MCP Resources
+
+5 resources registered in `index.ts`:
+
+| URI                                      | Content                                   | Size                |
+| ---------------------------------------- | ----------------------------------------- | ------------------- |
+| `constellation://types/api`              | Full API type definitions                 | ~147KB              |
+| `constellation://types/api/{methodName}` | Per-method type excerpts                  | ~1-2KB each         |
+| `constellation://docs/guide`             | Full Code Mode guide                      | ~3,500 tok          |
+| `constellation://docs/guide/{section}`   | Guide sections (methods/recipes/recovery) | ~600-1,200 tok each |
+| `constellation://metrics`                | Runtime metrics snapshot (JSON)           | Dynamic             |
+
+**Prefer per-method types** over the full `constellation://types/api` (~147KB) to avoid context bloat.
+
 ## Configuration
 
 **Priority**: Env vars → `constellation.json` → Defaults
 
-| Env Variable               | Purpose                       |
-| -------------------------- | ----------------------------- |
-| `CONSTELLATION_ACCESS_KEY` | API authentication (required) |
-| `CONSTELLATION_API_URL`    | Override API endpoint         |
-| `DEBUG`                    | Enable verbose logging        |
+| Env Variable                      | Purpose                                     |
+| --------------------------------- | ------------------------------------------- |
+| `CONSTELLATION_ACCESS_KEY`        | API authentication (required)               |
+| `CONSTELLATION_API_URL`           | Override API endpoint                       |
+| `CONSTELLATION_SANDBOX_ISOLATION` | `convenience` (default) or `hardened`       |
+| `CONSTELLATION_AUDIT_LOG`         | `true` to enable JSON audit trail on stderr |
+| `DEBUG`                           | Enable verbose logging                      |
 
 **Config file** (`constellation.json` at git root):
 
@@ -128,15 +160,15 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 
 ## Error Handling
 
-**17 error codes** (from `mcp-errors.ts`):
+**18 error codes** (from `mcp-errors.ts`):
 
-| Category  | Codes                                                                                                              |
-| --------- | ------------------------------------------------------------------------------------------------------------------ |
-| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                                        |
-| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                                                |
-| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                                           |
-| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT`, `EXECUTION_ERROR` |
-| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                                            |
+| Category  | Codes                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                                                           |
+| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                                                                   |
+| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                                                              |
+| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT`, `EXECUTION_ERROR`, `MEMORY_EXCEEDED` |
+| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                                                               |
 
 **Structured error response** includes: `code`, `type`, `message`, `recoverable`, `guidance[]`, `context`, `docs?`, `suggestedCode?`, `alternativeApproach?`.
 
@@ -150,16 +182,9 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 
 **Rate limiting**: Max 50 API calls per execution (configurable via `maxApiCalls`).
 
-**Code validation** (`validators/`): Acorn AST parser (not TypeScript compiler — faster) walks tree checking:
+**Code validation** (`validators/`): Acorn AST parser walks tree checking for dangerous globals, dangerous properties, computed property chains, dynamic `import()`, and `with` statements. Warnings emitted for dynamic computed property access.
 
-- **Dangerous globals**: `process`, `global`, `globalThis`, `require`, `module`, `exports`, `__dirname`, `__filename`, `Buffer`, `eval`, `Function`, `Proxy`, `Reflect`, `Atomics`, `SharedArrayBuffer`, `WebAssembly`
-- **Dangerous properties**: `constructor`, `__proto__`, `prototype`, `__defineGetter__`, `__defineSetter__`, `__lookupGetter__`, `__lookupSetter__`
-- **Patterns**: Computed property chains, dynamic import(), with statements
-- **Warnings**: Missing `return` or `await`
-
-**Sandbox globals**: `api`, `Promise`, `Array`, `Object`, `String`, `Number`, `Boolean`, `Date`, `JSON`, `Math`, `RegExp`, `Map`, `Set`, `Function`, `console.*` — all frozen (prototypes + constructors).
-
-**Limits** (`constants/sandbox-limits.ts`):
+**Limits** (`constants/sandbox-limits.ts` + `result-limits.ts`):
 
 | Limit             | Value                              |
 | ----------------- | ---------------------------------- |
@@ -171,6 +196,25 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 | Result warn       | 100KB                              |
 | Result hard limit | 1MB (truncated with preview)       |
 
+## Observability
+
+**Metrics** (`utils/metrics.ts`): In-memory singleton tracking execution counts, errors, API calls, validation failures, and duration histograms (rolling window, max 1000 samples). Exposed via `constellation://metrics` resource.
+
+**Audit logging** (`utils/audit-logger.ts`): Opt-in via `CONSTELLATION_AUDIT_LOG=true`. JSON entries on stderr with events: `execution_start`, `execution_end`, `api_call`, `validation_failure`, `error`. Code truncated to 500 chars for privacy.
+
+## Build
+
+**Build tool**: `tsup` with two entry points:
+
+| Entry                             | Output                   | Purpose                           |
+| --------------------------------- | ------------------------ | --------------------------------- |
+| `src/index.ts`                    | `dist/index.js`          | Main MCP server                   |
+| `src/code-mode/sandbox-worker.ts` | `dist/sandbox-worker.js` | Child process for IsolatedSandbox |
+
+Config: ESM bundle, tree-shake, minify, `keepNames: true` (preserve stack traces).
+
+**Post-build** (`utils/postbuild.js`): Adds shebang to `dist/index.js` + copies `@constellationdev/types` definitions to `dist/types/` for MCP resource serving.
+
 ## Testing
 
 ```bash
@@ -181,9 +225,9 @@ npm run test:ci             # CI mode (--maxWorkers=2)
 npm run inspector           # Interactive MCP protocol validation
 ```
 
-Test structure mirrors `src/`: `test/unit/{module}/{file}.test.ts`
+**Structure**: `test/unit/{module}/{file}.test.ts` mirrors `src/`. Helpers in `test/helpers/` (mock factories, test utils). Smoke tests in `test/smoke/`.
 
-**Coverage excludes**: `index.ts` (import.meta.url), type definitions, example tools.
+**Coverage excludes**: `index.ts`, `worker-path.ts`, `sandbox-worker.ts`, type definitions, example tools.
 
 ## Gotchas
 
@@ -191,10 +235,13 @@ Test structure mirrors `src/`: `test/unit/{module}/{file}.test.ts`
 - **ESM imports**: Must include `.js` extension (`from './config.js'`)
 - **Build tool**: `tsup` (ESM bundle, tree-shake, minify, keepNames) — not tsc directly
 - **Windows**: `breakOnSigint` disabled on Windows (can cause hangs)
-- **Result truncation**: Large results silently truncated at 1MB with preview
+- **Result truncation**: Large results silently truncated at 1MB with preview (still `success: true`)
 - **Config fallback**: Server starts even without config — tools return setup instructions
-- **Auto-return**: Sandbox adds implicit `return` to last expression. Code with explicit `return` is unchanged
+- **Config cache**: LRU by git root, no file watch — restart required after config changes
+- **Auto-return**: Sandbox adds implicit `return` to last expression. Explicit `return` is unchanged
 - **Prototype freeze**: All built-in prototypes and constructors are frozen in sandbox to prevent pollution
+- **Memory check**: Best-effort periodic sampling (50ms); only IsolatedSandbox has hard V8 limits
+- **Rate limit scope**: Max 50 API calls is per-execution, not per-session
 
 ## Dependencies
 
