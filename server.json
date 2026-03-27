@@ -7,13 +7,13 @@
 		"source": "github",
 		"id": "1058830668"
 	},
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"packages": [
 		{
 			"registryType": "npm",
 			"registryBaseUrl": "https://registry.npmjs.org",
 			"identifier": "@constellationdev/mcp",
-			"version": "0.1.4",
+			"version": "0.1.5",
 			"transport": {
 				"type": "stdio"
 			},
