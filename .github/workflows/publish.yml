@@ -1,4 +1,4 @@
-name: Publish 🚀
+name: Publish
 permissions:
   id-token: write
   contents: write
@@ -37,7 +37,16 @@ jobs:
         run: |
           npm update @constellationdev/types
           npm ci
-      - name: Build 🏗️
+      - name: Build
         run: npm run build
-      - name: Publish 🚀
+      - name: Publish
         run: npm publish --provenance
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Authenticate to MCP Registry
+        run: |
+          echo "${{ secrets.MCP_REGISTRY_KEY }}" | base64 -d > mcp-key.pem
+          ./mcp-publisher login dns --domain shiftinbits.com --private-key $(openssl pkey -in mcp-key.pem -noout -text | grep -A3 "priv:" | tail -n +2 | tr -d ' :\n')
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish
