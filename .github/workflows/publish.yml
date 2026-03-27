@@ -27,9 +27,10 @@ jobs:
             exit 0
           fi
           npm version "$VERSION" --no-git-tag-version
+          jq --tab --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
+          git add package.json package-lock.json server.json
           git commit -m "chore: bumped version to $VERSION for release"
           git push origin main
       - name: Install Dependencies ⤵️
