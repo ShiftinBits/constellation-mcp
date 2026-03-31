@@ -1,7 +1,7 @@
 {
 	"name": "@constellationdev/mcp",
 	"mcpName": "com.shiftinbits/constellation",
-	"version": "0.1.5",
+	"version": "0.2.0",
 	"author": "ShiftinBits Inc",
 	"description": "Code Intelligence Platform for AI Coding Agents",
 	"type": "module",
