@@ -41,6 +41,7 @@ interface SearchSymbolsResult {
 //   .isExported - Whether the symbol is exported
 //   .signature  - Function/method signature (if applicable)
 //   .usageCount - Number of usages (if includeUsageCount was true)
+//   .complexity - { cyclomaticComplexity: number, complexityRisk: 'low'|'moderate'|'high'|'very_high' } (functions/methods only)
 
 // PaginationMetadata:
 //   .total      - Total matching items
@@ -76,6 +77,7 @@ interface GetSymbolDetailsResult {
 //   .modifiers  - e.g., ['async', 'static']
 //   .decorators - e.g., ['@Injectable']
 //   .isDeprecated - Whether marked as deprecated
+//   .complexity - { cyclomaticComplexity: number, complexityRisk: 'low'|'moderate'|'high'|'very_high' } (functions/methods only)
 
 // SymbolReference:
 //   .filePath, .line, .usageType, .context, .aliasName
@@ -187,7 +189,7 @@ interface TraceSymbolUsageParams {
 // Note: Provide either symbolId OR (symbolName + filePath)
 
 interface TraceSymbolUsageResult {
-  symbol: { name: string; kind: string; filePath: string };
+  symbol: { name: string; kind: string; filePath: string; complexity?: ComplexityMetrics };
   directUsages: SymbolUsage[];
   transitiveUsages?: TransitiveUsage[];
 }
@@ -204,7 +206,11 @@ interface TraceSymbolUsageResult {
 //   .importanceWeight  - Relative importance
 
 // TransitiveUsage:
-//   .filePath, .distance, .chain[]`,
+//   .filePath, .distance, .chain[]
+
+// ComplexityMetrics (on symbol, functions/methods only):
+//   .cyclomaticComplexity - McCabe complexity score (1 = simplest)
+//   .complexityRisk       - 'low' (1-10) | 'moderate' (11-20) | 'high' (21-50) | 'very_high' (51+)`,
 
 	getCallGraph: `// === getCallGraph ===
 // Get function call relationships (who calls whom)
@@ -232,7 +238,8 @@ interface GetCallGraphResult {
 //   .line      - Line number
 //   .column    - Column number
 //   .isAsync   - Whether the call is async (callees only)
-//   .depth     - Distance from root`,
+//   .depth     - Distance from root
+//   .complexity - { cyclomaticComplexity, complexityRisk } (optional, functions/methods)`,
 
 	impactAnalysis: `// === impactAnalysis ===
 // Analyze the impact of changing a symbol (blast radius, breaking change risk)
@@ -344,7 +351,7 @@ interface GetArchitectureOverviewResult {
 //   .external - { totalPackages, directDependencies, topPackages[] }
 
 // QualityMetrics:
-//   .complexity      - { average, high }
+//   .complexity      - { average: number (mean CC across functions), high: number (count with CC > 20) }
 //   .maintainability - { score, issues[] }
 //   .testCoverage    - { percentage, testedFiles, totalFiles }
 
