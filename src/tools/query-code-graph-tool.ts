@@ -164,7 +164,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• "What calls X?" / "What imports this?" → getDependents({filePath}) or getCallGraph({symbolId})\n' +
 				'• "What does X depend on?" → getDependencies({filePath})\n' +
 				'• "Safe to modify X?" / "Blast radius?" → impactAnalysis({symbolId})\n' +
-				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n\n' +
+				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n' +
+				'• "Complex functions?" / "Refactoring targets?" → searchSymbols results include complexity.cyclomaticComplexity + complexityRisk per function\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
 				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n\n' +
 				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
