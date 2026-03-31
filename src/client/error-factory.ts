@@ -107,7 +107,11 @@ export function createStructuredError(
 				context: baseContext,
 				docs: DOCS_URLS.auth,
 			},
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -208,7 +212,11 @@ export function createStructuredError(
 				context: baseContext,
 				docs: DOCS_URLS.tools,
 			},
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -244,7 +252,11 @@ if (!caps.isIndexed) {
 		return {
 			success: false,
 			error: errorDetails,
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -362,7 +374,11 @@ function createErrorFromMessage(
 				],
 				context: baseContext,
 			},
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -382,7 +398,11 @@ function createErrorFromMessage(
 				],
 				context: baseContext,
 			},
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -406,7 +426,11 @@ function createErrorFromMessage(
 				],
 				context: baseContext,
 			},
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -497,7 +521,11 @@ return results.symbols.map(s => ({
 		return {
 			success: false,
 			error: errorDetails,
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -538,7 +566,11 @@ const results = await api.searchSymbols({
 		return {
 			success: false,
 			error: errorDetails,
-			formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+			formattedMessage: mapErrorToMessage(
+				error,
+				apiMethod || 'unknown',
+				baseContext,
+			),
 		};
 	}
 
@@ -557,7 +589,11 @@ const results = await api.searchSymbols({
 			],
 			context: baseContext,
 		},
-		formattedMessage: mapErrorToMessage(error, apiMethod || 'unknown'),
+		formattedMessage: mapErrorToMessage(
+			error,
+			apiMethod || 'unknown',
+			baseContext,
+		),
 	};
 }
 

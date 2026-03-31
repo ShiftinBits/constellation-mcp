@@ -14,9 +14,15 @@ import {
 import { DOCS_URLS } from '../constants/urls.js';
 
 /**
- * Get project context from config cache with fallbacks
+ * Get project context, preferring the provided context over config cache
  */
-function getProjectContext(): { projectId: string; branchName: string } {
+function getProjectContext(context?: {
+	projectId: string;
+	branchName: string;
+}): { projectId: string; branchName: string } {
+	if (context) {
+		return context;
+	}
 	const config = configCache.getDefaultConfig();
 	return {
 		projectId: config?.projectId ?? 'unknown',
@@ -29,16 +35,21 @@ function getProjectContext(): { projectId: string; branchName: string } {
  *
  * @param error Error object
  * @param toolName Name of the tool that failed
+ * @param context Optional project context to use instead of config cache
  * @returns Helpful error message with guidance
  */
-export function mapErrorToMessage(error: unknown, toolName: string): string {
+export function mapErrorToMessage(
+	error: unknown,
+	toolName: string,
+	context?: { projectId: string; branchName: string },
+): string {
 	// Handle known error types
 	if (error instanceof AuthenticationError) {
 		return formatAuthenticationError();
 	}
 
 	if (error instanceof NotFoundError) {
-		return formatNotFoundError(toolName);
+		return formatNotFoundError(toolName, context);
 	}
 
 	if (error instanceof ToolNotFoundError) {
@@ -47,7 +58,7 @@ export function mapErrorToMessage(error: unknown, toolName: string): string {
 
 	// Handle generic Error objects
 	if (error instanceof Error) {
-		return formatGenericError(toolName, error);
+		return formatGenericError(toolName, error, context);
 	}
 
 	// Handle unknown error types
@@ -78,8 +89,11 @@ For more information, visit: ${DOCS_URLS.root}
 /**
  * Format not found error (project not indexed)
  */
-function formatNotFoundError(toolName: string): string {
-	const context = getProjectContext();
+function formatNotFoundError(
+	toolName: string,
+	providedContext?: { projectId: string; branchName: string },
+): string {
+	const context = getProjectContext(providedContext);
 
 	return `Project Not Indexed
 
@@ -129,8 +143,12 @@ For more information, visit: ${DOCS_URLS.tools}
 /**
  * Format generic error with context
  */
-function formatGenericError(toolName: string, error: Error): string {
-	const context = getProjectContext();
+function formatGenericError(
+	toolName: string,
+	error: Error,
+	providedContext?: { projectId: string; branchName: string },
+): string {
+	const context = getProjectContext(providedContext);
 
 	// FIX SB-89: Check error.code first (standard Node.js pattern), then fall back to message
 	const errorWithCode = error as Error & { code?: string };

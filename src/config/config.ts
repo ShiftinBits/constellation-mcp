@@ -152,7 +152,7 @@ export class ConstellationConfig implements IConstellationConfig {
 					fileExtensions: ['.js', '.jsx'],
 				},
 			},
-			'default-project',
+			'unknown',
 		);
 	}
 }
