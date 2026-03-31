@@ -76,6 +76,7 @@ function getGuideMethodsSection(): string {
 | "Find all usages" | \`traceSymbolUsage({symbolId})\` |
 | "Dead code?" | \`findOrphanedCode()\` |
 | "Project overview" | \`getArchitectureOverview()\` |
+| "Complex functions?" | \`searchSymbols\` — results include \`complexity.cyclomaticComplexity\` + \`complexityRisk\` per function |
 
 ### "What uses X?" — Choosing the Right Method
 Three methods answer "what uses X?" at different granularity:
@@ -130,7 +131,7 @@ function getGuideRecipesSection(): string {
 
 \`searchSymbols\` — key fields in \`result.symbols[]\`:
 \`\`\`javascript
-{ id, name, qualifiedName, kind, filePath, line, isExported, signature? }
+{ id, name, qualifiedName, kind, filePath, line, isExported, signature?, complexity? }
 \`\`\`
 
 \`impactAnalysis\` — key fields in \`result\`:
@@ -169,6 +170,20 @@ return { risk: impact.breakingChangeRisk, usages: usage.directUsages?.length };
 \`\`\`javascript
 const arch = await api.getArchitectureOverview();
 return { structure: arch.structure, metrics: arch.metrics, languages: arch.metadata?.languages };
+\`\`\`
+
+### "Find Complex Code" Workflow
+\`\`\`javascript
+// Find high-complexity functions (CC > 10 = moderate risk or higher)
+const {symbols} = await api.searchSymbols({
+  query: "", filterByKind: ["function", "method"], limit: 50
+});
+const complex = symbols
+  .filter(s => s.complexity?.complexityRisk !== 'low')
+  .sort((a,b) => (b.complexity?.cyclomaticComplexity ?? 0) - (a.complexity?.cyclomaticComplexity ?? 0));
+return complex.map(s => ({
+  name: s.name, file: s.filePath, cc: s.complexity?.cyclomaticComplexity, risk: s.complexity?.complexityRisk
+}));
 \`\`\``;
 }
 
