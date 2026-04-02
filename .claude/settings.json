@@ -3,7 +3,7 @@
 		"allow": ["mcp__constellation__*"]
 	},
 	"extraKnownMarketplaces": {
-		"constellation-marketplace": {
+		"constellation-plugins": {
 			"source": {
 				"source": "github",
 				"repo": "ShiftinBits/constellation-claude"
@@ -11,6 +11,6 @@
 		}
 	},
 	"enabledPlugins": {
-		"constellation@constellation-marketplace": true
+		"constellation@constellation-plugins": true
 	}
 }
