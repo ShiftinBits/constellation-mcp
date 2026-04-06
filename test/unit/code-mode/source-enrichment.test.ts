@@ -61,10 +61,16 @@ describe('Source Snippet Enrichment', () => {
 			expect(shouldSkipFile('styles/app.min.css')).toBe(true);
 		});
 
-		it('should skip binary files', () => {
+		it('should skip binary files and source maps', () => {
 			expect(shouldSkipFile('assets/logo.png')).toBe(true);
 			expect(shouldSkipFile('fonts/arial.woff2')).toBe(true);
 			expect(shouldSkipFile('docs/manual.pdf')).toBe(true);
+			expect(shouldSkipFile('dist/index.js.map')).toBe(true);
+		});
+
+		it('should skip declaration files', () => {
+			expect(shouldSkipFile('src/types/api.d.ts')).toBe(true);
+			expect(shouldSkipFile('node_modules/@types/node/index.d.ts')).toBe(true);
 		});
 
 		it('should skip generated files', () => {

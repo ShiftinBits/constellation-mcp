@@ -79,7 +79,11 @@ const BINARY_EXTENSIONS = new Set([
 	'.dat',
 	'.db',
 	'.sqlite',
+	'.map',
 ]);
+
+/** File extensions that are valid text but low-value for snippet context */
+const LOW_VALUE_EXTENSIONS = new Set(['.d.ts']);
 
 /**
  * Check if a file path should be skipped for enrichment.
@@ -98,10 +102,17 @@ export function shouldSkipFile(filePath: string): boolean {
 		return true;
 	}
 
-	// Skip binary files by extension
+	// Skip binary files and source maps by extension
 	const ext = path.extname(filePath).toLowerCase();
 	if (BINARY_EXTENSIONS.has(ext)) {
 		return true;
+	}
+
+	// Skip low-value text files (declarations, etc.)
+	for (const lowExt of LOW_VALUE_EXTENSIONS) {
+		if (filePath.endsWith(lowExt)) {
+			return true;
+		}
 	}
 
 	// Skip generated files
