@@ -19,9 +19,13 @@ import {
 import { ConstellationClient } from '../../../src/client/constellation-client.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
+import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
 
 // Mock dependencies
 jest.mock('../../../src/client/constellation-client.js');
+jest.mock('../../../src/code-mode/source-enrichment.js', () => ({
+	enrichWithSourceSnippets: jest.fn(async (data: unknown) => data),
+}));
 
 const MockedConstellationClient = ConstellationClient as jest.MockedClass<
 	typeof ConstellationClient
@@ -2068,6 +2072,84 @@ describe('CodeModeSandbox', () => {
 			const result = await noTimerSandbox.execute(code);
 			expect(result.success).toBe(true);
 			expect(result.result).toBe('undefined');
+		});
+	});
+
+	describe('source snippet enrichment', () => {
+		const mockedEnrich = enrichWithSourceSnippets as jest.MockedFunction<
+			typeof enrichWithSourceSnippets
+		>;
+
+		it('should call enrichWithSourceSnippets on API response data', async () => {
+			// Arrange
+			const responseData = {
+				symbols: [
+					{ id: 'sym1', filePath: 'src/foo.ts', line: 10, name: 'foo' },
+				],
+			};
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(responseData),
+			);
+			// Simulate in-place mutation (how enrichment actually works)
+			mockedEnrich.mockImplementationOnce(async (data: any) => {
+				data.symbols[0].sourceSnippet = 'function foo() {}';
+				return data;
+			});
+
+			// Act
+			const code =
+				'const result = await api.searchSymbols({ query: "foo" }); return result;';
+			const result = await sandbox.execute(code);
+
+			// Assert
+			expect(result.success).toBe(true);
+			expect(mockedEnrich).toHaveBeenCalledWith(
+				responseData,
+				mockConfigContext.gitRoot,
+			);
+			expect((result.result as any).symbols[0].sourceSnippet).toBe(
+				'function foo() {}',
+			);
+		});
+
+		it('should return un-enriched data when enrichment throws', async () => {
+			// Arrange
+			const responseData = {
+				symbols: [
+					{ id: 'sym1', filePath: 'src/foo.ts', line: 10, name: 'foo' },
+				],
+			};
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult(responseData),
+			);
+			mockedEnrich.mockRejectedValueOnce(new Error('Enrichment failed'));
+
+			// Act
+			const code =
+				'const result = await api.searchSymbols({ query: "foo" }); return result;';
+			const result = await sandbox.execute(code);
+
+			// Assert
+			expect(result.success).toBe(true);
+			expect(result.result).toEqual(responseData);
+		});
+
+		it('should pass gitRoot from configContext to enrichment', async () => {
+			// Arrange
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ data: 'test' }),
+			);
+
+			// Act
+			await sandbox.execute(
+				'return await api.searchSymbols({ query: "test" })',
+			);
+
+			// Assert
+			expect(mockedEnrich).toHaveBeenCalledWith(
+				{ data: 'test' },
+				'/test/project',
+			);
 		});
 	});
 });

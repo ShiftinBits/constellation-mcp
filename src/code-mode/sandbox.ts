@@ -42,6 +42,7 @@ import {
 import { AuditLogger } from '../utils/audit-logger.js';
 import { Metrics } from '../utils/metrics.js';
 import { METHOD_SUMMARIES } from '../types/method-summaries.js';
+import { enrichWithSourceSnippets } from './source-enrichment.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -652,6 +653,16 @@ export class CodeModeSandbox {
 				if (result.metadata?.resultContext) {
 					executionState.resultContext = result.metadata
 						.resultContext as typeof executionState.resultContext;
+				}
+
+				// Enrich response with source snippets from local files (best-effort)
+				try {
+					await enrichWithSourceSnippets(
+						result.data,
+						this.configContext.gitRoot,
+					);
+				} catch {
+					// Enrichment is best-effort; return un-enriched data on failure
 				}
 
 				return result.data;
