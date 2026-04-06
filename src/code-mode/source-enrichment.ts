@@ -179,15 +179,22 @@ export async function batchReadFiles(
 		}
 	}
 
-	const resolvedRoot = path.resolve(projectRoot);
+	const resolvedRoot = await fs.realpath(path.resolve(projectRoot));
 	const readPromises = Array.from(uniquePaths).map(async (filePath) => {
 		try {
-			const absolutePath = path.resolve(projectRoot, filePath);
+			const absolutePath = await fs.realpath(
+				path.resolve(projectRoot, filePath),
+			);
 
 			// Defense-in-depth: prevent path traversal outside project root
-			if (!absolutePath.startsWith(resolvedRoot + path.sep)) return;
+			// Uses realpath to resolve symlinks (e.g. macOS /private/tmp)
+			if (
+				absolutePath !== resolvedRoot &&
+				!absolutePath.startsWith(resolvedRoot + path.sep)
+			)
+				return;
 
-			// Single stat call validates existence + checks size
+			// Check file size before reading to prevent memory spikes on large files
 			const stat = await fs.stat(absolutePath);
 			if (stat.size > MAX_FILE_SIZE_BYTES) return;
 
@@ -249,8 +256,6 @@ export function injectSnippets(
 	let totalBytes = 0;
 
 	for (const ref of references) {
-		if (totalBytes >= options.totalBudgetBytes) break;
-
 		const fileLines = fileCache.get(ref.filePath);
 		if (!fileLines) continue;
 

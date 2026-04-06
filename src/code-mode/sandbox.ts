@@ -656,9 +656,8 @@ export class CodeModeSandbox {
 				}
 
 				// Enrich response with source snippets from local files (best-effort)
-				let enrichedData = result.data;
 				try {
-					enrichedData = await enrichWithSourceSnippets(
+					await enrichWithSourceSnippets(
 						result.data,
 						this.configContext.gitRoot,
 					);
@@ -666,7 +665,7 @@ export class CodeModeSandbox {
 					// Enrichment is best-effort; return un-enriched data on failure
 				}
 
-				return enrichedData;
+				return result.data;
 			} catch (error) {
 				// Re-throw if already formatted
 				if (

@@ -25,11 +25,15 @@ jest.mock('fs', () => ({
 	promises: {
 		stat: jest.fn(),
 		readFile: jest.fn(),
+		realpath: jest.fn(),
 	},
 }));
 
 const MockedFsStat = fs.stat as jest.MockedFunction<typeof fs.stat>;
 const MockedFsReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
+const MockedFsRealpath = fs.realpath as unknown as jest.MockedFunction<
+	(path: string) => Promise<string>
+>;
 
 describe('Source Snippet Enrichment', () => {
 	beforeEach(() => {
@@ -252,6 +256,8 @@ describe('Source Snippet Enrichment', () => {
 
 	describe('batchReadFiles', () => {
 		beforeEach(() => {
+			// Default: realpath resolves to the same path (no symlinks)
+			MockedFsRealpath.mockImplementation(async (p: any) => String(p));
 			MockedFsStat.mockResolvedValue({ size: 1000 } as any);
 			MockedFsReadFile.mockResolvedValue('line 1\nline 2\nline 3' as any);
 		});
@@ -314,6 +320,15 @@ describe('Source Snippet Enrichment', () => {
 		});
 
 		it('should reject path traversal attempts', async () => {
+			// realpath resolves the traversal to a path outside project root
+			MockedFsRealpath.mockImplementation(async (p: any) => {
+				const s = String(p);
+				if (s === '/project') return '/project';
+				// Simulate resolved traversal landing outside project root
+				if (s.includes('etc/passwd')) return '/etc/passwd';
+				return s;
+			});
+
 			const refs = [
 				{
 					obj: {},
@@ -442,6 +457,7 @@ describe('Source Snippet Enrichment', () => {
 
 	describe('enrichWithSourceSnippets', () => {
 		beforeEach(() => {
+			MockedFsRealpath.mockImplementation(async (p: any) => String(p));
 			MockedFsStat.mockResolvedValue({ size: 1000 } as any);
 		});
 
