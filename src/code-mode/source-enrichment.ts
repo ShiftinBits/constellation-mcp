@@ -11,7 +11,6 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import { FileUtils } from '../utils/file.utils.js';
 import {
 	SNIPPET_CONTEXT_LINES,
 	SNIPPET_MAX_LINES,
@@ -82,14 +81,10 @@ const BINARY_EXTENSIONS = new Set([
 	'.map',
 ]);
 
-/** File extensions that are valid text but low-value for snippet context */
-const LOW_VALUE_EXTENSIONS = new Set(['.d.ts']);
-
 /**
  * Check if a file path should be skipped for enrichment.
  */
 export function shouldSkipFile(filePath: string): boolean {
-	// Skip node_modules
 	if (
 		filePath.includes('node_modules/') ||
 		filePath.includes('node_modules\\')
@@ -97,25 +92,19 @@ export function shouldSkipFile(filePath: string): boolean {
 		return true;
 	}
 
-	// Skip minified files
 	if (filePath.endsWith('.min.js') || filePath.endsWith('.min.css')) {
 		return true;
 	}
 
-	// Skip binary files and source maps by extension
 	const ext = path.extname(filePath).toLowerCase();
 	if (BINARY_EXTENSIONS.has(ext)) {
 		return true;
 	}
 
-	// Skip low-value text files (declarations, etc.)
-	for (const lowExt of LOW_VALUE_EXTENSIONS) {
-		if (filePath.endsWith(lowExt)) {
-			return true;
-		}
+	if (filePath.endsWith('.d.ts')) {
+		return true;
 	}
 
-	// Skip generated files
 	if (filePath.includes('.generated.') || filePath.includes('__generated__')) {
 		return true;
 	}
@@ -146,7 +135,6 @@ export function collectFileReferences(data: unknown): FileReference[] {
 
 		const obj = node as Record<string, unknown>;
 
-		// Check if this object has file location properties
 		if (typeof obj.filePath === 'string' && obj.filePath.length > 0) {
 			const hasLine = typeof obj.line === 'number';
 			const hasLineStart = typeof obj.lineStart === 'number';
@@ -165,7 +153,6 @@ export function collectFileReferences(data: unknown): FileReference[] {
 			}
 		}
 
-		// Recurse into all object values (including nested objects and arrays)
 		for (const value of Object.values(obj)) {
 			walk(value);
 		}
@@ -185,7 +172,6 @@ export async function batchReadFiles(
 ): Promise<Map<string, string[]>> {
 	const fileCache = new Map<string, string[]>();
 
-	// Collect unique file paths
 	const uniquePaths = new Set<string>();
 	for (const ref of references) {
 		if (!shouldSkipFile(ref.filePath)) {
@@ -193,7 +179,6 @@ export async function batchReadFiles(
 		}
 	}
 
-	// Read files in parallel
 	const resolvedRoot = path.resolve(projectRoot);
 	const readPromises = Array.from(uniquePaths).map(async (filePath) => {
 		try {
@@ -202,17 +187,14 @@ export async function batchReadFiles(
 			// Defense-in-depth: prevent path traversal outside project root
 			if (!absolutePath.startsWith(resolvedRoot + path.sep)) return;
 
-			const isReadable = await FileUtils.fileIsReadable(absolutePath);
-			if (!isReadable) return;
-
-			// Skip oversized files to prevent memory spikes
+			// Single stat call validates existence + checks size
 			const stat = await fs.stat(absolutePath);
 			if (stat.size > MAX_FILE_SIZE_BYTES) return;
 
-			const content = await FileUtils.readFile(absolutePath);
+			const content = await fs.readFile(absolutePath, 'utf-8');
 			fileCache.set(filePath, content.split('\n'));
 		} catch {
-			// Graceful fallback — silently skip unreadable files
+			// Silently skip unreadable/missing files
 		}
 	});
 
@@ -233,13 +215,12 @@ export function extractSnippet(
 	const totalFileLines = fileLines.length;
 	if (totalFileLines === 0) return null;
 
-	// Convert to 0-based and clamp to file bounds
+	// 1-based to 0-based, clamped to file bounds
 	const rangeStart = Math.max(0, lineStart - 1 - contextLines);
 	const rangeEnd = Math.min(totalFileLines, lineEnd + contextLines);
 
 	if (rangeStart >= totalFileLines || rangeEnd <= 0) return null;
 
-	// Extract lines and enforce per-snippet cap
 	let snippetLines = fileLines.slice(rangeStart, rangeEnd);
 	if (snippetLines.length > maxLines) {
 		snippetLines = snippetLines.slice(0, maxLines);
@@ -268,7 +249,6 @@ export function injectSnippets(
 	let totalBytes = 0;
 
 	for (const ref of references) {
-		// Stop if budget exhausted
 		if (totalBytes >= options.totalBudgetBytes) break;
 
 		const fileLines = fileCache.get(ref.filePath);
@@ -285,8 +265,6 @@ export function injectSnippets(
 		if (snippet === null) continue;
 
 		const snippetBytes = Buffer.byteLength(snippet, 'utf-8');
-
-		// Check if adding this snippet would exceed budget
 		if (totalBytes + snippetBytes > options.totalBudgetBytes) break;
 
 		ref.obj.sourceSnippet = snippet;
@@ -301,12 +279,10 @@ export function injectSnippets(
  * Enabled by default; set CONSTELLATION_INCLUDE_SNIPPETS=false to disable.
  */
 function isEnrichmentEnabled(options?: SnippetEnrichmentOptions): boolean {
-	// Explicit option takes precedence
 	if (options?.enabled !== undefined) {
 		return options.enabled;
 	}
 
-	// Check environment variable
 	const envValue = process.env.CONSTELLATION_INCLUDE_SNIPPETS;
 	if (envValue !== undefined && envValue.toLowerCase() === 'false') {
 		return false;
@@ -332,29 +308,24 @@ export async function enrichWithSourceSnippets<T>(
 	projectRoot: string,
 	options?: SnippetEnrichmentOptions,
 ): Promise<T> {
-	// Check if enrichment is enabled
 	if (!isEnrichmentEnabled(options)) {
 		return data;
 	}
 
-	// Skip non-object data (primitives, null, undefined)
 	if (data === null || data === undefined || typeof data !== 'object') {
 		return data;
 	}
 
-	// Collect all file references from the response tree
 	const references = collectFileReferences(data);
 	if (references.length === 0) {
 		return data;
 	}
 
-	// Batch-read unique source files
 	const fileCache = await batchReadFiles(references, projectRoot);
 	if (fileCache.size === 0) {
 		return data;
 	}
 
-	// Inject snippets with budget tracking
 	injectSnippets(references, fileCache, {
 		contextLines: options?.contextLines ?? SNIPPET_CONTEXT_LINES,
 		maxLinesPerSnippet: options?.maxLinesPerSnippet ?? SNIPPET_MAX_LINES,

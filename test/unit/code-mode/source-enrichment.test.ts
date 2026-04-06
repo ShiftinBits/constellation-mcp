@@ -18,23 +18,18 @@ import {
 	injectSnippets,
 	shouldSkipFile,
 } from '../../../src/code-mode/source-enrichment.js';
-import { FileUtils } from '../../../src/utils/file.utils.js';
 import { promises as fs } from 'fs';
 
-// Mock FileUtils to avoid real filesystem access
-jest.mock('../../../src/utils/file.utils.js');
+// Mock fs to avoid real filesystem access
 jest.mock('fs', () => ({
 	promises: {
 		stat: jest.fn(),
-		access: jest.fn(),
 		readFile: jest.fn(),
 	},
-	constants: { R_OK: 4 },
 }));
 
 const MockedFsStat = fs.stat as jest.MockedFunction<typeof fs.stat>;
-
-const MockedFileUtils = FileUtils as jest.Mocked<typeof FileUtils>;
+const MockedFsReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
 
 describe('Source Snippet Enrichment', () => {
 	beforeEach(() => {
@@ -257,14 +252,11 @@ describe('Source Snippet Enrichment', () => {
 
 	describe('batchReadFiles', () => {
 		beforeEach(() => {
-			// Default: files are small enough
 			MockedFsStat.mockResolvedValue({ size: 1000 } as any);
+			MockedFsReadFile.mockResolvedValue('line 1\nline 2\nline 3' as any);
 		});
 
 		it('should read unique files and return lines map', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockResolvedValue('line 1\nline 2\nline 3');
-
 			const refs = [
 				{ obj: {}, filePath: 'src/a.ts', lineStart: 1, lineEnd: 1 },
 				{ obj: {}, filePath: 'src/b.ts', lineStart: 2, lineEnd: 2 },
@@ -274,13 +266,10 @@ describe('Source Snippet Enrichment', () => {
 
 			expect(cache.size).toBe(2);
 			expect(cache.get('src/a.ts')).toEqual(['line 1', 'line 2', 'line 3']);
-			expect(MockedFileUtils.readFile).toHaveBeenCalledTimes(2);
+			expect(MockedFsReadFile).toHaveBeenCalledTimes(2);
 		});
 
 		it('should deduplicate file reads', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockResolvedValue('content');
-
 			const refs = [
 				{ obj: {}, filePath: 'src/a.ts', lineStart: 1, lineEnd: 1 },
 				{ obj: {}, filePath: 'src/a.ts', lineStart: 5, lineEnd: 5 },
@@ -290,7 +279,7 @@ describe('Source Snippet Enrichment', () => {
 			const cache = await batchReadFiles(refs, '/project');
 
 			expect(cache.size).toBe(1);
-			expect(MockedFileUtils.readFile).toHaveBeenCalledTimes(1);
+			expect(MockedFsReadFile).toHaveBeenCalledTimes(1);
 		});
 
 		it('should skip files matching skip filters', async () => {
@@ -308,11 +297,11 @@ describe('Source Snippet Enrichment', () => {
 			const cache = await batchReadFiles(refs, '/project');
 
 			expect(cache.size).toBe(0);
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
-		it('should silently skip unreadable files', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(false);
+		it('should silently skip missing files', async () => {
+			MockedFsStat.mockRejectedValue(new Error('ENOENT'));
 
 			const refs = [
 				{ obj: {}, filePath: 'src/deleted.ts', lineStart: 1, lineEnd: 1 },
@@ -321,7 +310,7 @@ describe('Source Snippet Enrichment', () => {
 			const cache = await batchReadFiles(refs, '/project');
 
 			expect(cache.size).toBe(0);
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should reject path traversal attempts', async () => {
@@ -337,12 +326,11 @@ describe('Source Snippet Enrichment', () => {
 			const cache = await batchReadFiles(refs, '/project');
 
 			expect(cache.size).toBe(0);
-			expect(MockedFileUtils.fileIsReadable).not.toHaveBeenCalled();
+			expect(MockedFsStat).not.toHaveBeenCalled();
 		});
 
 		it('should skip files exceeding size limit', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFsStat.mockResolvedValue({ size: 2 * 1024 * 1024 } as any); // 2MB
+			MockedFsStat.mockResolvedValue({ size: 2 * 1024 * 1024 } as any);
 
 			const refs = [
 				{ obj: {}, filePath: 'src/huge.ts', lineStart: 1, lineEnd: 1 },
@@ -351,12 +339,11 @@ describe('Source Snippet Enrichment', () => {
 			const cache = await batchReadFiles(refs, '/project');
 
 			expect(cache.size).toBe(0);
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should silently skip files that throw on read', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockRejectedValue(new Error('ENOENT'));
+			MockedFsReadFile.mockRejectedValue(new Error('ENOENT'));
 
 			const refs = [
 				{ obj: {}, filePath: 'src/error.ts', lineStart: 1, lineEnd: 1 },
@@ -454,10 +441,13 @@ describe('Source Snippet Enrichment', () => {
 	// =========================================================================
 
 	describe('enrichWithSourceSnippets', () => {
+		beforeEach(() => {
+			MockedFsStat.mockResolvedValue({ size: 1000 } as any);
+		});
+
 		it('should enrich a searchSymbols-shaped response', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockResolvedValue(
-				'import { foo } from "bar";\n\nexport class AuthService {\n  async login() {\n    return true;\n  }\n}\n',
+			MockedFsReadFile.mockResolvedValue(
+				'import { foo } from "bar";\n\nexport class AuthService {\n  async login() {\n    return true;\n  }\n}\n' as any,
 			);
 
 			const data = {
@@ -485,9 +475,8 @@ describe('Source Snippet Enrichment', () => {
 		});
 
 		it('should enrich an impactAnalysis-shaped response', async () => {
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockResolvedValue(
-				'line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n',
+			MockedFsReadFile.mockResolvedValue(
+				'line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n' as any,
 			);
 
 			const data = {
@@ -532,7 +521,7 @@ describe('Source Snippet Enrichment', () => {
 			const result = await enrichWithSourceSnippets(data, '/project');
 
 			expect(result.symbols[0]).not.toHaveProperty('sourceSnippet');
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should return data unchanged when disabled via options', async () => {
@@ -545,7 +534,7 @@ describe('Source Snippet Enrichment', () => {
 			});
 
 			expect(result.symbols[0]).not.toHaveProperty('sourceSnippet');
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should handle case-insensitive env var values', async () => {
@@ -554,7 +543,7 @@ describe('Source Snippet Enrichment', () => {
 			const data = { symbols: [{ filePath: 'src/a.ts', line: 1 }] };
 			await enrichWithSourceSnippets(data, '/project');
 
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should handle null and undefined data gracefully', async () => {
@@ -576,14 +565,13 @@ describe('Source Snippet Enrichment', () => {
 			const result = await enrichWithSourceSnippets(data, '/project');
 
 			expect(result).toEqual(data);
-			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+			expect(MockedFsReadFile).not.toHaveBeenCalled();
 		});
 
 		it('should options.enabled=true override env var false', async () => {
 			process.env.CONSTELLATION_INCLUDE_SNIPPETS = 'false';
 
-			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
-			MockedFileUtils.readFile.mockResolvedValue('content\n');
+			MockedFsReadFile.mockResolvedValue('content\n' as any);
 
 			const data = {
 				symbols: [{ filePath: 'src/a.ts', line: 1, name: 'a' }],
