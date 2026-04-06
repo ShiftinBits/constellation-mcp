@@ -10,12 +10,16 @@
  */
 
 import path from 'path';
+import { promises as fs } from 'fs';
 import { FileUtils } from '../utils/file.utils.js';
 import {
 	SNIPPET_CONTEXT_LINES,
 	SNIPPET_MAX_LINES,
 	SNIPPET_TOTAL_BUDGET,
 } from '../constants/result-limits.js';
+
+/** Maximum file size to read for snippet extraction (1MB) */
+const MAX_FILE_SIZE_BYTES = 1024 * 1024;
 
 /**
  * Options for controlling snippet enrichment behavior.
@@ -101,11 +105,7 @@ export function shouldSkipFile(filePath: string): boolean {
 	}
 
 	// Skip generated files
-	if (
-		filePath.includes('.generated.') ||
-		filePath.includes('.g.') ||
-		filePath.includes('__generated__')
-	) {
+	if (filePath.includes('.generated.') || filePath.includes('__generated__')) {
 		return true;
 	}
 
@@ -183,11 +183,20 @@ export async function batchReadFiles(
 	}
 
 	// Read files in parallel
+	const resolvedRoot = path.resolve(projectRoot);
 	const readPromises = Array.from(uniquePaths).map(async (filePath) => {
 		try {
 			const absolutePath = path.resolve(projectRoot, filePath);
+
+			// Defense-in-depth: prevent path traversal outside project root
+			if (!absolutePath.startsWith(resolvedRoot + path.sep)) return;
+
 			const isReadable = await FileUtils.fileIsReadable(absolutePath);
 			if (!isReadable) return;
+
+			// Skip oversized files to prevent memory spikes
+			const stat = await fs.stat(absolutePath);
+			if (stat.size > MAX_FILE_SIZE_BYTES) return;
 
 			const content = await FileUtils.readFile(absolutePath);
 			fileCache.set(filePath, content.split('\n'));

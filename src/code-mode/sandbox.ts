@@ -655,11 +655,16 @@ export class CodeModeSandbox {
 						.resultContext as typeof executionState.resultContext;
 				}
 
-				// Enrich response with source snippets from local files
-				const enrichedData = await enrichWithSourceSnippets(
-					result.data,
-					this.configContext.gitRoot,
-				);
+				// Enrich response with source snippets from local files (best-effort)
+				let enrichedData = result.data;
+				try {
+					enrichedData = await enrichWithSourceSnippets(
+						result.data,
+						this.configContext.gitRoot,
+					);
+				} catch {
+					// Enrichment is best-effort; return un-enriched data on failure
+				}
 
 				return enrichedData;
 			} catch (error) {

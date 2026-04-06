@@ -19,9 +19,20 @@ import {
 	shouldSkipFile,
 } from '../../../src/code-mode/source-enrichment.js';
 import { FileUtils } from '../../../src/utils/file.utils.js';
+import { promises as fs } from 'fs';
 
 // Mock FileUtils to avoid real filesystem access
 jest.mock('../../../src/utils/file.utils.js');
+jest.mock('fs', () => ({
+	promises: {
+		stat: jest.fn(),
+		access: jest.fn(),
+		readFile: jest.fn(),
+	},
+	constants: { R_OK: 4 },
+}));
+
+const MockedFsStat = fs.stat as jest.MockedFunction<typeof fs.stat>;
 
 const MockedFileUtils = FileUtils as jest.Mocked<typeof FileUtils>;
 
@@ -59,7 +70,11 @@ describe('Source Snippet Enrichment', () => {
 		it('should skip generated files', () => {
 			expect(shouldSkipFile('src/schema.generated.ts')).toBe(true);
 			expect(shouldSkipFile('src/__generated__/types.ts')).toBe(true);
-			expect(shouldSkipFile('src/prisma.g.ts')).toBe(true);
+		});
+
+		it('should not false-positive on .g. in regular filenames', () => {
+			expect(shouldSkipFile('src/config.global.ts')).toBe(false);
+			expect(shouldSkipFile('src/string.guard.ts')).toBe(false);
 		});
 
 		it('should not skip regular source files', () => {
@@ -235,6 +250,11 @@ describe('Source Snippet Enrichment', () => {
 	// =========================================================================
 
 	describe('batchReadFiles', () => {
+		beforeEach(() => {
+			// Default: files are small enough
+			MockedFsStat.mockResolvedValue({ size: 1000 } as any);
+		});
+
 		it('should read unique files and return lines map', async () => {
 			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
 			MockedFileUtils.readFile.mockResolvedValue('line 1\nline 2\nline 3');
@@ -290,6 +310,36 @@ describe('Source Snippet Enrichment', () => {
 
 			const refs = [
 				{ obj: {}, filePath: 'src/deleted.ts', lineStart: 1, lineEnd: 1 },
+			] as any[];
+
+			const cache = await batchReadFiles(refs, '/project');
+
+			expect(cache.size).toBe(0);
+			expect(MockedFileUtils.readFile).not.toHaveBeenCalled();
+		});
+
+		it('should reject path traversal attempts', async () => {
+			const refs = [
+				{
+					obj: {},
+					filePath: '../../../../etc/passwd',
+					lineStart: 1,
+					lineEnd: 1,
+				},
+			] as any[];
+
+			const cache = await batchReadFiles(refs, '/project');
+
+			expect(cache.size).toBe(0);
+			expect(MockedFileUtils.fileIsReadable).not.toHaveBeenCalled();
+		});
+
+		it('should skip files exceeding size limit', async () => {
+			MockedFileUtils.fileIsReadable.mockResolvedValue(true);
+			MockedFsStat.mockResolvedValue({ size: 2 * 1024 * 1024 } as any); // 2MB
+
+			const refs = [
+				{ obj: {}, filePath: 'src/huge.ts', lineStart: 1, lineEnd: 1 },
 			] as any[];
 
 			const cache = await batchReadFiles(refs, '/project');
