@@ -3,7 +3,7 @@
 	"mcpName": "com.shiftinbits/constellation",
 	"version": "0.2.0",
 	"author": "ShiftinBits Inc",
-	"description": "Code Intelligence Platform for AI Coding Agents",
+	"description": "Codebase Understanding for AI Coding Agents",
 	"type": "module",
 	"license": "AGPL-3.0-only",
 	"bin": {
