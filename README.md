@@ -1,12 +1,10 @@
 # Constellation MCP Server
 
-[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-3DA639?logo=opensourceinitiative&logoColor=white)](LICENSE) [![Snyk Monitored](https://img.shields.io/badge/Security-Monitored-8A2BE2?logo=snyk)](https://snyk.io/test/github/ShiftinBits/constellation-mcp)
+[![NPM Version](https://img.shields.io/npm/v/@constellationdev/mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@constellationdev/mcp) ![TypeScript v5.9+](https://img.shields.io/badge/TypeScript-v5.9%2B-3178C6.svg?logo=typescript&logoColor=white) ![Node.js v24+](https://img.shields.io/badge/Node.js-v24%2B-5FA04E.svg?logo=node.js&logoColor=white) [![MCP Badge](https://lobehub.com/badge/mcp/shiftinbits-constellation-mcp?style=flat)](https://lobehub.com/mcp/shiftinbits-constellation-mcp) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-3DA639?logo=opensourceinitiative&logoColor=white)](LICENSE) [![Snyk Monitored](https://img.shields.io/badge/Security-Monitored-8A2BE2?logo=snyk)](https://snyk.io/test/github/ShiftinBits/constellation-mcp)
 
 Give your AI coding assistant instant, intelligent access to your entire codebase's structure, dependencies, and relationships without transmitting any source code. Constellation provides code intelligence as a service to AI coding assistant tools.
 
 ## Quick Start
-
-[![Add to VS Code](https://img.shields.io/badge/add%20to-VS%20Code-teal.svg?logo=modelcontextprotocol)](vscode:mcp/install?%7B%22name%22%3A%22constellation%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40constellationdev%2Fmcp%40latest%22%5D%2C%22tools%22%3A%5B%22code_intel%22%5D%2C%22env%22%3A%7B%22CONSTELLATION_ACCESS_KEY%22%3A%22CONSTELLATION_ACCESS_KEY%22%7D%7D) [![Add to Cursor](https://img.shields.io/badge/add%20to-Cursor-black.svg?logo=cursor)](https://cursor.com/en-US/install-mcp?name=constellation&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb25zdGVsbGF0aW9uZGV2L21jcEBsYXRlc3QifQ%3D%3D)
 
 Add the Constellation MCP server to your AI assistant project-level config (or system-level if your tooling doesn't support project-level configuration):
 
@@ -24,6 +22,8 @@ Add the Constellation MCP server to your AI assistant project-level config (or s
 
 > [!NOTE]  
 > The above example is a generic format for the `.mcp.json` file used by some tools such as VSCode and Claude Code.
+>
+> Rather than directly configuring the MCP server, it is recommended to install and utilize official [Constellation Plugins](https://docs.constellationdev.io/plugins/) for optimal performance and behavior!
 >
 > For information on configuring other AI assistants see the [MCP Server > Installation doc](https://docs.constellationdev.io/mcp/#installation).
 
