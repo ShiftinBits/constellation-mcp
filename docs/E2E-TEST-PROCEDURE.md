@@ -31,7 +31,7 @@ This document provides a complete, reproducible test procedure for validating th
 ### Test Context
 
 - **Project:** constellation-mcp
-- **Project ID:** `proj:00000000000040008000000000000033`
+- **Project ID:** `proj:adf45ed0a35649d19a7d70edaa9636b1`
 - **Branch:** main
 - **MCP Tools:**
   - `code_intel` (Constellation API tests)
@@ -142,7 +142,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'CodeModeSandbox'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as count,
        collect({name: s.name, kind: s.kind, filePath: s.filePath}) as symbols
@@ -188,7 +188,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
   AND s.kind = 'class'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as totalCount,
        collect(s.name)[0..5] as limitedNames
@@ -245,7 +245,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
   AND s.isExported = true
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as exportedCount,
        collect({name: s.name, isExported: s.isExported})[0..10] as symbols
@@ -270,7 +270,7 @@ RETURN count(s) as exportedCount,
 ```javascript
 const result = await api.searchSymbols({
 	query: 'Error',
-	filePattern: 'src/client/**',
+	filterByFile: 'src/client/**',
 	limit: 10,
 });
 return {
@@ -295,7 +295,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
   AND s.filePath STARTS WITH 'src/client/'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as count,
        collect({name: s.name, filePath: s.filePath})[0..10] as symbols
@@ -306,7 +306,7 @@ RETURN count(s) as count,
 - All API symbols should have `filePath` containing "src/client/"
 - Neo4j `count` should be >= API `symbolCount` (API may apply additional filtering)
 
-**Validates:** `filePattern` filtering, Neo4j path filtering
+**Validates:** `filterByFile` parameter, Neo4j path filtering
 
 ---
 
@@ -342,7 +342,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'getDefaultConfig'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
 WITH s, count(ref) as usageCount
@@ -389,7 +389,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 WITH s ORDER BY s.name
 WITH collect(s.name) as allNames
@@ -439,7 +439,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN s.id as id, s.name as name, s.kind as kind, s.filePath as filePath
 ```
@@ -483,7 +483,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name = 'CodeModeSandbox'
   AND s.filePath = 'src/code-mode/sandbox.ts'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN s.name as name, s.kind as kind, s.filePath as filePath
 ```
@@ -533,7 +533,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (ref)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 WITH s, count(ref) as refCount, collect(DISTINCT ref.filePath) as refFiles
@@ -586,7 +586,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (s)-[:CALLS]->(called:Symbol)
 OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
@@ -669,9 +669,9 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 WITH count(s) as symbolCount
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN symbolCount, count(f) as fileCount
 ```
 
@@ -772,7 +772,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (f)-[:IMPORTS]->(dep)
 RETURN f.path as file,
        count(dep) as depCount,
@@ -813,7 +813,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (f)-[:IMPORTS]->(direct:File)
 OPTIONAL MATCH (f)-[:IMPORTS*2]->(transitive:File)
 WHERE transitive <> f
@@ -855,7 +855,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (f)-[:IMPORTS]->(pkg:Package)
 RETURN count(pkg) as packageCount,
        collect(pkg.name)[0..5] as packages
@@ -904,7 +904,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 MATCH (f)-[imp:IMPORTS]->(dep:File)
 WHERE imp.symbols IS NOT NULL
 RETURN dep.path as depPath,
@@ -947,7 +947,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
 RETURN f.path as file,
        count(dependent) as dependentCount,
@@ -988,7 +988,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/types/mcp-errors.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/types/mcp-errors.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (direct:File)-[:IMPORTS]->(f)
 OPTIONAL MATCH (transitive:File)-[:IMPORTS*2]->(f)
 WHERE transitive <> f
@@ -1030,7 +1030,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/config/config-cache.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/config/config-cache.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
 RETURN f.path as file,
        count(dependent) as dependentCount,
@@ -1069,7 +1069,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..10]->(f)
+MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..10]->(f)
 WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
 RETURN count(DISTINCT cyclePaths) as cycleCount,
        collect(DISTINCT cyclePaths)[0..3] as sampleCycles
@@ -1107,7 +1107,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH path = (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..5]->(f)
+MATCH path = (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..5]->(f)
 WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
 RETURN count(DISTINCT cyclePaths) as cycleCount,
        collect(DISTINCT cyclePaths) as cycles
@@ -1154,7 +1154,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'getDefaultConfig'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 RETURN s.name as symbolName,
@@ -1200,7 +1200,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name = 'createStructuredError'
   AND s.filePath = 'src/client/error-factory.ts'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 RETURN s.name as symbolName,
@@ -1254,7 +1254,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage:Symbol)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 WHERE usage.kind = 'function'
@@ -1307,7 +1307,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (direct)-[r1:REFERENCES|CALLS|USES_SYMBOL]->(s)
 OPTIONAL MATCH (transitive)-[r2:REFERENCES|CALLS|USES_SYMBOL*2]->(s)
@@ -1364,7 +1364,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 WHERE NOT (usage.filePath CONTAINS 'test' OR usage.filePath CONTAINS '.spec.' OR usage.filePath CONTAINS '.test.')
@@ -1419,7 +1419,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
 RETURN s.name as symbolName,
@@ -1474,7 +1474,7 @@ return {
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'execute'
   AND s.kind = 'method'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 WITH s LIMIT 1
 OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
@@ -1528,7 +1528,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
 RETURN s.name as rootName,
@@ -1580,7 +1580,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'getDefaultConfig'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
 OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
@@ -1636,7 +1636,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
 WITH s, collect(DISTINCT ref.filePath) as refFiles
@@ -1692,7 +1692,7 @@ return {
 
 ```cypher
 MATCH (f:File)
-WHERE f.projectId = 'proj:00000000000040008000000000000033'
+WHERE f.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND f.branch = 'main'
   AND (f.path =~ '.*[._](test|spec)[._].*' OR f.path =~ '(^|.*/)(__tests__|test|tests|testing|spec)/.*')
 OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
@@ -1742,7 +1742,7 @@ return {
 
 ```cypher
 MATCH (s:Symbol)
-WHERE s.projectId = 'proj:00000000000040008000000000000033'
+WHERE s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
   AND s.filePath CONTAINS 'sandbox'
   AND s.isExported = true
@@ -1772,12 +1772,12 @@ All impact tests should validate against Neo4j using similar patterns:
 
 ```cypher
 -- For symbol-based impact
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 OPTIONAL MATCH (usage)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
 RETURN count(DISTINCT usage) as directImpact
 
 -- For file-based impact (depth traversal)
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 OPTIONAL MATCH path = (usage)-[:REFERENCES|CALLS|USES_SYMBOL*1..2]->(s)
 RETURN count(DISTINCT usage) as transitiveImpact
 ```
@@ -1811,16 +1811,16 @@ return {
 
 ```cypher
 // File count
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN count(f) as totalFiles
 
 // Symbol distribution
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN s.kind as kind, count(s) as count
 ORDER BY count DESC
 
 // Dependency count
-MATCH (f1:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(f2:File)
+MATCH (f1:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(f2:File)
 RETURN count(*) as totalDependencies
 ```
 
@@ -1862,7 +1862,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN count(f) as totalFiles
 ```
 
@@ -1884,18 +1884,18 @@ See E2E-TEST-RESULTS.md for complete test cases.
 
 ```cypher
 -- Language distribution
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 WHERE f.language IS NOT NULL
 RETURN f.language as language, count(f) as fileCount
 
 -- External package usage
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(p:Package)
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(p:Package)
 RETURN p.name as package, count(f) as usageCount
 ORDER BY usageCount DESC
 LIMIT 10
 
 -- Module structure
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 WITH split(f.path, '/')[0] as topDir, count(f) as fileCount
 RETURN topDir, fileCount
 ORDER BY fileCount DESC
@@ -2407,7 +2407,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'ThisSymbolDefinitelyDoesNotExist12345678XYZABC'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as count
 ```
@@ -2431,19 +2431,19 @@ Edge case tests validate API behavior with boundary conditions. For tests that q
 
 ```cypher
 -- For non-existent file queries (TC-EDGE-002)
-MATCH (f:File {path: '<non-existent-path>', projectId: 'proj:00000000000040008000000000000033'})
+MATCH (f:File {path: '<non-existent-path>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 RETURN count(f) as count
 -- Expected: 0
 
 -- For non-existent symbol queries (TC-EDGE-003)
-MATCH (s:Symbol {id: '<invalid-symbol-id>', projectId: 'proj:00000000000040008000000000000033'})
+MATCH (s:Symbol {id: '<invalid-symbol-id>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 RETURN count(s) as count
 -- Expected: 0
 
 -- For special character searches (TC-EDGE-004)
 MATCH (s:Symbol)
 WHERE s.name CONTAINS '<special-chars>'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
 RETURN count(s) as count
 
 -- For very long query strings (TC-EDGE-005)
@@ -2451,7 +2451,7 @@ RETURN count(s) as count
 
 -- For deeply nested structures (TC-EDGE-007)
 -- Validate depth traversal limits are respected
-MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS*1..10]->(dep:File)
+MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS*1..10]->(dep:File)
 RETURN max(length(path)) as maxDepth
 ```
 
@@ -2491,7 +2491,7 @@ return {
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
 OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
@@ -2538,7 +2538,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (f)-[:IMPORTS]->(imports:File)
 OPTIONAL MATCH (importedBy:File)-[:IMPORTS]->(f)
 RETURN f.path as file,
@@ -2569,7 +2569,7 @@ Combined workflow tests chain multiple API methods. Each step can be validated a
 -- Step 1: Verify search result exists
 MATCH (s:Symbol)
 WHERE s.name CONTAINS '<searchQuery>'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
 RETURN s.id, s.name, s.filePath
 LIMIT 1
 
@@ -2588,14 +2588,14 @@ MATCH (f:File)-[:CONTAINS]->(usage)
 RETURN count(DISTINCT f.path) as impactedFileCount
 
 -- TC-COMBO-004: Architecture to Dependencies
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 WITH f ORDER BY size(()-[:IMPORTS]->(f)) DESC
 LIMIT 1
 MATCH (f)-[:IMPORTS]->(dep:File)
 RETURN f.path as mostImported, collect(dep.path) as dependencies
 
 -- TC-COMBO-005: Circular Dependency Investigation
-MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS*2..5]->(f)
+MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS*2..5]->(f)
 WITH [n IN nodes(path) | n.path] as cyclePath
 RETURN cyclePath[0] as startFile, cyclePath
 LIMIT 1
@@ -2623,7 +2623,7 @@ return result.symbols?.length || 0;
 ```cypher
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 RETURN count(s) as totalCount
 ```
@@ -2660,13 +2660,13 @@ return {
 // First query
 MATCH (s:Symbol)
 WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:00000000000040008000000000000033'
+  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
 WITH count(s) as errorCount
 // Second query
 MATCH (s2:Symbol)
 WHERE s2.name CONTAINS 'Client'
-  AND s2.projectId = 'proj:00000000000040008000000000000033'
+  AND s2.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s2.branch = 'main'
 RETURN errorCount, count(s2) as clientCount
 ```
@@ -2950,7 +2950,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 WHERE s.name CONTAINS 'e'
 RETURN count(s) as neo4jCount
 ```
@@ -2981,7 +2981,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN count(f) as neo4jFileCount
 ```
 
@@ -3010,7 +3010,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/index.ts', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS]->(dep)
+MATCH (f:File {path: 'src/index.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS]->(dep)
 RETURN count(dep) as neo4jDepCount,
        collect(CASE WHEN dep:File THEN dep.path ELSE dep.name END) as neo4jDeps,
        count(CASE WHEN dep:File THEN 1 END) as fileDepCount,
@@ -3059,7 +3059,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN s.kind as kind, count(s) as count
 ORDER BY count DESC
 ```
@@ -3082,11 +3082,11 @@ ORDER BY count DESC
 
 ```cypher
 // All CALLS relationships should be bidirectionally queryable
-MATCH (a:Symbol {projectId: 'proj:00000000000040008000000000000033'})-[r:CALLS]->(b:Symbol)
+MATCH (a:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[r:CALLS]->(b:Symbol)
 WITH a, b
 MATCH (b)<-[r2:CALLS]-(a)
 WITH count(*) as symmetricCount
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033'})-[:CALLS]->()
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:CALLS]->()
 RETURN symmetricCount, count(*) as totalCalls, symmetricCount = count(*) as isSymmetric
 ```
 
@@ -3120,7 +3120,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 WHERE s.isExported = true
   AND s.name CONTAINS 'e'
 RETURN count(s) as neo4jExportedCount,
@@ -3157,7 +3157,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:00000000000040008000000000000033'})-[:IMPORTS]->(p:Package)
+MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(p:Package)
 RETURN count(p) as neo4jPackageCount,
        collect(p.name) as neo4jPackages
 ORDER BY p.name
@@ -3194,7 +3194,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {name: 'CodeModeSandbox', projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {name: 'CodeModeSandbox', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN s.name as name, s.filePath as filePath, s.line as line, s.column as column
 ```
 
@@ -3226,7 +3226,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH path = (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})-[:IMPORTS*2..5]->(f)
+MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..5]->(f)
 WITH DISTINCT [n IN nodes(path) | n.path] as cyclePath
 RETURN count(cyclePath) as neo4jCycleCount,
        collect(cyclePath)[0] as sampleCycle
@@ -3267,7 +3267,7 @@ return {
 **Neo4j Validation:**
 
 ```cypher
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 WHERE s.filePath STARTS WITH 'src/'
   AND s.kind IN ['function', 'class']
   AND s.isExported = true
@@ -3321,18 +3321,18 @@ MATCH (s:Symbol) RETURN keys(s)[0..10] -- Sample symbol properties
 
 ```cypher
 -- Count symbols
-MATCH (s:Symbol {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN count(s)
 
 -- Count files
-MATCH (f:File {projectId: 'proj:00000000000040008000000000000033', branch: 'main'})
+MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 RETURN count(f)
 
 -- Count relationships
 MATCH ()-[r]->() RETURN type(r), count(r) ORDER BY count(r) DESC
 
 -- Symbol lookup by name
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:00000000000040008000000000000033'})
+MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
 RETURN s.name, s.kind, s.filePath, s.line
 ```
 
