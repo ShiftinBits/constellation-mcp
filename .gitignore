@@ -1,13 +1,17 @@
-
-# Claude Local Settings
+# Claude Code local settings
 .claude/settings.local.json
+.claude/plans
+.claude/worktrees
+.superpowers/
+docs/superpowers
+docs/plans
+docs/specs
+
+# Temp Folders
+temp/
 
 # Git worktrees
 .worktrees/
-
-# Temporary Folders
-tmp/
-temp/
 
 coverage/
 
