@@ -1001,6 +1001,10 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					const message = args.map(formatArg).join(' ');
 					logs.push(`[INFO] ${message}`);
 				},
+				debug: (...args: any[]) => {
+					const message = args.map(formatArg).join(' ');
+					logs.push(`[DEBUG] ${message}`);
+				},
 			});
 		}
 

@@ -247,6 +247,14 @@ describe('CodeModeSandbox', () => {
 			expect(result.logs).toContain('[INFO] info');
 		});
 
+		it('should capture console.debug output', async () => {
+			const code = 'console.debug("debug message"); return 1;';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(true);
+			expect(result.logs).toContain('[DEBUG] debug message');
+		});
+
 		it('should capture multiple console outputs', async () => {
 			const code = 'console.log("a"); console.log("b"); return 1;';
 			const result = await sandbox.execute(code);
