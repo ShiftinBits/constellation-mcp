@@ -8,11 +8,13 @@ MCP server bridging AI assistants to constellation-core for code intelligence.
 
 | Task          | Command                                 |
 | ------------- | --------------------------------------- |
+| Build + start | `npm start`                             |
 | Build         | `npm run build`                         |
 | Dev watch     | `npm run watch`                         |
 | Test          | `npm test`                              |
 | Coverage      | `npm run test:coverage` (70%+ required) |
 | Lint          | `npm run lint:fix`                      |
+| Lint (errors) | `npm run lint:errors` (no warnings)     |
 | MCP Inspector | `npm run inspector`                     |
 | Type check    | `npm run type-check`                    |
 | Benchmark     | `npm run benchmark`                     |
@@ -61,7 +63,9 @@ src/
 │   ├── runtime.ts                      Orchestration, isolation selection, result truncation
 │   ├── auto-return.ts                  REPL-like implicit return (AST-based)
 │   ├── capabilities.ts                 Project state detection
+│   ├── source-enrichment.ts            Local source snippet injection (never sent to Core)
 │   └── validators/
+│       ├── index.ts                    Barrel exports
 │       ├── ast-validator.ts            Acorn AST walker integration
 │       ├── dangerous-patterns.ts       Pattern checker definitions
 │       └── ast-walker.ts               Generic AST traversal
