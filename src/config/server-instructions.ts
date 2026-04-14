@@ -51,7 +51,8 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 1. **Async patterns** — Always \`await\` api.* calls. Last expression auto-returned; use explicit \`return\` for control flow.
 2. **Use Promise.all()** — 3-10x faster for independent queries
 3. **Errors** — Structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`.
-4. **Defaults** — \`limit: 10\` (search), \`limit: 50\` (dead code).
+4. **Defaults** — \`limit: 50\` (search and dead code).
+5. **Source snippets** — Results include \`sourceSnippet\` for symbols with file+line references. No need to Read files after code_intel — the source context is already in the response.
 
 *Tip: \`api.listMethods()\` for API reference, \`api.help("methodName")\` for inline types. \`api.getCapabilities()\` for pre-flight indexing status.*
 

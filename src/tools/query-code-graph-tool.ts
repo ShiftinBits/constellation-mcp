@@ -169,7 +169,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
 				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n\n' +
 				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
-				'Typical workflow: code_intel to find → Read to view source → Edit to modify\n\n' +
+				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
 			inputSchema: {
 				code: z

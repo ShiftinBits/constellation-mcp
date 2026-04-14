@@ -857,13 +857,14 @@ describe('CodeModeSandbox', () => {
 			});
 
 			it('should include warnings in logs for valid code with issues', async () => {
-				// Code without return statement triggers warning
+				// Multi-statement code without return statement triggers warning
+				// (single-statement code is handled silently by auto-return)
 				mockClient.executeMcpTool.mockResolvedValue(
 					createMockResult({ symbols: [] }),
 				);
 
 				const result = await sandbox.execute(
-					'const x = await api.searchSymbols({ query: "test" });',
+					'const x = await api.searchSymbols({ query: "test" });\nconst y = await api.getDependencies({ filePath: "src/index.ts" });\nconst z = await api.getDependents({ filePath: "src/index.ts" });',
 				);
 
 				expect(result.success).toBe(true);
@@ -1556,8 +1557,9 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(true);
 			for (const method of result.result.methods) {
 				expect(method).toHaveProperty('typesResourceUri');
-				expect(method.typesResourceUri).toBe(
-					`constellation://types/api/${method.name}`,
+				// API methods point to per-method type resources, utility methods point to docs
+				expect(method.typesResourceUri).toMatch(
+					/^constellation:\/\/(types\/api|docs\/guide)\//,
 				);
 			}
 		});
@@ -1628,12 +1630,12 @@ describe('CodeModeSandbox', () => {
 			expect(result.result.methods).toHaveLength(0);
 		});
 
-		it('should exclude decisionGuide and compositionPatterns when query is provided', async () => {
+		it('should include decisionGuide but exclude compositionPatterns when query is provided', async () => {
 			const code = 'return api.listMethods({ query: "search" });';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
-			expect(result.result.decisionGuide).toBeUndefined();
+			expect(result.result.decisionGuide).toBeDefined();
 			expect(result.result.compositionPatterns).toBeUndefined();
 		});
 
@@ -1646,12 +1648,12 @@ describe('CodeModeSandbox', () => {
 			expect(result.result.compositionPatterns).toBeDefined();
 		});
 
-		it('should return all 12 methods when no query provided (backwards compatible)', async () => {
+		it('should return all 14 methods when no query provided (12 API + 2 utility)', async () => {
 			const code = 'return api.listMethods();';
 			const result = await sandbox.execute(code);
 
 			expect(result.success).toBe(true);
-			expect(result.result.methods).toHaveLength(12);
+			expect(result.result.methods).toHaveLength(14);
 		});
 
 		it('should include reference to docs guide in listMethods response', async () => {
@@ -1880,8 +1882,13 @@ describe('CodeModeSandbox', () => {
 	});
 
 	describe('validateCode warnings', () => {
-		it('should warn about API call without return statement', () => {
-			const code = 'const result = await api.searchSymbols({ query: "test" });';
+		it('should warn about API call without return statement for multi-statement code', () => {
+			// Single-statement code is handled silently by auto-return;
+			// the warning only fires for multi-statement code (>2 lines)
+			const code =
+				'const a = await api.searchSymbols({ query: "test" });\n' +
+				'const b = await api.getDependencies({ filePath: "src/index.ts" });\n' +
+				'const c = await api.getDependents({ filePath: "src/index.ts" });';
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(true);
@@ -1894,6 +1901,18 @@ describe('CodeModeSandbox', () => {
 			expect(
 				result.warnings!.some((w) => w.includes('Auto-return will be applied')),
 			).toBe(true);
+		});
+
+		it('should not warn about missing return for single-statement API call', () => {
+			const code = 'const result = await api.searchSymbols({ query: "test" });';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(true);
+			// Single-statement code should not trigger the auto-return warning
+			const hasAutoReturnWarning = result.warnings?.some((w) =>
+				w.includes('No explicit return statement detected'),
+			);
+			expect(hasAutoReturnWarning ?? false).toBe(false);
 		});
 
 		it('should warn about API call without await', () => {

@@ -799,6 +799,26 @@ export class CodeModeSandbox {
 				quickExample: `await api.getCapabilities()`,
 				typesResourceUri: 'constellation://types/api/getCapabilities',
 			},
+			{
+				name: 'listMethods',
+				description:
+					'List all available API methods with descriptions and examples (sync)',
+				triggerPhrases: ['what methods', 'available methods', 'api reference'],
+				quickExample: `api.listMethods()  // or: api.listMethods({ query: "impact" })`,
+				typesResourceUri: 'constellation://docs/guide/methods',
+			},
+			{
+				name: 'help',
+				description:
+					'Get TypeScript type definitions for a specific method (sync, same content as constellation://types/api/{method})',
+				triggerPhrases: [
+					'method types',
+					'parameter types',
+					'what does it return',
+				],
+				quickExample: `api.help("searchSymbols")  // Returns TypeScript interface`,
+				typesResourceUri: 'constellation://docs/guide/methods',
+			},
 		];
 
 		// Decision guide mapping user intent to API method
@@ -892,7 +912,8 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 						usage: 'Call any method with: await api.methodName(params)',
 						example:
 							"const result = await api.searchSymbols({ query: 'User' });",
-						...(params?.query ? {} : { decisionGuide, compositionPatterns }),
+						decisionGuide,
+						...(params?.query ? {} : { compositionPatterns }),
 						tip: 'Use Promise.all() for parallel queries (3-10x faster).',
 						reference: 'constellation://docs/guide',
 					};
@@ -928,6 +949,28 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 					}
 
 					if (typeof prop !== 'string') return undefined;
+
+					// Ignore Promise/thenable inspection (e.g., auto-await checks)
+					if (prop === 'then') return undefined;
+
+					// Validate method name against known API methods
+					const knownMethodNames = availableMethods.map((m) => m.name);
+					if (!knownMethodNames.includes(prop)) {
+						// Find closest match for "did you mean?" suggestion
+						const propLower = prop.toLowerCase();
+						const closest = knownMethodNames.find(
+							(m) =>
+								m.toLowerCase().startsWith(propLower.slice(0, 4)) ||
+								propLower.startsWith(m.toLowerCase().slice(0, 4)),
+						);
+						return () => {
+							throw new Error(
+								`Unknown method "api.${prop}()". ` +
+									(closest ? `Did you mean "api.${closest}()"? ` : '') +
+									'Run api.listMethods() to see available methods.',
+							);
+						};
+					}
 
 					// Convert camelCase to snake_case for tool names
 					// searchSymbols -> search_symbols
@@ -1165,9 +1208,15 @@ ${transformed}
 		}
 
 		// Check for missing return statement (informational with auto-return)
+		// Only warn for non-trivial code — simple expressions are handled
+		// correctly by auto-return and the warning just adds noise.
 		const hasApiCall = /api\.\w+\s*\(/.test(code);
 		const hasReturn = /\breturn\b/.test(code);
-		if (hasApiCall && !hasReturn) {
+		const statementCount = code.split('\n').filter((line) => {
+			const trimmed = line.trim();
+			return trimmed.length > 0 && !trimmed.startsWith('//');
+		}).length;
+		if (hasApiCall && !hasReturn && statementCount > 2) {
 			warnings.push(
 				'No explicit return statement detected. Auto-return will be applied to the last expression. ' +
 					'For complex control flow, add an explicit return to ensure correct results.',
@@ -1175,9 +1224,11 @@ ${transformed}
 		}
 
 		// Check for missing await (common mistake)
+		// Skip warning if code uses Promise.all — the await is on Promise.all, not individual calls
 		const apiCallCount = (code.match(/api\.\w+\s*\(/g) || []).length;
 		const awaitCount = (code.match(/\bawait\b/g) || []).length;
-		if (apiCallCount > 0 && awaitCount === 0) {
+		const hasPromiseAll = /Promise\.all\s*\(/.test(code);
+		if (apiCallCount > 0 && awaitCount === 0 && !hasPromiseAll) {
 			warnings.push(
 				'No await detected but api calls found. API methods are async. ' +
 					'Use "await api.methodName(...)" or "await Promise.all([...])"',

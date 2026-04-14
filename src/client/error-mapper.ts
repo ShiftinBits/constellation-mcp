@@ -127,14 +127,15 @@ function formatToolNotFoundError(message: string): string {
 
 ${message}
 
-**Available tool categories:**
-  • Discovery tools: search_symbols, get_symbol_details
-  • Dependency tools: get_dependencies, get_dependents, find_circular_dependencies, trace_symbol_usage, get_call_graph
-  • Impact tools: impact_analysis, find_orphaned_code
-  • Architecture tools: get_architecture_overview
+**Available API methods (via api object):**
+  • Discovery: api.searchSymbols(), api.getSymbolDetails()
+  • Dependencies: api.getDependencies(), api.getDependents(), api.findCircularDependencies()
+  • Usage: api.traceSymbolUsage(), api.getCallGraph()
+  • Impact: api.impactAnalysis(), api.findOrphanedCode()
+  • Architecture: api.getArchitectureOverview()
 
-**To see all available tools:**
-  Query the tool catalog through the MCP interface or API
+**To see all available methods:**
+  Run api.listMethods() inside code_intel
 
 For more information, visit: ${DOCS_URLS.tools}
 `;

@@ -103,7 +103,6 @@ describe('server-instructions', () => {
 
 		it('should include limit heuristics in rules', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('limit: 10');
 			expect(instructions).toContain('limit: 50');
 		});
 

@@ -502,9 +502,18 @@ function createErrorFromMessage(
 
 		// FIX SB-88: Only include detailed API suggestions when authenticated
 		if (hasApiKeyConfigured()) {
+			// Extract symbol name from error message for a targeted broader search
+			const symbolMatch = error.message.match(
+				/(?:symbol|not found)[:\s]+["']?(\w+)["']?/i,
+			);
+			const failedName = symbolMatch?.[1];
+			const broadQuery = failedName
+				? failedName.slice(0, Math.max(4, Math.ceil(failedName.length / 2)))
+				: '...';
+
 			errorDetails.suggestedCode = `// Try a broader search to find similar symbols:
 const results = await api.searchSymbols({
-  query: "...",  // Use partial name or related term
+  query: "${broadQuery}",  // Broadened from "${failedName || '...'}"
   limit: 20
 });
 return results.symbols.map(s => ({
@@ -551,9 +560,20 @@ return results.symbols.map(s => ({
 
 		// FIX SB-88: Only include detailed API suggestions when authenticated
 		if (hasApiKeyConfigured()) {
+			// Extract file path from error message for targeted suggestion
+			const fileMatch = error.message.match(
+				/(?:file|path)[:\s]+["']?([^\s"']+)["']?/i,
+			);
+			const failedPath = fileMatch?.[1];
+			const fileName =
+				failedPath
+					?.split('/')
+					.pop()
+					?.replace(/\.\w+$/, '') || '...';
+
 			errorDetails.suggestedCode = `// Search for symbols to discover correct file paths:
 const results = await api.searchSymbols({
-  query: "...",  // Search for known symbols in the file
+  query: "${fileName}",  // Search by filename stem
   limit: 10
 });
 // Check filePath in results to find correct paths`;
@@ -583,9 +603,9 @@ const results = await api.searchSymbols({
 			message: error.message,
 			recoverable: false,
 			guidance: [
-				'Check the error message for details',
-				'Verify the operation parameters',
-				'Report this issue if it persists',
+				'Verify all api.* calls use await (they are async)',
+				'Check method name spelling — run api.listMethods() for valid names',
+				'Check parameter types — run api.help("methodName") for expected signature',
 			],
 			context: baseContext,
 		},

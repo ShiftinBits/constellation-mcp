@@ -80,7 +80,7 @@ describe('mapErrorToMessage', () => {
 			const result = mapErrorToMessage(error, 'nonexistent_tool');
 
 			expect(result).toContain('Tool Not Found');
-			expect(result).toContain('Available tool categories');
+			expect(result).toContain('Available API methods');
 		});
 	});
 
@@ -160,7 +160,7 @@ describe('mapErrorToMessage', () => {
 			const result = mapErrorToMessage(error, 'search_symbols');
 
 			expect(result).toContain('Tool Not Found');
-			expect(result).toContain('Available tool categories');
+			expect(result).toContain('Available API methods');
 		});
 	});
 
