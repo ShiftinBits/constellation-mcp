@@ -6,7 +6,7 @@
  *
  * CRITICAL: This is the ONLY mechanism for providing AI guidance - no prompts are registered.
  *
- * Progressive disclosure: Essential usage mechanics are sent here (~1,200 tokens).
+ * Progressive disclosure: Essential usage mechanics are sent here (~800 tokens).
  * Reference material (method tables, response shapes, recipes) is available on-demand
  * via the constellation://docs/guide resource.
  */
@@ -18,14 +18,13 @@
  * (selection guidance is in the tool description itself).
  */
 export function getServerInstructions(): string {
-	return `
-<IMPORTANT>
-The \`code_intel\` tool is designed for YOU, the coding LLM, as your primary tool for understanding code structure. Use it as your DEFAULT for code structure questions—BEFORE reaching for Grep/Glob. Don't wait for the human to ask. When you think "where is X defined?", "what calls this?", or "what would break?"—that's your cue to use \`code_intel\`, not Grep/Glob/Read.
+	return `<CRITICAL>
+code_intel vs Grep decision rule: If the search pattern is a symbol name (function, method, class, variable), use code_intel — even if you already know the file.
 
-When your instinct says "I'll just grep for this", pause—if you're looking for structure (definitions, callers, dependencies), code_intel is faster and finds indirect relationships Grep misses.
+Why: code_intel resolves cross-file relationships, transitive dependencies, and indirect usages that text search cannot detect.
 
-First-time? Run \`await api.getCapabilities()\` to check auth + indexing status. If you skip it, errors self-recover with \`guidance[]\`.
-</IMPORTANT>
+Grep exceptions (literal strings only): error messages, config values, log text, comments. Never for symbol names.
+</CRITICAL>
 
 # Constellation Code Mode
 
@@ -48,21 +47,13 @@ const [impact, deps] = await Promise.all([
 return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 \`\`\`
 
-## Top 3 Workflow
-1. \`searchSymbols({query})\` → find symbol → get \`id\`
-2. \`impactAnalysis({symbolId})\` → change risk
-3. \`getDependents({filePath})\` → what uses this
-
 ## Rules
 1. **Async patterns** — Always \`await\` api.* calls. Last expression auto-returned; use explicit \`return\` for control flow.
 2. **Use Promise.all()** — 3-10x faster for independent queries
-3. **Use symbolId** — After search, use the returned \`id\` for precise follow-up queries
-4. **Performance & errors** — Queries return in <200ms. Errors are structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`. Good defaults: \`limit: 10\` (search), \`limit: 50\` (dead code).
-5. **Provide \`cwd\`** — Required. Absolute path to the project directory. Locates \`constellation.json\` via git root.
+3. **Errors** — Structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`.
+4. **Defaults** — \`limit: 10\` (search), \`limit: 50\` (dead code).
 
-*Tip: \`api.getCapabilities()\` returns \`{isIndexed, supportedLanguages, symbolCount}\` — useful before batch operations. For auth-only check, use \`api.ping()\`.*
-
-*Tip: \`api.listMethods()\` for full API reference, or \`api.listMethods({query: "impact"})\` to filter. \`api.help("methodName")\` for inline TypeScript types — no resource reads needed.*
+*Tip: \`api.listMethods()\` for API reference, \`api.help("methodName")\` for inline types. \`api.getCapabilities()\` for pre-flight indexing status.*
 
 For full method reference, response shapes, and recipes: read \`constellation://docs/guide\``.trim();
 }

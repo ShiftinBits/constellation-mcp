@@ -57,39 +57,35 @@ describe('server-instructions', () => {
 		it('should return trimmed output without leading/trailing whitespace', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toBe(instructions.trim());
-			expect(instructions.startsWith('<IMPORTANT>')).toBe(true);
+			expect(instructions.startsWith('<CRITICAL>')).toBe(true);
 		});
 
-		it('should include proactive usage guidance in IMPORTANT block', () => {
+		it('should include CRITICAL block with decision rule', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('designed for YOU');
-			expect(instructions).toContain('DEFAULT for code structure questions');
-			expect(instructions).toContain('BEFORE reaching for Grep/Glob');
-		});
-
-		it('should include instinct-override psychological trigger', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain(
-				'When your instinct says "I\'ll just grep for this"',
+			const criticalMatch = instructions.match(
+				/<CRITICAL>([\s\S]*?)<\/CRITICAL>/,
 			);
+			expect(criticalMatch).not.toBeNull();
+			const criticalBlock = criticalMatch![1];
+
+			// Three-part structure: rule, rationale, exceptions
+			expect(criticalBlock).toContain('symbol name');
+			expect(criticalBlock).toContain('even if you already know the file');
+			expect(criticalBlock).toContain('Why:');
+			expect(criticalBlock).toContain('Grep exceptions');
 		});
 
-		it('should include first-time guidance with graceful fallback', () => {
+		it('should include decision rule rationale', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('First-time?');
-			expect(instructions).toContain('getCapabilities()');
-			expect(instructions).toContain('guidance[]');
+			expect(instructions).toContain('cross-file relationships');
+			expect(instructions).toContain('transitive dependencies');
 		});
 
-		it('should include getCapabilities() first-time guidance in IMPORTANT block', () => {
+		it('should include explicit Grep exceptions', () => {
 			const instructions = getServerInstructions();
-			const importantMatch = instructions.match(
-				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
-			);
-			expect(importantMatch).not.toBeNull();
-			const importantBlock = importantMatch![1];
-			expect(importantBlock).toContain('api.getCapabilities()');
-			expect(importantBlock).toContain('First-time?');
+			expect(instructions).toContain('error messages');
+			expect(instructions).toContain('config values');
+			expect(instructions).toContain('Never for symbol names');
 		});
 
 		it('should not contain template placeholders', () => {
@@ -99,24 +95,10 @@ describe('server-instructions', () => {
 			expect(instructions).not.toContain('FIXME');
 		});
 
-		it('should include top 3 workflow quick-reference', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('Top 3 Workflow');
-			expect(instructions).toContain('searchSymbols({query})');
-			expect(instructions).toContain('impactAnalysis({symbolId})');
-			expect(instructions).toContain('getDependents({filePath})');
-		});
-
 		it('should mention getCapabilities() for pre-flight checking', () => {
 			const instructions = getServerInstructions();
-			expect(instructions).toContain('api.getCapabilities()');
-			expect(instructions).toContain('isIndexed');
-		});
-
-		it('should include query performance note', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('Performance');
-			expect(instructions).toContain('200ms');
+			expect(instructions).toContain('getCapabilities()');
+			expect(instructions).toContain('indexing status');
 		});
 
 		it('should include limit heuristics in rules', () => {
@@ -135,24 +117,14 @@ describe('server-instructions', () => {
 			const instructions = getServerInstructions();
 			expect(instructions).toContain('project directory');
 			expect(instructions).toContain('Required');
-			expect(instructions).toContain('git root');
+			expect(instructions).toContain('cwd');
 		});
 
-		it('should include cwd requirement in rules section', () => {
+		it('should include error handling guidance', () => {
 			const instructions = getServerInstructions();
-			const rulesSection = instructions.substring(
-				instructions.indexOf('## Rules'),
-			);
-			expect(rulesSection).toContain('cwd');
-			expect(rulesSection).toContain('Required');
-		});
-
-		it('should include error handling and availability guidance', () => {
-			const instructions = getServerInstructions();
-			expect(instructions).toContain('Errors are structured');
+			expect(instructions).toContain('Errors');
 			expect(instructions).toContain('guidance[]');
-			expect(instructions).toContain('api.ping()');
-			expect(instructions).toContain('getCapabilities()');
+			expect(instructions).toContain('resultContext.reason');
 		});
 
 		it('should include pointer to constellation://docs/guide', () => {
@@ -192,22 +164,23 @@ describe('server-instructions', () => {
 			expect(instructions).not.toContain('| Best Tool |');
 		});
 
-		it('should have IMPORTANT block focused on HOW not WHEN', () => {
+		it('should have CRITICAL block focused on decision rule not routing', () => {
 			const instructions = getServerInstructions();
-			const importantMatch = instructions.match(
-				/<IMPORTANT>([\s\S]*?)<\/IMPORTANT>/,
+			const criticalMatch = instructions.match(
+				/<CRITICAL>([\s\S]*?)<\/CRITICAL>/,
 			);
-			expect(importantMatch).not.toBeNull();
-			const importantBlock = importantMatch![1];
+			expect(criticalMatch).not.toBeNull();
+			const criticalBlock = criticalMatch![1];
 
-			// HOW guidance (should be present)
-			expect(importantBlock).toContain('designed for YOU');
-			expect(importantBlock).toContain('DEFAULT for code structure questions');
-			expect(importantBlock).toContain('instinct says');
+			// Decision rule content (should be present)
+			expect(criticalBlock).toContain('decision rule');
+			expect(criticalBlock).toContain('symbol name');
+			expect(criticalBlock).toContain('Why:');
+			expect(criticalBlock).toContain('Grep exceptions');
 
-			// WHEN guidance (should NOT be present — it's in tool description)
-			expect(importantBlock).not.toContain('| Task | Best Tool |');
-			expect(importantBlock).not.toContain('WRONG TOOL SIGNAL');
+			// Routing guidance (should NOT be present — it's in tool description)
+			expect(criticalBlock).not.toContain('| Task | Best Tool |');
+			expect(criticalBlock).not.toContain('WRONG TOOL SIGNAL');
 		});
 	});
 });
