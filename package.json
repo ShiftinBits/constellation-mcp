@@ -38,10 +38,10 @@
 		"type-check": "tsc --noEmit -p tsconfig.build.json",
 		"benchmark": "npx tsx scripts/benchmark-queries.ts",
 		"prepare": "husky",
-		"postinstall": "node -e \"if(process.env.CI) { console.log('Using github sourced @constellationdev/types') } else { try { require('child_process').execSync('npm link @constellationdev/types', {stdio: 'inherit'}); console.log('Using locally linked @constellationdev/types') } catch(e) { console.log('Note: @constellationdev/types not linked globally, using GitHub version') } }\""
+		"postinstall": "node -e \"if(process.env.CI) { console.log('Using registry @shiftinbits/constellation-types') } else { try { require('child_process').execSync('npm link @shiftinbits/constellation-types', {stdio: 'inherit'}); console.log('Using locally linked @shiftinbits/constellation-types') } catch(e) { console.log('Note: @shiftinbits/constellation-types not available locally. Set NODE_AUTH_TOKEN for GitHub Packages or run: cd ../constellation-types && npm run build') } }\""
 	},
 	"dependencies": {
-		"@constellationdev/types": "github:ShiftinBits/constellation-types#main",
+		"@shiftinbits/constellation-types": "^1.0.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"acorn": "^8.15.0",
 		"zod": "^3.23.8"
