@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   lint:
@@ -26,12 +25,9 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          registry-url: "https://npm.pkg.github.com"
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run ESLint
         run: npm run lint:errors
@@ -49,12 +45,9 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          registry-url: "https://npm.pkg.github.com"
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run TypeScript type check
         run: npm run type-check
@@ -72,12 +65,9 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          registry-url: "https://npm.pkg.github.com"
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests with coverage
         run: npm run test:ci

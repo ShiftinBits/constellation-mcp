@@ -80,7 +80,7 @@ src/
 │   ├── server-instructions.ts          AI assistant guidance (MCP instructions)
 │   └── code-mode-guide.ts             On-demand reference material (MCP resource)
 ├── types/
-│   ├── api-types.d.ts                  Re-exports from @shiftinbits/constellation-types
+│   ├── api-types.d.ts                  Re-exports from @constellationdev/types
 │   ├── mcp-errors.ts                   Error codes & structured error interfaces
 │   ├── mcp-response.ts                 MCP response types
 │   └── method-summaries.ts             Per-method type excerpts for resources
@@ -156,7 +156,7 @@ src/
 
 ## Shared Types
 
-All types imported from `@shiftinbits/constellation-types` (centralized in `constellation-types/`).
+All types imported from `@constellationdev/types` (centralized in `constellation-types/`).
 
 `src/types/api-types.d.ts` re-exports from the shared package for import convenience.
 
@@ -217,7 +217,7 @@ All types imported from `@shiftinbits/constellation-types` (centralized in `cons
 
 Config: ESM bundle, tree-shake, minify, `keepNames: true` (preserve stack traces).
 
-**Post-build** (`utils/postbuild.js`): Adds shebang to `dist/index.js` + copies `@shiftinbits/constellation-types` definitions to `dist/types/` for MCP resource serving.
+**Post-build** (`utils/postbuild.js`): Adds shebang to `dist/index.js` + copies `@constellationdev/types` definitions to `dist/types/` for MCP resource serving.
 
 ## Testing
 
@@ -249,12 +249,12 @@ npm run inspector           # Interactive MCP protocol validation
 
 ## Dependencies
 
-| Package                            | Purpose                                                         |
-| ---------------------------------- | --------------------------------------------------------------- |
-| `@modelcontextprotocol/sdk`        | MCP protocol implementation                                     |
-| `@shiftinbits/constellation-types` | Shared type definitions (single source of truth)                |
-| `acorn`                            | JS AST parser for code validation (fast, no TS compiler needed) |
-| `zod`                              | Runtime schema validation                                       |
+| Package                     | Purpose                                                         |
+| --------------------------- | --------------------------------------------------------------- |
+| `@modelcontextprotocol/sdk` | MCP protocol implementation                                     |
+| `@constellationdev/types`   | Shared type definitions (single source of truth)                |
+| `acorn`                     | JS AST parser for code validation (fast, no TS compiler needed) |
+| `zod`                       | Runtime schema validation                                       |
 
 ## Extended Docs
 

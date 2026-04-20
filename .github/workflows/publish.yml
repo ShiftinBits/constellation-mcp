@@ -2,7 +2,6 @@ name: Publish
 permissions:
   id-token: write
   contents: write
-  packages: read
 on:
   release:
     types: [published]
@@ -17,6 +16,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
       - name: Update version from release tag
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
@@ -36,8 +36,6 @@ jobs:
           git push origin main
       - name: Install Dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         run: npm run build
       - name: Publish

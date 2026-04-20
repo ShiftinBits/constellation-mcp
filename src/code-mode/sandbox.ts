@@ -67,7 +67,7 @@ import type {
 	GetArchitectureOverviewParams,
 	GetArchitectureOverviewResult,
 	PingResult,
-} from '@shiftinbits/constellation-types';
+} from '@constellationdev/types';
 
 /**
  * Error thrown when memory limit is exceeded during sandbox execution.

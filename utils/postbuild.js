@@ -52,7 +52,7 @@ try {
 	// that LLMs don't need and would waste tokens
 	const sharedTypesPath = path.join(
 		__dirname,
-		'../node_modules/@shiftinbits/constellation-types/dist/mcp-api.d.ts',
+		'../node_modules/@constellationdev/types/dist/mcp-api.d.ts',
 	);
 	const distTypesPath = path.join(distTypesDir, 'api-types.d.ts');
 
@@ -62,7 +62,7 @@ try {
 		const headerComment = `/**
  * Constellation API Type Definitions
  *
- * Auto-copied from @shiftinbits/constellation-types during build.
+ * Auto-copied from @constellationdev/types during build.
  * This file is served to AI assistants via constellation://types/api resource.
  *
  * DO NOT EDIT - changes will be overwritten on build.
@@ -74,14 +74,14 @@ try {
 `;
 		fs.writeFileSync(distTypesPath, headerComment + typesContent, 'utf8');
 		console.log(
-			'✓ Successfully copied @shiftinbits/constellation-types definitions to dist/types/api-types.d.ts',
+			'✓ Successfully copied @constellationdev/types definitions to dist/types/api-types.d.ts',
 		);
 	} else {
 		// Fallback: copy source file if shared types not found
 		const srcTypesPath = path.join(__dirname, '../src/types/api-types.d.ts');
 		fs.copyFileSync(srcTypesPath, distTypesPath);
 		console.warn(
-			'⚠ @shiftinbits/constellation-types not found, copied source api-types.d.ts instead',
+			'⚠ @constellationdev/types not found, copied source api-types.d.ts instead',
 		);
 	}
 } catch (error) {

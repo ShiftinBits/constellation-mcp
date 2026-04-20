@@ -37,11 +37,10 @@
 		"test:ci": "jest --ci --coverage --maxWorkers=2",
 		"type-check": "tsc --noEmit -p tsconfig.build.json",
 		"benchmark": "npx tsx scripts/benchmark-queries.ts",
-		"prepare": "husky",
-		"postinstall": "node -e \"if(process.env.CI) { console.log('Using registry @shiftinbits/constellation-types') } else { try { require('child_process').execSync('npm link @shiftinbits/constellation-types', {stdio: 'inherit'}); console.log('Using locally linked @shiftinbits/constellation-types') } catch(e) { console.log('Note: @shiftinbits/constellation-types not available locally. Set NODE_AUTH_TOKEN for GitHub Packages or run: cd ../constellation-types && npm run build') } }\""
+		"prepare": "husky"
 	},
 	"dependencies": {
-		"@shiftinbits/constellation-types": "^1.0.0",
+		"@constellationdev/types": "^1.0.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"acorn": "^8.15.0",
 		"zod": "^3.23.8"
