@@ -3,10 +3,19 @@
 	"branch": "main",
 	"languages": {
 		"javascript": {
-			"fileExtensions": [".js", ".jsx"]
+			"fileExtensions": [".js", ".jsx"],
+			"lsp": {
+				"command": "typescript-language-server",
+				"args": ["--stdio"]
+			}
 		},
 		"typescript": {
-			"fileExtensions": [".ts", ".tsx"]
+			"fileExtensions": [".ts", ".tsx"],
+			"lsp": {
+				"command": "typescript-language-server",
+				"args": ["--stdio"]
+			}
 		}
-	}
+	},
+	"lspEnrichment": true
 }
