@@ -210,29 +210,3 @@ An unexpected error occurred: ${String(error)}
 Please report this issue if it persists.
 `;
 }
-
-/**
- * Extract a user-friendly message from an API error response
- *
- * @param response HTTP Response object
- * @returns Error message extracted from response
- */
-export async function extractApiErrorMessage(
-	response: Response,
-): Promise<string> {
-	try {
-		// Try to parse as JSON first
-		const contentType = response.headers.get('content-type');
-
-		if (contentType?.includes('application/json')) {
-			const json = await response.json();
-			return json.error || json.message || response.statusText;
-		}
-
-		// Fall back to text
-		const text = await response.text();
-		return text || response.statusText;
-	} catch {
-		return response.statusText;
-	}
-}

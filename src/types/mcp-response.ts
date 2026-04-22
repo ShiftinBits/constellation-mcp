@@ -60,17 +60,3 @@ export interface McpToolResult<T = unknown> {
 		[key: string]: unknown;
 	};
 }
-
-/**
- * Type guard to check if a value is an McpToolResult
- */
-export function isMcpToolResult(value: unknown): value is McpToolResult {
-	return (
-		typeof value === 'object' &&
-		value !== null &&
-		'success' in value &&
-		typeof (value as McpToolResult).success === 'boolean' &&
-		'metadata' in value &&
-		typeof (value as McpToolResult).metadata === 'object'
-	);
-}

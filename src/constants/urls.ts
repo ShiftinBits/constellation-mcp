@@ -12,5 +12,3 @@ export const DOCS_URLS = {
 	gettingStarted: `${DOCS_BASE_URL}/getting-started`,
 	tools: `${DOCS_BASE_URL}/tools`,
 } as const;
-
-export type DocsUrlKey = keyof typeof DOCS_URLS;
