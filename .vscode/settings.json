@@ -43,5 +43,11 @@
 	"jest.runMode": {
 		"type": "on-demand",
 		"runAllTestsOnStartup": false
-	}
+	},
+	"jest.outputConfig": {
+		"revealOn": "demand",
+		"revealWithFocus": "none",
+		"clearOnRun": "none"
+	},
+	"jest.autoRevealOutput": "off"
 }
