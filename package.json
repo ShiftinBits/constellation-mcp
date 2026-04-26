@@ -40,7 +40,7 @@
 		"prepare": "husky"
 	},
 	"dependencies": {
-		"@constellationdev/types": "^1.0.0",
+		"@constellationdev/types": "^1.1.2",
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"acorn": "^8.15.0",
 		"zod": "^3.23.8"
