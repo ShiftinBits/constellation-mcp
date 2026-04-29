@@ -16,7 +16,14 @@ import {
 	CodeModeSandbox,
 	MemoryExceededError,
 } from '../../../src/code-mode/sandbox.js';
-import { ConstellationClient } from '../../../src/client/constellation-client.js';
+import {
+	AuthenticationError,
+	AuthorizationError,
+	ConstellationClient,
+	NotFoundError,
+	TimeoutError,
+	ToolNotFoundError,
+} from '../../../src/client/constellation-client.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
@@ -1803,6 +1810,44 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(false);
 			expect(result.error).toContain('String error');
 		});
+
+		it.each([
+			[
+				'AUTH_ERROR',
+				'AuthenticationError',
+				() => new AuthenticationError('auth bad'),
+			],
+			[
+				'AUTHZ_ERROR',
+				'AuthorizationError',
+				() => new AuthorizationError('forbidden'),
+			],
+			[
+				'PROJECT_NOT_INDEXED',
+				'NotFoundError',
+				() => new NotFoundError('missing'),
+			],
+			[
+				'TOOL_NOT_FOUND',
+				'ToolNotFoundError',
+				() => new ToolNotFoundError('no tool'),
+			],
+			['EXECUTION_TIMEOUT', 'TimeoutError', () => new TimeoutError('slow')],
+		])(
+			'should preserve typed client error and surface code %s (%s)',
+			async (expectedCode, expectedType, factory) => {
+				mockClient.executeMcpTool.mockRejectedValue(factory());
+
+				const code = 'return await api.searchSymbols({ query: "test" });';
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.structuredError).toBeDefined();
+				expect(result.structuredError?.error.code).toBe(expectedCode);
+				expect(result.structuredError?.error.type).toBe(expectedType);
+				expect(result.error).not.toContain('API call failed:');
+			},
+		);
 
 		it('should not re-wrap already formatted errors', async () => {
 			// Simulate an error that's already formatted by our handler

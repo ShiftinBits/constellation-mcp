@@ -20,7 +20,14 @@
  */
 
 import vm from 'vm';
-import { ConstellationClient } from '../client/constellation-client.js';
+import {
+	AuthenticationError,
+	AuthorizationError,
+	ConstellationClient,
+	NotFoundError,
+	TimeoutError,
+	ToolNotFoundError,
+} from '../client/constellation-client.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import { createStructuredError } from '../client/error-factory.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
@@ -685,6 +692,21 @@ export class CodeModeSandbox {
 					success: false,
 					error: error instanceof Error ? error.message : String(error),
 				});
+
+				// Preserve typed errors so error-factory can map them to the
+				// correct ErrorCode (AUTH_ERROR, AUTHZ_ERROR, etc.) via instanceof.
+				// Wrapping in a generic Error here would erase the type and force
+				// the response to fall through to EXECUTION_ERROR.
+				if (
+					error instanceof AuthenticationError ||
+					error instanceof AuthorizationError ||
+					error instanceof NotFoundError ||
+					error instanceof ToolNotFoundError ||
+					error instanceof TimeoutError
+				) {
+					throw error;
+				}
+
 				throw new Error(
 					`API call failed: api.${snakeToCamel(toolName)}()\n` +
 						`  Parameters: ${paramsPreview}\n` +
