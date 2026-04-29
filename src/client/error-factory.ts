@@ -47,6 +47,23 @@ function hasApiKeyConfigured(): boolean {
 }
 
 /**
+ * Inspect the CONSTELLATION_ACCESS_KEY env var and return a single-line
+ * diagnostic string describing whether it is missing, malformed, or
+ * present. Surfaced on AUTH_ERROR so the calling LLM can distinguish
+ * "no key set" from "key set but rejected by the API".
+ */
+function inspectAccessKeyEnv(): string {
+	const key = process.env.CONSTELLATION_ACCESS_KEY;
+	if (!key) {
+		return '[MISSING] CONSTELLATION_ACCESS_KEY is not set or is empty';
+	}
+	if (!key.startsWith('ak:')) {
+		return "[INVALID] CONSTELLATION_ACCESS_KEY does not start with 'ak:'";
+	}
+	return `[OK] CONSTELLATION_ACCESS_KEY ends in ${key.slice(-4)}`;
+}
+
+/**
  * Create a structured error response from any error type.
  *
  * This function preserves error type information that would otherwise
@@ -92,6 +109,7 @@ export function createStructuredError(
 
 	// Authentication Error (401)
 	if (error instanceof AuthenticationError) {
+		const envDiagnostic = inspectAccessKeyEnv();
 		return {
 			success: false,
 			error: {
@@ -100,18 +118,18 @@ export function createStructuredError(
 				message: 'Authentication failed - invalid or missing access key',
 				recoverable: true,
 				guidance: [
+					`CONSTELLATION_ACCESS_KEY env var verification: ${envDiagnostic}`,
 					'Run: constellation auth',
-					'Verify CONSTELLATION_ACCESS_KEY environment variable is set',
 					'Check that your access key has not expired',
 				],
 				context: baseContext,
 				docs: DOCS_URLS.auth,
 			},
-			formattedMessage: mapErrorToMessage(
+			formattedMessage: `${mapErrorToMessage(
 				error,
 				apiMethod || 'unknown',
 				baseContext,
-			),
+			)}\n\nCONSTELLATION_ACCESS_KEY check — ${envDiagnostic}`,
 		};
 	}
 
