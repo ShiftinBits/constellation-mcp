@@ -14,7 +14,10 @@ Add the Constellation MCP server to your AI assistant project-level config (or s
     "constellation": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@constellationdev/mcp@latest"]
+      "args": ["-y", "@constellationdev/mcp@latest"],
+      "env": {
+        "CONSTELLATION_ACCESS_KEY": "${CONSTELLATION_ACCESS_KEY}"
+      }
     }
   }
 }
