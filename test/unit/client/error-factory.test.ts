@@ -6,6 +6,7 @@ import {
 	NotFoundError,
 	TimeoutError,
 	ToolNotFoundError,
+	UnsupportedLanguageError,
 } from '../../../src/client/constellation-client.js';
 import { createStructuredError } from '../../../src/client/error-factory.js';
 import { MemoryExceededError } from '../../../src/code-mode/sandbox.js';
@@ -492,6 +493,61 @@ describe('Symbol/File errors from message', () => {
 		const result = createStructuredError(error, 'get_dependencies');
 
 		expect(result.error.code).not.toBe(ErrorCode.FILE_NOT_FOUND);
+	});
+});
+
+describe('createStructuredError - UnsupportedLanguageError mapping', () => {
+	it('should map UnsupportedLanguageError to UNSUPPORTED_LANGUAGE code', () => {
+		const err = new UnsupportedLanguageError(
+			'foo.py',
+			'.py',
+			new Set(['.ts', '.tsx']),
+		);
+
+		const result = createStructuredError(err);
+
+		expect(result.success).toBe(false);
+		expect(result.error.code).toBe(ErrorCode.UNSUPPORTED_LANGUAGE);
+		expect(result.error.type).toBe('UnsupportedLanguageError');
+		expect(result.error.recoverable).toBe(true);
+	});
+
+	it('should populate guidance with filePath, extension, and configured extensions', () => {
+		const err = new UnsupportedLanguageError(
+			'lib/foo.py',
+			'.py',
+			new Set(['.ts', '.tsx']),
+		);
+
+		const result = createStructuredError(err);
+		const joined = result.error.guidance.join(' ');
+
+		expect(joined).toContain('lib/foo.py');
+		expect(joined).toContain('.py');
+		expect(joined).toContain('.ts');
+		expect(joined).toContain('.tsx');
+		expect(joined).toContain('constellation.json');
+	});
+
+	it('should NOT demote to EXECUTION_ERROR when message contains validation keyword (branch-ordering test)', () => {
+		// If the new branch is moved AFTER the generic instanceof Error catch-all,
+		// createErrorFromMessage will keyword-match 'invalid'/'validation'/'required'
+		// and demote the result to VALIDATION_ERROR. This test pins the ordering.
+		class TrickyError extends UnsupportedLanguageError {
+			constructor() {
+				super('foo.py', '.py', new Set(['.ts']));
+				Object.defineProperty(this, 'message', {
+					value: 'invalid validation required: bogus',
+					configurable: true,
+				});
+			}
+		}
+
+		const result = createStructuredError(new TrickyError());
+
+		expect(result.error.code).toBe(ErrorCode.UNSUPPORTED_LANGUAGE);
+		expect(result.error.code).not.toBe(ErrorCode.VALIDATION_ERROR);
+		expect(result.error.code).not.toBe(ErrorCode.EXECUTION_ERROR);
 	});
 });
 
