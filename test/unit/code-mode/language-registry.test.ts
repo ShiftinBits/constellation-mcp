@@ -103,6 +103,14 @@ describe('extractExtension', () => {
 		it('should return extension for dotfile that has a further dot', () => {
 			expect(extractExtension('a/b/.hidden.py')).toBe('.py');
 		});
+
+		it('should return null for paths containing an embedded NUL byte', () => {
+			// Without this rejection, `foo.py\x00.ts` would extract `.ts` and
+			// bypass the guard for an unconfigured `.py` query.
+			expect(extractExtension('foo.py\x00.ts')).toBeNull();
+			expect(extractExtension('src/foo.py\x00.ts')).toBeNull();
+			expect(extractExtension('\x00.ts')).toBeNull();
+		});
 	});
 });
 
@@ -119,6 +127,24 @@ describe('resolveConfiguredExtensions', () => {
 		);
 		const result = resolveConfiguredExtensions(config);
 		expect([...result].sort()).toEqual(['.js', '.jsx', '.ts', '.tsx']);
+	});
+
+	it('should accept extensions from multiple language entries (e.g., .py alongside .ts)', () => {
+		const config = new ConstellationConfig(
+			'http://localhost:3000',
+			'main',
+			{
+				typescript: { fileExtensions: ['.ts', '.tsx'] },
+				javascript: { fileExtensions: ['.js', '.jsx'] },
+				python: { fileExtensions: ['.py'] },
+			},
+			'proj:multi',
+		);
+		const result = resolveConfiguredExtensions(config);
+		expect(result.has('.py')).toBe(true);
+		expect(result.has('.ts')).toBe(true);
+		expect(result.has('.jsx')).toBe(true);
+		expect([...result].sort()).toEqual(['.js', '.jsx', '.py', '.ts', '.tsx']);
 	});
 
 	it('should normalize uppercase extensions to lowercase', () => {

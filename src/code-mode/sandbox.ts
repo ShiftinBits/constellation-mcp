@@ -703,6 +703,12 @@ export class CodeModeSandbox {
 				// correct ErrorCode (AUTH_ERROR, AUTHZ_ERROR, etc.) via instanceof.
 				// Wrapping in a generic Error here would erase the type and force
 				// the response to fall through to EXECUTION_ERROR.
+				//
+				// UnsupportedLanguageError is included as defense-in-depth: today
+				// it is thrown by withFilePathLanguageGuard *before* executor()
+				// runs, so this catch is unreachable for that subtype. Keeping
+				// the entry preserves the invariant if a future caller invokes
+				// executor() directly without going through the api Proxy.
 				if (
 					error instanceof AuthenticationError ||
 					error instanceof AuthorizationError ||

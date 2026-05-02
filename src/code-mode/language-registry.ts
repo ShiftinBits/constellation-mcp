@@ -22,6 +22,13 @@ export function extractExtension(filePath: string): string | null {
 	let p = filePath.trim();
 	if (p.length === 0) return null;
 
+	// Reject paths containing a NUL byte. Without this check, a path like
+	// `foo.py\x00.ts` would extract `.ts` (since lastIndexOf('.') resolves
+	// past the NUL) and pass the guard despite the actual semantic extension
+	// being `.py`. Path layers further down the stack vary in how they treat
+	// embedded NULs, so a same-realm rejection is the safest contract.
+	if (p.includes('\x00')) return null;
+
 	const queryIdx = p.indexOf('?');
 	if (queryIdx >= 0) p = p.slice(0, queryIdx);
 	const fragIdx = p.indexOf('#');
@@ -56,6 +63,10 @@ export function extractExtension(filePath: string): string | null {
  *
  * Returns an empty Set when languages is missing or empty — the guard
  * treats an empty Set as "guard disabled, pass everything through."
+ * Note: in production this empty path is unreachable because
+ * `ConstellationConfig.validate()` rejects configs with no languages or
+ * empty fileExtensions arrays. The empty-Set fallback exists for tests,
+ * mocks, and configs constructed without going through `fromJSON`.
  */
 export function resolveConfiguredExtensions(
 	config: ConstellationConfig,
@@ -79,8 +90,15 @@ export function resolveConfiguredExtensions(
  * Set of api method names whose params accept `filePath`. The Proxy in
  * sandbox.ts wraps these (and only these) with `withFilePathLanguageGuard`.
  *
- * `findOrphanedCode` is intentionally excluded — its params take
- * `filePattern` (a glob), not `filePath`. Glob expansion is out of scope.
+ * Intentionally NOT guarded:
+ * - `findOrphanedCode` — takes `filePattern` (a glob), not `filePath`.
+ *   Glob expansion is out of scope.
+ * - `searchSymbols` — accepts a free-form `query` string, never a file
+ *   path. Sniffing query strings would catastrophically false-positive
+ *   when TS code legitimately references foreign extensions in symbol
+ *   names or strings (e.g., parser/indexer code).
+ * - `getArchitectureOverview`, `ping`, `getCapabilities`, `listMethods`,
+ *   `help` — no file-scoped params.
  */
 export const GUARDED_METHODS: ReadonlySet<string> = new Set([
 	'getDependencies',

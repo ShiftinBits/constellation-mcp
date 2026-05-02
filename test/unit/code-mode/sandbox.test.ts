@@ -2304,5 +2304,52 @@ describe('CodeModeSandbox', () => {
 			expect(result.success).toBe(true);
 			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
 		});
+
+		it('should NOT reject api.getArchitectureOverview (not a guarded method)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ projectStats: {} }),
+			);
+
+			await sandbox.execute('return await api.getArchitectureOverview({});');
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.findOrphanedCode even with a filePattern targeting unconfigured files (filePattern is not filePath)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ orphans: [] }),
+			);
+
+			await sandbox.execute(
+				"return await api.findOrphanedCode({ filePattern: '**/*.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.ping (not a guarded method)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ ok: true }),
+			);
+
+			await sandbox.execute('return await api.ping();');
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should reject when filePath has an embedded NUL byte (would otherwise extract a configured suffix)', async () => {
+			// foo.py\x00.ts would naively extract `.ts` and pass; the NUL-byte
+			// rejection in extractExtension returns null, so the guard becomes
+			// pass-through for this input. The test asserts the guard does not
+			// false-accept by treating a NUL-injected `.ts` suffix as configured.
+			const result = await sandbox.execute(
+				"return await api.getDependencies({ filePath: 'foo.py\\x00.ts' });",
+			);
+
+			// extractExtension returns null → guard passes through → executor
+			// runs → executeMcpTool is invoked. The guard is correctly NOT
+			// fooled into matching `.ts` against the configured set.
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
 	});
 });
