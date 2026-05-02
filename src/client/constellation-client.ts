@@ -375,3 +375,29 @@ export class TimeoutError extends Error {
 		this.name = 'TimeoutError';
 	}
 }
+
+/**
+ * Error thrown by the api-Proxy guard when an api.* call's `filePath`
+ * argument has an extension not configured in constellation.json.
+ *
+ * Caught by error-factory.ts and mapped to ErrorCode.UNSUPPORTED_LANGUAGE.
+ * Members carry the rejection context so the structured response can
+ * surface actionable guidance to the LLM.
+ */
+export class UnsupportedLanguageError extends Error {
+	readonly code = 'UNSUPPORTED_LANGUAGE';
+
+	constructor(
+		readonly filePath: string,
+		readonly extension: string,
+		readonly configuredExtensions: ReadonlySet<string>,
+	) {
+		const configured = [...configuredExtensions].sort().join(', ') || '(none)';
+		super(
+			`Unsupported file extension '${extension}' for filePath '${filePath}'. ` +
+				`This project is configured to index: ${configured}. ` +
+				`To query files with extension '${extension}', add it to a language entry's fileExtensions in constellation.json.`,
+		);
+		this.name = 'UnsupportedLanguageError';
+	}
+}
