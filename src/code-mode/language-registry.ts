@@ -6,6 +6,7 @@
  * meaningful extension. `resolveConfiguredExtensions` flattens the project's
  * constellation.json language config into a Set for fast membership checks.
  */
+import { UnsupportedLanguageError } from '../client/constellation-client.js';
 import type { ConstellationConfig } from '../config/config.js';
 
 const EXTENSION_SHAPE = /^\.[a-z0-9_+-]+$/;
@@ -72,4 +73,52 @@ export function resolveConfiguredExtensions(
 		}
 	}
 	return out;
+}
+
+/**
+ * Set of api method names whose params accept `filePath`. The Proxy in
+ * sandbox.ts wraps these (and only these) with `withFilePathLanguageGuard`.
+ *
+ * `findOrphanedCode` is intentionally excluded — its params take
+ * `filePattern` (a glob), not `filePath`. Glob expansion is out of scope.
+ */
+export const GUARDED_METHODS: ReadonlySet<string> = new Set([
+	'getDependencies',
+	'getDependents',
+	'findCircularDependencies',
+	'getSymbolDetails',
+	'getCallGraph',
+	'traceSymbolUsage',
+	'impactAnalysis',
+]);
+
+/**
+ * Higher-order wrapper that rejects calls whose `params.filePath` has an
+ * extension not present in `configuredExtensions`.
+ *
+ * Throws `UnsupportedLanguageError` BEFORE invoking `fn`, so the wrapped
+ * api method never reaches HTTP and the executor's catch is never entered.
+ *
+ * Pass-through (no rejection) when:
+ *  - `params` is null/undefined (defensive)
+ *  - `params.filePath` is not a string or is empty
+ *  - `extractExtension(filePath)` returns null (extensionless / weird input)
+ *  - `configuredExtensions` is empty (unconfigured project — guard disabled)
+ */
+export function withFilePathLanguageGuard<P, R>(
+	fn: (params: P) => Promise<R>,
+	configuredExtensions: ReadonlySet<string>,
+): (params: P) => Promise<R> {
+	return async (params: P) => {
+		if (configuredExtensions.size > 0 && params != null) {
+			const fp = (params as { filePath?: unknown }).filePath;
+			if (typeof fp === 'string' && fp.length > 0) {
+				const ext = extractExtension(fp);
+				if (ext !== null && !configuredExtensions.has(ext)) {
+					throw new UnsupportedLanguageError(fp, ext, configuredExtensions);
+				}
+			}
+		}
+		return fn(params);
+	};
 }

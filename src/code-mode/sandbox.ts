@@ -27,7 +27,13 @@ import {
 	NotFoundError,
 	TimeoutError,
 	ToolNotFoundError,
+	UnsupportedLanguageError,
 } from '../client/constellation-client.js';
+import {
+	GUARDED_METHODS,
+	resolveConfiguredExtensions,
+	withFilePathLanguageGuard,
+} from './language-registry.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import { createStructuredError } from '../client/error-factory.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
@@ -702,7 +708,8 @@ export class CodeModeSandbox {
 					error instanceof AuthorizationError ||
 					error instanceof NotFoundError ||
 					error instanceof ToolNotFoundError ||
-					error instanceof TimeoutError
+					error instanceof TimeoutError ||
+					error instanceof UnsupportedLanguageError
 				) {
 					throw error;
 				}
@@ -912,6 +919,12 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 		const client = this.client;
 		const projectContext = this.options.projectContext;
 
+		// Resolve once per sandbox: the set of file extensions configured
+		// in this project's constellation.json. Empty Set => guard disabled.
+		const configuredExtensions = resolveConfiguredExtensions(
+			this.configContext.config,
+		);
+
 		// Create typed API proxy for Code Mode
 		// Maps method names to tool names while maintaining type safety
 		const api: ConstellationApi = new Proxy(
@@ -1001,11 +1014,15 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 						(letter) => `_${letter.toLowerCase()}`,
 					);
 
-					// Return async function that calls the executor
-					// The type safety is enforced by the ConstellationApi interface
-					return async (params: unknown) => {
-						return executor(toolName, params);
-					};
+					// Return async function that calls the executor.
+					// The type safety is enforced by the ConstellationApi interface.
+					const baseFn = async (params: unknown) => executor(toolName, params);
+
+					// Wrap the seven filePath-accepting methods with the
+					// language guard. Other methods bypass the wrapper.
+					return GUARDED_METHODS.has(prop)
+						? withFilePathLanguageGuard(baseFn, configuredExtensions)
+						: baseFn;
 				},
 			},
 		);
