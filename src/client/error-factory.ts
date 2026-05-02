@@ -338,8 +338,7 @@ const result = await api.searchSymbols({
 	// branch — UnsupportedLanguageError extends Error and the catch-all would
 	// otherwise demote it to EXECUTION_ERROR via createErrorFromMessage.)
 	if (error instanceof UnsupportedLanguageError) {
-		const configured =
-			[...error.configuredExtensions].sort().join(', ') || '(none)';
+		const configured = error.configuredExtensions.join(', ') || '(none)';
 		return {
 			success: false,
 			error: {

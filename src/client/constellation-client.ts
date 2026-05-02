@@ -386,18 +386,26 @@ export class TimeoutError extends Error {
  */
 export class UnsupportedLanguageError extends Error {
 	readonly code = 'UNSUPPORTED_LANGUAGE';
+	readonly configuredExtensions: ReadonlyArray<string>;
 
 	constructor(
 		readonly filePath: string,
 		readonly extension: string,
-		readonly configuredExtensions: ReadonlySet<string>,
+		configuredExtensions: Iterable<string>,
 	) {
-		const configured = [...configuredExtensions].sort().join(', ') || '(none)';
+		// Store as a sorted array, not a Set. The wrapper uses a Set for O(1)
+		// .has() at guard-time, but the error must survive crossing the vm
+		// realm boundary on its way to the error-factory. Set instances lose
+		// their realm-bound prototype after vm.runInContext rejection unwrap;
+		// arrays survive intact.
+		const sorted = [...configuredExtensions].sort();
+		const configured = sorted.join(', ') || '(none)';
 		super(
 			`Unsupported file extension '${extension}' for filePath '${filePath}'. ` +
 				`This project is configured to index: ${configured}. ` +
 				`To query files with extension '${extension}', add it to a language entry's fileExtensions in constellation.json.`,
 		);
 		this.name = 'UnsupportedLanguageError';
+		this.configuredExtensions = sorted;
 	}
 }

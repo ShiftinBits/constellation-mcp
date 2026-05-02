@@ -28,8 +28,19 @@ import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
 
-// Mock dependencies
-jest.mock('../../../src/client/constellation-client.js');
+// Mock dependencies. Preserve real error classes so `instanceof` checks
+// downstream (error-factory branch matching, sandbox executor allowlist) and
+// constructor logic (UnsupportedLanguageError captures filePath/extension)
+// work normally; only ConstellationClient itself is auto-mocked.
+jest.mock('../../../src/client/constellation-client.js', () => {
+	const actual = jest.requireActual<
+		typeof import('../../../src/client/constellation-client.js')
+	>('../../../src/client/constellation-client.js');
+	return {
+		...actual,
+		ConstellationClient: jest.fn(),
+	};
+});
 jest.mock('../../../src/code-mode/source-enrichment.js', () => ({
 	enrichWithSourceSnippets: jest.fn(async (data: unknown) => data),
 }));
@@ -2222,6 +2233,76 @@ describe('CodeModeSandbox', () => {
 				{ data: 'test' },
 				'/test/project',
 			);
+		});
+	});
+	describe('language guard', () => {
+		it('should reject api.getDependencies when filePath has unconfigured extension', async () => {
+			const code =
+				"return await api.getDependencies({ filePath: 'src/foo.py' });";
+
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+			expect(result.structuredError?.error.guidance.join(' ')).toContain('.py');
+			// Guard short-circuits before HTTP is reached.
+			expect(mockClient.executeMcpTool).not.toHaveBeenCalled();
+		});
+
+		it.each([
+			'getDependencies',
+			'getDependents',
+			'findCircularDependencies',
+			'getSymbolDetails',
+			'getCallGraph',
+			'traceSymbolUsage',
+			'impactAnalysis',
+		])(
+			'should reject api.%s when filePath has unconfigured extension',
+			async (method) => {
+				const code = `return await api.${method}({ filePath: 'foo.py' });`;
+
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+				expect(mockClient.executeMcpTool).not.toHaveBeenCalled();
+			},
+		);
+
+		it('should NOT reject api.searchSymbols even when query string contains a .py path (option A scope)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			await sandbox.execute(
+				"return await api.searchSymbols({ query: 'foo.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject when guarded method is called without filePath (optional-filePath schemas)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				'return await api.findCircularDependencies({ maxCycleLength: 5 });',
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should pass through when filePath has a configured extension', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ directDependencies: [] }),
+			);
+
+			const result = await sandbox.execute(
+				"return await api.getDependencies({ filePath: 'src/index.ts' });",
+			);
+
+			expect(result.success).toBe(true);
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
 		});
 	});
 });

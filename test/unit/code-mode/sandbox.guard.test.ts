@@ -58,7 +58,7 @@ describe('withFilePathLanguageGuard', () => {
 		await expect(guarded({ filePath: 'lib/foo.py' })).rejects.toMatchObject({
 			filePath: 'lib/foo.py',
 			extension: '.py',
-			configuredExtensions: tsOnly,
+			configuredExtensions: ['.ts', '.tsx'],
 		});
 	});
 

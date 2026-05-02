@@ -8,12 +8,15 @@ describe('UnsupportedLanguageError', () => {
 		expect(err).toBeInstanceOf(UnsupportedLanguageError);
 	});
 
-	it('should carry the filePath, extension, and configuredExtensions', () => {
-		const configured = new Set(['.ts', '.tsx']);
-		const err = new UnsupportedLanguageError('lib/foo.py', '.py', configured);
+	it('should carry the filePath, extension, and configuredExtensions as a sorted array', () => {
+		const err = new UnsupportedLanguageError(
+			'lib/foo.py',
+			'.py',
+			new Set(['.tsx', '.ts']),
+		);
 		expect(err.filePath).toBe('lib/foo.py');
 		expect(err.extension).toBe('.py');
-		expect(err.configuredExtensions).toBe(configured);
+		expect(err.configuredExtensions).toEqual(['.ts', '.tsx']);
 	});
 
 	it('should expose a stable code property', () => {
