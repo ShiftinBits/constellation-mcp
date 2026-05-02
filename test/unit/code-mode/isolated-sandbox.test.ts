@@ -216,6 +216,56 @@ describe('IsolatedSandbox', () => {
 			expect(result.error).toContain('64MB');
 		});
 
+		it('should preserve UNSUPPORTED_LANGUAGE structuredError across IPC (hardened mode)', async () => {
+			// Simulate the structuredError that the child-side createStructuredError
+			// would have produced. The hardened sandbox runs user code in a child
+			// process and serializes the SandboxResult via JSON over IPC. Plain
+			// McpErrorResponse objects survive JSON.stringify; Error subclasses
+			// would not. This test pins the shape so a future refactor that emits
+			// a raw UnsupportedLanguageError (instead of the structuredError) over
+			// IPC would fail loudly.
+			const structuredError = {
+				success: false,
+				error: {
+					code: 'UNSUPPORTED_LANGUAGE',
+					type: 'UnsupportedLanguageError',
+					message: "Unsupported file extension '.py' for filePath 'foo.py'.",
+					recoverable: true,
+					guidance: ['Configured extensions: .ts, .tsx'],
+					context: {
+						projectId: 'test-project',
+						branchName: 'test-branch',
+						apiMethod: 'execute',
+					},
+				},
+				formattedMessage:
+					"Unsupported file extension '.py' for filePath 'foo.py'.",
+			};
+
+			const executePromise = sandbox.execute(
+				"return await api.getDependencies({ filePath: 'foo.py' })",
+			);
+
+			// Round-trip the result through JSON to mirror the real IPC channel.
+			const workerResult = JSON.parse(
+				JSON.stringify({
+					success: false,
+					error: 'guard rejected',
+					structuredError,
+					logs: [],
+					executionTime: 5,
+				}),
+			);
+			mockChild.emit('message', { type: 'result', result: workerResult });
+
+			const result = await executePromise;
+			expect(result.success).toBe(false);
+			expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+			expect(result.structuredError?.error.guidance).toContain(
+				'Configured extensions: .ts, .tsx',
+			);
+		});
+
 		it('should include executionTime in all error responses', async () => {
 			jest.useRealTimers(); // Need real time for this test
 			const executePromise = sandbox.execute('const x = 1');

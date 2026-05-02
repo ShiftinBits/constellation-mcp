@@ -1065,4 +1065,52 @@ describe('registerQueryCodeGraphTool', () => {
 			);
 		});
 	});
+	describe('language guard structured error wrapping', () => {
+		it('should set isError:true and surface UNSUPPORTED_LANGUAGE in structuredContent when runtime returns guard rejection', async () => {
+			const structuredError = {
+				success: false,
+				error: {
+					code: 'UNSUPPORTED_LANGUAGE',
+					type: 'UnsupportedLanguageError',
+					message: "Unsupported file extension '.py' for filePath 'foo.py'.",
+					recoverable: true,
+					guidance: [
+						"The filePath 'foo.py' has extension '.py', which is not configured for this project.",
+						'Configured extensions: .ts, .tsx',
+						"Either query a file with a configured extension, or add '.py' to constellation.json under a language entry's fileExtensions.",
+					],
+					context: {
+						projectId: 'test-project',
+						branchName: 'test-branch',
+						apiMethod: 'execute',
+					},
+				},
+				formattedMessage:
+					"Unsupported file extension '.py' for filePath 'foo.py'.",
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				structuredError,
+			} as any);
+
+			const result = await registeredHandler({
+				code: "return await api.getDependencies({ filePath: 'foo.py' });",
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.content[0].type).toBe('text');
+			expect(result.content[0].text).toContain('UNSUPPORTED_LANGUAGE');
+			expect(result.content[0].text).toContain("'foo.py'");
+			expect(result.content[0].text).toContain('.ts');
+
+			expect(result.structuredContent).toBeDefined();
+			expect(result.structuredContent.success).toBe(false);
+			expect(typeof result.structuredContent.error).toBe('string');
+			// The structuredContent.error is the human-readable message; the
+			// machine-readable code lives in the JSON text content asserted above.
+			expect(result.structuredContent.error).toContain('foo.py');
+			expect(result.structuredContent.error).toContain('.py');
+		});
+	});
 });
