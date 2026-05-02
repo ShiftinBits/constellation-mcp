@@ -2236,7 +2236,7 @@ describe('CodeModeSandbox', () => {
 		});
 	});
 	describe('language guard', () => {
-		it('should reject api.getDependencies when filePath has unconfigured extension', async () => {
+		it('should populate guidance with the rejected extension on guard rejection', async () => {
 			const code =
 				"return await api.getDependencies({ filePath: 'src/foo.py' });";
 

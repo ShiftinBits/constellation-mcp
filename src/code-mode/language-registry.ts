@@ -109,6 +109,12 @@ export function withFilePathLanguageGuard<P, R>(
 	fn: (params: P) => Promise<R>,
 	configuredExtensions: ReadonlySet<string>,
 ): (params: P) => Promise<R> {
+	// Note: configuredExtensions stays as a Set in this closure because the
+	// wrapper runs in-realm and benefits from O(1) `.has()`. The Set is
+	// passed into UnsupportedLanguageError, which converts it to a sorted
+	// array internally because the error must survive the vm realm boundary
+	// (Set instances lose their prototype after vm.runInContext rejection
+	// unwrap; arrays survive intact). See UnsupportedLanguageError.
 	return async (params: P) => {
 		if (configuredExtensions.size > 0 && params != null) {
 			const fp = (params as { filePath?: unknown }).filePath;
