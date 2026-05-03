@@ -71,7 +71,7 @@ src/
 │       └── ast-walker.ts               Generic AST traversal
 ├── client/
 │   ├── constellation-client.ts         HTTP client with retry/backoff
-│   ├── error-factory.ts                Structured error creation (18 error codes)
+│   ├── error-factory.ts                Structured error creation (19 error codes)
 │   └── error-mapper.ts                 Error message formatting
 ├── config/
 │   ├── config-cache.ts                 Multi-project config resolution & LRU cache
@@ -164,15 +164,15 @@ All types imported from `@constellationdev/types` (centralized in `constellation
 
 ## Error Handling
 
-**18 error codes** (from `mcp-errors.ts`):
+**19 error codes** (from `mcp-errors.ts`):
 
-| Category  | Codes                                                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                                                           |
-| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                                                                   |
-| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                                                              |
-| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `EXECUTION_TIMEOUT`, `EXECUTION_ERROR`, `MEMORY_EXCEEDED` |
-| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                                                               |
+| Category  | Codes                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth      | `AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`                                                                                                                   |
+| Config    | `NOT_CONFIGURED`, `API_UNREACHABLE`                                                                                                                           |
+| Project   | `PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`                                                                                                      |
+| Execution | `SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `UNSUPPORTED_LANGUAGE`, `EXECUTION_TIMEOUT`, `EXECUTION_ERROR`, `MEMORY_EXCEEDED` |
+| System    | `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`                                                                                                       |
 
 **Structured error response** includes: `code`, `type`, `message`, `recoverable`, `guidance[]`, `context`, `docs?`, `suggestedCode?`, `alternativeApproach?`.
 
