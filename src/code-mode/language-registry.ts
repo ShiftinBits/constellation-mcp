@@ -97,14 +97,16 @@ export function resolveConfiguredExtensions(
  *   path. Sniffing query strings would catastrophically false-positive
  *   when TS code legitimately references foreign extensions in symbol
  *   names or strings (e.g., parser/indexer code).
+ * - `getSymbolDetails`, `findCircularDependencies` — `filePath` is an
+ *   optional narrowing filter, not a routing key. Both can succeed via
+ *   other inputs (symbolId, project-wide cycle scan), so guarding would
+ *   produce false rejections on legitimate calls.
  * - `getArchitectureOverview`, `ping`, `getCapabilities`, `listMethods`,
  *   `help` — no file-scoped params.
  */
 export const GUARDED_METHODS: ReadonlySet<string> = new Set([
 	'getDependencies',
 	'getDependents',
-	'findCircularDependencies',
-	'getSymbolDetails',
 	'getCallGraph',
 	'traceSymbolUsage',
 	'impactAnalysis',

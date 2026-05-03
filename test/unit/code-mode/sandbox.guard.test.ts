@@ -5,19 +5,25 @@ import {
 } from '../../../src/code-mode/language-registry.js';
 import { UnsupportedLanguageError } from '../../../src/client/constellation-client.js';
 
-const SEVEN_METHODS = [
+const GUARDED = [
 	'getDependencies',
 	'getDependents',
-	'findCircularDependencies',
-	'getSymbolDetails',
 	'getCallGraph',
 	'traceSymbolUsage',
 	'impactAnalysis',
 ] as const;
 
 describe('GUARDED_METHODS', () => {
-	it('should contain exactly the seven filePath-accepting methods', () => {
-		expect([...GUARDED_METHODS].sort()).toEqual([...SEVEN_METHODS].sort());
+	it('should contain exactly the methods whose filePath is a routing key', () => {
+		expect([...GUARDED_METHODS].sort()).toEqual([...GUARDED].sort());
+	});
+
+	it('should NOT include getSymbolDetails (filePath is an optional filter; symbolId can route)', () => {
+		expect(GUARDED_METHODS.has('getSymbolDetails')).toBe(false);
+	});
+
+	it('should NOT include findCircularDependencies (filePath is an optional filter on a project-wide scan)', () => {
+		expect(GUARDED_METHODS.has('findCircularDependencies')).toBe(false);
 	});
 });
 
@@ -120,6 +126,30 @@ describe('withFilePathLanguageGuard', () => {
 		await guarded({ filePath: 'baz.rs' });
 
 		expect(inner).toHaveBeenCalledTimes(3);
+	});
+
+	it('should pass through when params.filePath is a non-string primitive (number)', async () => {
+		const inner = jest
+			.fn<(p: unknown) => Promise<unknown>>()
+			.mockResolvedValue({ ok: true });
+		const guarded = withFilePathLanguageGuard(inner, tsOnly);
+
+		await guarded({ filePath: 42 } as unknown as Record<string, unknown>);
+
+		expect(inner).toHaveBeenCalledTimes(1);
+	});
+
+	it('should pass through when params.filePath is an object with a stringifying toString (no implicit coercion)', async () => {
+		const inner = jest
+			.fn<(p: unknown) => Promise<unknown>>()
+			.mockResolvedValue({ ok: true });
+		const guarded = withFilePathLanguageGuard(inner, tsOnly);
+
+		await guarded({
+			filePath: { toString: () => 'foo.py' },
+		} as unknown as Record<string, unknown>);
+
+		expect(inner).toHaveBeenCalledTimes(1);
 	});
 
 	it('should pass through when params is null/undefined (defensive)', async () => {

@@ -2252,8 +2252,6 @@ describe('CodeModeSandbox', () => {
 		it.each([
 			'getDependencies',
 			'getDependents',
-			'findCircularDependencies',
-			'getSymbolDetails',
 			'getCallGraph',
 			'traceSymbolUsage',
 			'impactAnalysis',
@@ -2282,11 +2280,31 @@ describe('CodeModeSandbox', () => {
 			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
 		});
 
-		it('should NOT reject when guarded method is called without filePath (optional-filePath schemas)', async () => {
+		it('should NOT reject when a guarded method is called without filePath', async () => {
 			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
 
 			await sandbox.execute(
-				'return await api.findCircularDependencies({ maxCycleLength: 5 });',
+				'return await api.getDependencies({ filePath: "" });',
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.getSymbolDetails when filePath has an unconfigured extension (filter-only param, symbolId can route)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				"return await api.getSymbolDetails({ symbolId: 'sym:1', filePath: 'src/foo.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.findCircularDependencies when filePath has an unconfigured extension (project-wide scan, filter-only param)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				"return await api.findCircularDependencies({ filePath: 'src/foo.py' });",
 			);
 
 			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);

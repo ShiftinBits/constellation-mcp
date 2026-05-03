@@ -104,6 +104,21 @@ describe('extractExtension', () => {
 			expect(extractExtension('a/b/.hidden.py')).toBe('.py');
 		});
 
+		it('should return null for all-dots inputs (e.g., "..." or "....")', () => {
+			expect(extractExtension('...')).toBeNull();
+			expect(extractExtension('....')).toBeNull();
+		});
+
+		it('should return null for percent-encoded extensions (no decode step)', () => {
+			expect(extractExtension('foo.t%73')).toBeNull();
+		});
+
+		it('should treat encoded path separators as part of the basename (documents behavior)', () => {
+			// %2F is NOT decoded into '/'; the basename is the entire string and
+			// the last `.ts` wins. Documents observed behavior so regressions surface.
+			expect(extractExtension('foo.py%2F.ts')).toBe('.ts');
+		});
+
 		it('should return null for paths containing an embedded NUL byte', () => {
 			// Without this rejection, `foo.py\x00.ts` would extract `.ts` and
 			// bypass the guard for an unconfigured `.py` query.
