@@ -213,4 +213,76 @@ describe('resolveConfiguredExtensions', () => {
 		const result = resolveConfiguredExtensions(config);
 		expect(result).toBeInstanceOf(Set);
 	});
+
+	describe('symmetry with extractExtension', () => {
+		it('should produce extensions that membership-match extractExtension output without further normalization', () => {
+			// Arrange — configured side mixes the normalization variants the
+			// resolver is documented to handle (uppercase, bare, whitespace).
+			const config = new ConstellationConfig(
+				'u',
+				'b',
+				{
+					typescript: { fileExtensions: ['.TS', '  .tsx  '] },
+					javascript: { fileExtensions: ['js'] },
+					python: { fileExtensions: ['.PY'] },
+				},
+				'p',
+			);
+			const configured = resolveConfiguredExtensions(config);
+
+			// extractExtension input cases that should each match a configured
+			// entry. Mixed casing on the path side mirrors real LLM inputs.
+			const filePathInputs = [
+				'src/foo.ts',
+				'src/Foo.TS',
+				'lib/bar.tsx',
+				'lib/Bar.TSX',
+				'/abs/path/baz.js',
+				'/abs/path/baz.JS',
+				'pkg/qux.py',
+				'pkg/qux.PY',
+			];
+
+			// Act + Assert — every extracted extension must hit the configured
+			// Set with no further normalization step on either side.
+			for (const fp of filePathInputs) {
+				const ext = extractExtension(fp);
+				expect(ext).not.toBeNull();
+				expect(configured.has(ext as string)).toBe(true);
+			}
+		});
+
+		it('should NOT match extensions that extractExtension would reject (no false acceptance via configured side)', () => {
+			// Arrange — even if a config somehow contained an oddly-cased
+			// or padded entry that normalizes to a valid extension, an
+			// extractExtension-rejected path must never pass the guard.
+			const config = new ConstellationConfig(
+				'u',
+				'b',
+				{ typescript: { fileExtensions: ['.ts'] } },
+				'p',
+			);
+			const configured = resolveConfiguredExtensions(config);
+
+			// extractExtension returns null for these — the guard would
+			// pass them through, never consulting the Set. The symmetry
+			// claim is: there is no extractExtension output that exists
+			// in the configured Set yet would be rejected as a path.
+			const passThroughInputs = [
+				'.gitignore',
+				'foo',
+				'foo.',
+				'src/',
+				'foo.t%73',
+			];
+
+			// Act + Assert — extractExtension returns null, so the
+			// configured Set is irrelevant by contract.
+			for (const fp of passThroughInputs) {
+				expect(extractExtension(fp)).toBeNull();
+			}
+			// Sanity — the Set itself is well-formed.
+			expect(configured.has('.ts')).toBe(true);
+		});
+	});
 });

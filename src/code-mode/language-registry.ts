@@ -87,8 +87,14 @@ export function resolveConfiguredExtensions(
 }
 
 /**
- * Set of api method names whose params accept `filePath`. The Proxy in
+ * The routing-key subset of filePath-accepting api methods. The Proxy in
  * sandbox.ts wraps these (and only these) with `withFilePathLanguageGuard`.
+ *
+ * Note: 7 api methods accept a `filePath` param, but only 5 are guarded
+ * here — the other 2 (`getSymbolDetails`, `findCircularDependencies`)
+ * treat `filePath` as an optional narrowing filter rather than a routing
+ * key, so guarding them would produce false rejections on legitimate
+ * calls (see "Intentionally NOT guarded" below).
  *
  * Intentionally NOT guarded:
  * - `findOrphanedCode` — takes `filePattern` (a glob), not `filePath`.
