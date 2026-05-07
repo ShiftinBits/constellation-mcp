@@ -167,7 +167,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'• "Find dead code" / "Unused exports?" → findOrphanedCode()\n' +
 				'• "Complex functions?" / "Refactoring targets?" → searchSymbols results include complexity.cyclomaticComplexity + complexityRisk per function\n\n' +
 				'NOT FOR: literal string search, log messages, config values, or reading source code. Use Grep/Glob/Read for those.\n' +
-				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n\n' +
+				'Supports TypeScript, JavaScript, Python, and more — run api.getCapabilities() to check your project.\n' +
+				"File-path-scoped methods (getDependencies, getDependents, getCallGraph, traceSymbolUsage, impactAnalysis) reject calls whose `filePath` extension is not in the project's configured languages with `UNSUPPORTED_LANGUAGE` — check api.getCapabilities() first.\n\n" +
 				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
 				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',

@@ -21,6 +21,7 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.FILE_NOT_FOUND).toBe('FILE_NOT_FOUND');
 		expect(ErrorCode.TOOL_NOT_FOUND).toBe('TOOL_NOT_FOUND');
 		expect(ErrorCode.VALIDATION_ERROR).toBe('VALIDATION_ERROR');
+		expect(ErrorCode.UNSUPPORTED_LANGUAGE).toBe('UNSUPPORTED_LANGUAGE');
 		expect(ErrorCode.EXECUTION_ERROR).toBe('EXECUTION_ERROR');
 		expect(ErrorCode.EXECUTION_TIMEOUT).toBe('EXECUTION_TIMEOUT');
 		expect(ErrorCode.MEMORY_EXCEEDED).toBe('MEMORY_EXCEEDED');
@@ -29,9 +30,9 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
 	});
 
-	it('should have exactly 18 error codes', () => {
+	it('should have exactly 19 error codes', () => {
 		const codeCount = Object.keys(ErrorCode).length;
-		expect(codeCount).toBe(18);
+		expect(codeCount).toBe(19);
 	});
 
 	it('should not contain any undefined values', () => {
@@ -167,6 +168,10 @@ describe('isRecoverableError', () => {
 			expect(isRecoverableError(ErrorCode.VALIDATION_ERROR)).toBe(true);
 		});
 
+		it('should return true for UNSUPPORTED_LANGUAGE', () => {
+			expect(isRecoverableError(ErrorCode.UNSUPPORTED_LANGUAGE)).toBe(true);
+		});
+
 		it('should return true for MEMORY_EXCEEDED', () => {
 			expect(isRecoverableError(ErrorCode.MEMORY_EXCEEDED)).toBe(true);
 		});
@@ -225,7 +230,7 @@ describe('isRecoverableError', () => {
 		);
 
 		// Verify expected counts
-		expect(recoverableCodes.length).toBe(9);
+		expect(recoverableCodes.length).toBe(10);
 		expect(nonRecoverableCodes.length).toBe(9);
 	});
 });

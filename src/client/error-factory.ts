@@ -20,6 +20,7 @@ import {
 	NotFoundError,
 	TimeoutError,
 	ToolNotFoundError,
+	UnsupportedLanguageError,
 } from './constellation-client.js';
 import { mapErrorToMessage } from './error-mapper.js';
 
@@ -326,6 +327,29 @@ const result = await api.searchSymbols({
 					'Use pagination (limit parameter) to process in smaller batches',
 					'Avoid creating large arrays or objects in loops',
 					'Break complex operations into smaller sequential steps',
+				],
+				context: baseContext,
+			},
+			formattedMessage: error.message,
+		};
+	}
+
+	// Unsupported Language Error (must precede the generic `instanceof Error`
+	// branch — UnsupportedLanguageError extends Error and the catch-all would
+	// otherwise demote it to EXECUTION_ERROR via createErrorFromMessage.)
+	if (error instanceof UnsupportedLanguageError) {
+		const configured = error.configuredExtensions.join(', ') || '(none)';
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.UNSUPPORTED_LANGUAGE,
+				type: 'UnsupportedLanguageError',
+				message: error.message,
+				recoverable: true,
+				guidance: [
+					`The filePath '${error.filePath}' has extension '${error.extension}', which is not configured for this project.`,
+					`Configured extensions: ${configured}`,
+					`Either query a file with a configured extension, or add '${error.extension}' to constellation.json under a language entry's fileExtensions.`,
 				],
 				context: baseContext,
 			},

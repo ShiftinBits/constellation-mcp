@@ -807,6 +807,41 @@ describe('CodeModeRuntime', () => {
 			);
 		});
 
+		it('should pass through UNSUPPORTED_LANGUAGE structuredError unchanged', async () => {
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'UNSUPPORTED_LANGUAGE' as const,
+					type: 'UnsupportedLanguageError',
+					message: "Unsupported file extension '.py' for filePath 'foo.py'.",
+					recoverable: true,
+					guidance: [
+						"The filePath 'foo.py' has extension '.py'",
+						'Configured extensions: .ts, .tsx',
+						"add '.py' to constellation.json",
+					],
+				},
+				formattedMessage:
+					"Unsupported file extension '.py' for filePath 'foo.py'.",
+			};
+
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'guard rejected',
+				structuredError,
+				logs: [],
+				executionTime: 5,
+			});
+
+			const result = await runtime.execute({
+				code: "return await api.getDependencies({ filePath: 'foo.py' })",
+			});
+
+			expect(result.structuredError).toBe(structuredError);
+			expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+		});
+
 		it('should include context in structuredError when present', async () => {
 			const structuredError = {
 				success: false as const,

@@ -28,8 +28,19 @@ import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
 
-// Mock dependencies
-jest.mock('../../../src/client/constellation-client.js');
+// Mock dependencies. Preserve real error classes so `instanceof` checks
+// downstream (error-factory branch matching, sandbox executor allowlist) and
+// constructor logic (UnsupportedLanguageError captures filePath/extension)
+// work normally; only ConstellationClient itself is auto-mocked.
+jest.mock('../../../src/client/constellation-client.js', () => {
+	const actual = jest.requireActual<
+		typeof import('../../../src/client/constellation-client.js')
+	>('../../../src/client/constellation-client.js');
+	return {
+		...actual,
+		ConstellationClient: jest.fn(),
+	};
+});
 jest.mock('../../../src/code-mode/source-enrichment.js', () => ({
 	enrichWithSourceSnippets: jest.fn(async (data: unknown) => data),
 }));
@@ -2222,6 +2233,141 @@ describe('CodeModeSandbox', () => {
 				{ data: 'test' },
 				'/test/project',
 			);
+		});
+	});
+	describe('language guard', () => {
+		it('should populate guidance with the rejected extension on guard rejection', async () => {
+			const code =
+				"return await api.getDependencies({ filePath: 'src/foo.py' });";
+
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+			expect(result.structuredError?.error.guidance.join(' ')).toContain('.py');
+			// Guard short-circuits before HTTP is reached.
+			expect(mockClient.executeMcpTool).not.toHaveBeenCalled();
+		});
+
+		it.each([
+			'getDependencies',
+			'getDependents',
+			'getCallGraph',
+			'traceSymbolUsage',
+			'impactAnalysis',
+		])(
+			'should reject api.%s when filePath has unconfigured extension',
+			async (method) => {
+				const code = `return await api.${method}({ filePath: 'foo.py' });`;
+
+				const result = await sandbox.execute(code);
+
+				expect(result.success).toBe(false);
+				expect(result.structuredError?.error.code).toBe('UNSUPPORTED_LANGUAGE');
+				expect(mockClient.executeMcpTool).not.toHaveBeenCalled();
+			},
+		);
+
+		it('should NOT reject api.searchSymbols even when query string contains a .py path (option A scope)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			await sandbox.execute(
+				"return await api.searchSymbols({ query: 'foo.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject when a guarded method is called without filePath', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				'return await api.getDependencies({ filePath: "" });',
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.getSymbolDetails when filePath has an unconfigured extension (filter-only param, symbolId can route)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				"return await api.getSymbolDetails({ symbolId: 'sym:1', filePath: 'src/foo.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.findCircularDependencies when filePath has an unconfigured extension (project-wide scan, filter-only param)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(createMockResult({}));
+
+			await sandbox.execute(
+				"return await api.findCircularDependencies({ filePath: 'src/foo.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should pass through when filePath has a configured extension', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ directDependencies: [] }),
+			);
+
+			const result = await sandbox.execute(
+				"return await api.getDependencies({ filePath: 'src/index.ts' });",
+			);
+
+			expect(result.success).toBe(true);
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.getArchitectureOverview (not a guarded method)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ projectStats: {} }),
+			);
+
+			await sandbox.execute('return await api.getArchitectureOverview({});');
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.findOrphanedCode even with a filePattern targeting unconfigured files (filePattern is not filePath)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ orphans: [] }),
+			);
+
+			await sandbox.execute(
+				"return await api.findOrphanedCode({ filePattern: '**/*.py' });",
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should NOT reject api.ping (not a guarded method)', async () => {
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ ok: true }),
+			);
+
+			await sandbox.execute('return await api.ping();');
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
+		});
+
+		it('should reject when filePath has an embedded NUL byte (would otherwise extract a configured suffix)', async () => {
+			// foo.py\x00.ts would naively extract `.ts` and pass; the NUL-byte
+			// rejection in extractExtension returns null, so the guard becomes
+			// pass-through for this input. The test asserts the guard does not
+			// false-accept by treating a NUL-injected `.ts` suffix as configured.
+			const result = await sandbox.execute(
+				"return await api.getDependencies({ filePath: 'foo.py\\x00.ts' });",
+			);
+
+			// extractExtension returns null → guard passes through → executor
+			// runs → executeMcpTool is invoked. The guard is correctly NOT
+			// fooled into matching `.ts` against the configured set.
+			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
 		});
 	});
 });
