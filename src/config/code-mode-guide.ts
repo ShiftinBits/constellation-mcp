@@ -99,7 +99,7 @@ Three methods answer "what uses X?" at different granularity:
 | \`impactAnalysis\` | \`symbolId\`*, \`depth?\` | Change risk assessment | \`{breakingChangeRisk: {riskLevel}, impactedFiles[], summary}\` |
 | \`findOrphanedCode\` | \`filterByKind?\`, \`exportedOnly?\` | Find unused exports | \`{orphanedSymbols: [{name, kind, filePath}]}\` |
 | \`getArchitectureOverview\` | \`includeMetrics?\` | Project structure | \`{metadata, structure, dependencies, metrics}\` |
-| \`traceSymbolUsage\` | \`symbolId\`*, \`includeTransitive?\` | All usages of symbol | \`{directUsages: [{filePath, usageType, line}]}\` |
+| \`traceSymbolUsage\` | \`symbolId\`*, \`includeTransitive?\`, \`limit?\`, \`offset?\` | All usages (paginated, default \`limit: 50\`) | \`{directUsages: [{filePath, usageType, line}], summary: {totalUsages, pageInfo: {hasMore, ...}}}\` |
 | \`getCallGraph\` | \`symbolId\`*, \`direction?\`, \`depth?\` | Call relationships | \`{root, callers: [{name, filePath}], callees}\` |
 | \`findCircularDependencies\` | \`filePath?\`, \`maxCycleLength?\` | Import cycles | \`{cycles: [{files: [filePaths], length}]}\` |
 | \`ping\` | _(none)_ | Verify auth + connectivity | \`{pong: true}\` |
