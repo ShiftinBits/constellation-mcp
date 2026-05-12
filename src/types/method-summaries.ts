@@ -175,7 +175,7 @@ interface FindCircularDependenciesResult {
 //   .length    - Number of files in the cycle`,
 
 	traceSymbolUsage: `// === traceSymbolUsage ===
-// Find all usages of a symbol across the codebase
+// Find all usages of a symbol across the codebase (paginated)
 // Resource: constellation://types/api/traceSymbolUsage
 
 interface TraceSymbolUsageParams {
@@ -185,13 +185,34 @@ interface TraceSymbolUsageParams {
   filterByUsageType?: string[];         // e.g., ['import', 'call', 'reference']
   includeTransitive?: boolean;          // Include indirect usages
   excludeTests?: boolean;              // Exclude test files
+  limit?: number;                       // Max rows per page (default 50, max 100)
+  offset?: number;                      // Page offset (default 0)
 }
 // Note: Provide either symbolId OR (symbolName + filePath)
+//
+// Pagination: directUsages is capped at \`limit\` (default 50). Rows are
+// ordered by (filePath, line), so alphabetically-earlier files fill
+// the page first — this is why later files can look "missing" on a
+// truncated first page. When summary.pageInfo.hasMore is true, re-call
+// with \`offset += limit\` to fetch the next page. summary.totalUsages,
+// usagesByType, and filesAffected always describe the full result set.
 
 interface TraceSymbolUsageResult {
   symbol: { name: string; kind: string; filePath: string; complexity?: ComplexityMetrics };
   directUsages: SymbolUsage[];
   transitiveUsages?: TransitiveUsage[];
+  summary: {
+    totalUsages: number;                // Population total (across all pages)
+    usagesByType: Record<string, number>; // Counts per relationship type
+    filesAffected: number;              // Distinct files in the full result
+    transitiveImpact: number;           // transitiveUsages.length when requested, else 0
+    pageInfo: {
+      limit: number;                    // Echoes input limit
+      offset: number;                   // Echoes input offset
+      returned: number;                 // Rows actually in directUsages
+      hasMore: boolean;                 // True when more rows beyond this page
+    };
+  };
 }
 
 // SymbolUsage - key fields:
