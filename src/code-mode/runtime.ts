@@ -80,6 +80,11 @@ export interface CodeModeResponse {
 		branchIndexed: boolean;
 		indexedFileCount: number;
 	};
+	/**
+	 * Ordered camelCase names of api method invocations (SB-679). Used
+	 * by the tool layer to emit usage-tracking telemetry.
+	 */
+	invocations?: string[];
 	metadata?: {
 		language: string;
 		sandboxed: boolean;
@@ -287,6 +292,7 @@ export class CodeModeRuntime {
 			asOfCommit: result.asOfCommit,
 			lastIndexedAt: result.lastIndexedAt,
 			resultContext: result.resultContext,
+			invocations: result.invocations,
 			metadata: {
 				language: 'javascript',
 				sandboxed: true,

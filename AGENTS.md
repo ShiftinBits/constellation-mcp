@@ -133,13 +133,15 @@ src/
 
 **Priority**: Env vars → `constellation.json` → Defaults
 
-| Env Variable                      | Purpose                                     |
-| --------------------------------- | ------------------------------------------- |
-| `CONSTELLATION_ACCESS_KEY`        | API authentication (required)               |
-| `CONSTELLATION_API_URL`           | Override API endpoint                       |
-| `CONSTELLATION_SANDBOX_ISOLATION` | `convenience` (default) or `hardened`       |
-| `CONSTELLATION_AUDIT_LOG`         | `true` to enable JSON audit trail on stderr |
-| `DEBUG`                           | Enable verbose logging                      |
+| Env Variable                      | Purpose                                                                                               |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `CONSTELLATION_ACCESS_KEY`        | API authentication (required)                                                                         |
+| `CONSTELLATION_API_URL`           | Override API endpoint                                                                                 |
+| `CONSTELLATION_SANDBOX_ISOLATION` | `convenience` (default) or `hardened`                                                                 |
+| `CONSTELLATION_AUDIT_LOG`         | `true` to enable JSON audit trail on stderr                                                           |
+| `USAGE_TRACKING_ENABLED`          | `true` to fire-and-forget POST per-`code_intel`-call telemetry to `/intel/v1/usage` (default `false`) |
+| `USAGE_ENDPOINT_URL`              | Full URL override for the usage receiver (defaults to `${CONSTELLATION_API_URL}/intel/v1/usage`)      |
+| `DEBUG`                           | Enable verbose logging                                                                                |
 
 **Config file** (`constellation.json` at git root):
 
