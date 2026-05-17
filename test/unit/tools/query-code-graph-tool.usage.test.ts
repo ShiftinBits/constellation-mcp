@@ -163,6 +163,26 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('should NOT post when success is false even without a structuredError', async () => {
+		// A degraded code-path that returns { success: false } without a
+		// structuredError must NOT fire telemetry. The contract is
+		// "successful run only" — invocations may be non-empty from
+		// calls that ran before the failure, so the gate has to
+		// branch on `response.success`, not just structuredError absence.
+		process.env.USAGE_TRACKING_ENABLED = 'true';
+		mockRuntime.execute.mockResolvedValue({
+			success: false,
+			error: 'executor returned a soft failure',
+			executionTime: 12,
+			invocations: ['searchSymbols'],
+		} as never);
+
+		await registeredHandler({ code: 'x', cwd: '/test/project' });
+		await flushMicrotasks();
+
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it('should NOT post when execution returns a structured error', async () => {
 		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({

@@ -54,6 +54,7 @@ import {
 } from '../constants/index.js';
 import { AuditLogger } from '../utils/audit-logger.js';
 import { Metrics } from '../utils/metrics.js';
+import { MAX_INVOCATIONS_PER_EVENT } from '../utils/usage-tracker.js';
 import { METHOD_SUMMARIES } from '../types/method-summaries.js';
 import { enrichWithSourceSnippets } from './source-enrichment.js';
 
@@ -505,6 +506,13 @@ export class CodeModeSandbox {
 				structuredError,
 				logs,
 				executionTime,
+				// Carry the partial invocations buffer on the error path
+				// so callers (and downstream telemetry, which currently
+				// only fires on success) can still attribute the failure
+				// to the specific api calls that ran before the throw.
+				// The usage-tracker integration explicitly gates on
+				// `response.success` so this does NOT fire spurious POSTs.
+				invocations: [...executionState.invocations],
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -633,12 +641,19 @@ export class CodeModeSandbox {
 				);
 			}
 
-			// Record invocation (camelCase) for SB-679 usage tracking.
-			// Recorded BEFORE the API call so it captures intent even when
-			// the call fails with a typed error — the surrounding
-			// `code_intel` call is the unit that emits or suppresses the
-			// usage event; per-invocation success doesn't matter here.
-			executionState.invocations.push(snakeToCamel(toolName));
+			// Record invocation (camelCase) for usage tracking. Recorded
+			// BEFORE the API call so it captures intent even when the
+			// call fails with a typed error — the surrounding
+			// `code_intel` call is the unit that emits or suppresses
+			// the usage event; per-invocation success doesn't matter
+			// here. Capped at MAX_INVOCATIONS_PER_EVENT (200) at push
+			// time so a runaway script with a high `maxApiCalls`
+			// override cannot grow the buffer without bound. Excess
+			// names are dropped silently — the receiving endpoint
+			// enforces the same cap and would 400 anyway.
+			if (executionState.invocations.length < MAX_INVOCATIONS_PER_EVENT) {
+				executionState.invocations.push(snakeToCamel(toolName));
+			}
 
 			Metrics.get().increment('api_calls');
 			const startTime = Date.now();

@@ -385,14 +385,18 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 
 				console.error('[code_intel] Execution successful');
 
-				// SB-679: Fire-and-forget usage telemetry on successful calls.
-				// Gated on USAGE_TRACKING_ENABLED=true; default off. Failures
-				// are swallowed inside postUsageEvent — never block the LLM
-				// response. Only emitted when at least one api method ran:
-				// listMethods/help/getCapabilities-only scripts contribute no
-				// signal and would skew per-tool rollups.
+				// Fire-and-forget usage telemetry on successful calls only.
+				// Gated on USAGE_TRACKING_ENABLED=true (default off) AND
+				// response.success. A degraded result that propagates a
+				// failure without a structuredError would otherwise reach
+				// here with partial invocations — explicitly gating on
+				// `response.success` keeps telemetry scoped to the happy
+				// path even if the upstream branch shape evolves.
+				// Failures inside postUsageEvent are swallowed and never
+				// block the LLM response.
 				if (
 					isUsageTrackingEnabled() &&
+					response.success &&
 					response.invocations &&
 					response.invocations.length > 0
 				) {
@@ -404,11 +408,15 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							synthesizedResponse: formatted,
 							durationMs: response.executionTime ?? 0,
 						});
-						postUsageEvent({
-							endpointUrl: resolveUsageEndpointUrl(configContext.config.apiUrl),
-							accessKey: configContext.apiKey,
-							payload,
-						});
+						if (payload !== null) {
+							postUsageEvent({
+								endpointUrl: resolveUsageEndpointUrl(
+									configContext.config.apiUrl,
+								),
+								accessKey: configContext.apiKey,
+								payload,
+							});
+						}
 					} catch (err) {
 						if (process.env.DEBUG) {
 							const msg = err instanceof Error ? err.message : String(err);

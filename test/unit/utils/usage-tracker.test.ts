@@ -158,7 +158,7 @@ describe('usage-tracker', () => {
 				synthesizedResponse: '',
 				durationMs: -5,
 			});
-			expect(event.duration_ms).toBe(0);
+			expect(event!.duration_ms).toBe(0);
 		});
 
 		it('should copy the invocations array (no shared mutation)', () => {
@@ -170,7 +170,7 @@ describe('usage-tracker', () => {
 				synthesizedResponse: 'a',
 				durationMs: 0,
 			});
-			(event.invocations as string[]).push('searchSymbols');
+			(event!.invocations as string[]).push('searchSymbols');
 			expect(src).toEqual(['searchSymbols']);
 		});
 
@@ -189,7 +189,7 @@ describe('usage-tracker', () => {
 				synthesizedResponse: '',
 				durationMs: 0,
 			});
-			expect(event.invocations).toEqual(['searchSymbols', 'impactAnalysis']);
+			expect(event!.invocations).toEqual(['searchSymbols', 'impactAnalysis']);
 		});
 
 		it('should cap invocations at MAX_INVOCATIONS_PER_EVENT (200)', () => {
@@ -201,7 +201,33 @@ describe('usage-tracker', () => {
 				synthesizedResponse: '',
 				durationMs: 0,
 			});
-			expect(event.invocations.length).toBe(200);
+			expect(event!.invocations.length).toBe(200);
+		});
+
+		it('should return null when filtered invocations are empty', () => {
+			// Server's Zod schema requires invocations.min(1) — sending an
+			// empty array would be 400'd and the fire-and-forget POST
+			// would swallow the failure silently. Returning null lets
+			// the caller skip the POST entirely.
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['listMethods', 'help', 'unknownMethod'],
+				synthesizedResponse: 'whatever',
+				durationMs: 5,
+			});
+			expect(event).toBeNull();
+		});
+
+		it('should return null when invocations array is empty', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: [],
+				synthesizedResponse: '',
+				durationMs: 0,
+			});
+			expect(event).toBeNull();
 		});
 	});
 
@@ -212,7 +238,7 @@ describe('usage-tracker', () => {
 			invocations: ['searchSymbols'],
 			synthesizedResponse: 'x'.repeat(147),
 			durationMs: 10,
-		});
+		})!;
 
 		it('should POST JSON with bearer authorization header', async () => {
 			const fetchMock = jest
@@ -288,6 +314,21 @@ describe('usage-tracker', () => {
 			).not.toThrow();
 
 			(globalThis as { fetch: typeof globalThis.fetch }).fetch = original;
+		});
+
+		it('should noop when accessKey is empty', () => {
+			const fetchMock = jest
+				.fn<typeof globalThis.fetch>()
+				.mockResolvedValue({ ok: true, status: 204 } as Response);
+			(globalThis as { fetch: typeof globalThis.fetch }).fetch = fetchMock;
+
+			postUsageEvent({
+				endpointUrl: 'http://api/usage',
+				accessKey: '',
+				payload,
+			});
+
+			expect(fetchMock).not.toHaveBeenCalled();
 		});
 
 		it('should attach an AbortSignal for timeout enforcement', async () => {
