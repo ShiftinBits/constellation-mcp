@@ -28,6 +28,12 @@ import {
 	MIN_EXECUTION_TIMEOUT_MS,
 } from '../constants/index.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
+import {
+	buildUsageEvent,
+	isUsageTrackingEnabled,
+	postUsageEvent,
+	resolveUsageEndpointUrl,
+} from '../utils/usage-tracker.js';
 
 /**
  * Regex to detect invalid binary/control characters in code
@@ -378,6 +384,40 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				const formatted = runtime.formatResult(response);
 
 				console.error('[code_intel] Execution successful');
+
+				// SB-679: Fire-and-forget usage telemetry on successful calls.
+				// Gated on USAGE_TRACKING_ENABLED=true; default off. Failures
+				// are swallowed inside postUsageEvent — never block the LLM
+				// response. Only emitted when at least one api method ran:
+				// listMethods/help/getCapabilities-only scripts contribute no
+				// signal and would skew per-tool rollups.
+				if (
+					isUsageTrackingEnabled() &&
+					response.invocations &&
+					response.invocations.length > 0
+				) {
+					try {
+						const payload = buildUsageEvent({
+							projectId: configContext.projectId,
+							branchName: configContext.branchName,
+							invocations: response.invocations,
+							synthesizedResponse: formatted,
+							durationMs: response.executionTime ?? 0,
+						});
+						postUsageEvent({
+							endpointUrl: resolveUsageEndpointUrl(configContext.config.apiUrl),
+							accessKey: configContext.apiKey,
+							payload,
+						});
+					} catch (err) {
+						if (process.env.DEBUG) {
+							const msg = err instanceof Error ? err.message : String(err);
+							console.error(
+								`[code_intel] usage telemetry build failed: ${msg} (ignored)`,
+							);
+						}
+					}
+				}
 
 				// Return both text and structured content (schema-compliant)
 				return {

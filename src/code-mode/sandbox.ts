@@ -288,6 +288,13 @@ export interface SandboxResult {
 		branchIndexed: boolean;
 		indexedFileCount: number;
 	};
+	/**
+	 * Ordered camelCase names of every api method invocation performed by
+	 * the script (repeats preserved). Used by the usage-tracker to record
+	 * MCP tool execution telemetry. Utility methods (listMethods, help,
+	 * getCapabilities) bypass the executor and are excluded.
+	 */
+	invocations?: string[];
 }
 
 /**
@@ -385,6 +392,12 @@ export class CodeModeSandbox {
 				indexedFileCount: number;
 			} | null,
 			timerCleanup: null as (() => void) | null,
+			/**
+			 * Ordered camelCase names of api method invocations made by the
+			 * script. Populated by the executor closure inside
+			 * createSandboxContext on each api.X() call.
+			 */
+			invocations: [] as string[],
 		};
 
 		try {
@@ -462,6 +475,7 @@ export class CodeModeSandbox {
 				asOfCommit: executionState.asOfCommit ?? undefined,
 				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
 				resultContext: executionState.resultContext ?? undefined,
+				invocations: [...executionState.invocations],
 			};
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -583,6 +597,7 @@ export class CodeModeSandbox {
 				indexedFileCount: number;
 			} | null;
 			timerCleanup: (() => void) | null;
+			invocations: string[];
 		},
 	): any {
 		// Helper to convert snake_case to camelCase for display
@@ -617,6 +632,13 @@ export class CodeModeSandbox {
 						`Consider batching operations or using more specific queries.`,
 				);
 			}
+
+			// Record invocation (camelCase) for SB-679 usage tracking.
+			// Recorded BEFORE the API call so it captures intent even when
+			// the call fails with a typed error — the surrounding
+			// `code_intel` call is the unit that emits or suppresses the
+			// usage event; per-invocation success doesn't matter here.
+			executionState.invocations.push(snakeToCamel(toolName));
 
 			Metrics.get().increment('api_calls');
 			const startTime = Date.now();
