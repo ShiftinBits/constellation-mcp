@@ -170,20 +170,49 @@ describe('usage-tracker', () => {
 				synthesizedResponse: 'a',
 				durationMs: 0,
 			});
-			(event.invocations as string[]).push('mutated');
+			(event.invocations as string[]).push('searchSymbols');
 			expect(src).toEqual(['searchSymbols']);
+		});
+
+		it('should drop names that are not in EXECUTOR_NAMES', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: [
+					'searchSymbols',
+					'listMethods',
+					'help',
+					'getCapabilities',
+					'unknownMethod',
+					'impactAnalysis',
+				],
+				synthesizedResponse: '',
+				durationMs: 0,
+			});
+			expect(event.invocations).toEqual(['searchSymbols', 'impactAnalysis']);
+		});
+
+		it('should cap invocations at MAX_INVOCATIONS_PER_EVENT (200)', () => {
+			const oversize = new Array(250).fill('searchSymbols');
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: oversize,
+				synthesizedResponse: '',
+				durationMs: 0,
+			});
+			expect(event.invocations.length).toBe(200);
 		});
 	});
 
 	describe('postUsageEvent', () => {
-		const payload = {
-			project_id: 'proj:0123456789abcdef0123456789abcdef',
-			branch_name: 'main',
-			actual_tokens: 42,
+		const payload = buildUsageEvent({
+			projectId: 'proj:0123456789abcdef0123456789abcdef',
+			branchName: 'main',
 			invocations: ['searchSymbols'],
-			duration_ms: 10,
-			estimator_version: TOKEN_ESTIMATOR_VERSION,
-		};
+			synthesizedResponse: 'x'.repeat(147),
+			durationMs: 10,
+		});
 
 		it('should POST JSON with bearer authorization header', async () => {
 			const fetchMock = jest

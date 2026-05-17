@@ -61,13 +61,23 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * Wire payload accepted by `POST /intel/v1/usage`.
+ * Maximum invocations accepted by the receiving endpoint. Must match
+ * the server-side cap in `usage-event.dto.ts`. Events exceeding this
+ * are rejected with 400, so the MCP-side builder caps locally to
+ * avoid silently losing telemetry to that path.
+ */
+export const MAX_INVOCATIONS_PER_EVENT = 200;
+
+/**
+ * Wire payload accepted by `POST /intel/v1/usage`. The closed
+ * `ExecutorName` enum is enforced at build time AND at the server's
+ * Zod boundary; mismatches surface as 400s, not silent data.
  */
 export interface UsageEventPayload {
 	project_id: string;
 	branch_name: string;
 	actual_tokens: number;
-	invocations: string[];
+	invocations: ExecutorName[];
 	duration_ms: number;
 	estimator_version: TokenEstimatorVersion;
 }
@@ -108,11 +118,24 @@ export function buildUsageEvent(args: {
 	synthesizedResponse: string;
 	durationMs: number;
 }): UsageEventPayload {
+	// Defense-in-depth: filter to the closed enum and cap the array to
+	// match the receiving endpoint's Zod schema. The server would 400 on
+	// either violation and the fire-and-forget POST would swallow the
+	// error silently — the local cap keeps the telemetry path alive
+	// even if a future caller pushes a non-executor name into the buffer.
+	const validInvocations: ExecutorName[] = [];
+	for (const name of args.invocations) {
+		if (validInvocations.length >= MAX_INVOCATIONS_PER_EVENT) break;
+		if (isExecutorName(name)) {
+			validInvocations.push(name);
+		}
+	}
+
 	return {
 		project_id: args.projectId,
 		branch_name: args.branchName,
 		actual_tokens: estimateTokens(args.synthesizedResponse),
-		invocations: [...args.invocations],
+		invocations: validInvocations,
 		duration_ms: Math.max(0, Math.round(args.durationMs)),
 		estimator_version: TOKEN_ESTIMATOR_VERSION,
 	};
