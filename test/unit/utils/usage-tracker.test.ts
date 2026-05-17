@@ -308,5 +308,34 @@ describe('usage-tracker', () => {
 			const [, init] = fetchMock.mock.calls[0];
 			expect((init as RequestInit).signal).toBeDefined();
 		});
+
+		it('should abort the signal when timeoutMs elapses', () => {
+			jest.useFakeTimers();
+			try {
+				// Use a fetch that never resolves so the timer is the only thing
+				// that can settle the request.
+				const fetchMock = jest
+					.fn<typeof globalThis.fetch>()
+					.mockImplementation(() => new Promise<Response>(() => undefined));
+				(globalThis as { fetch: typeof globalThis.fetch }).fetch = fetchMock;
+
+				postUsageEvent({
+					endpointUrl: 'http://api/usage',
+					accessKey: 'ak:secret',
+					payload,
+					timeoutMs: 100,
+				});
+
+				const init = fetchMock.mock.calls[0][1] as RequestInit;
+				const signal = init.signal as AbortSignal;
+				expect(signal.aborted).toBe(false);
+
+				jest.advanceTimersByTime(101);
+
+				expect(signal.aborted).toBe(true);
+			} finally {
+				jest.useRealTimers();
+			}
+		});
 	});
 });

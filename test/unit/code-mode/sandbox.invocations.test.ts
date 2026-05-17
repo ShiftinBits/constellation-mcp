@@ -140,6 +140,19 @@ describe('CodeModeSandbox invocations tracking (SB-679)', () => {
 		expect(result.invocations).toEqual([]);
 	});
 
+	it('should start each execute() call with an empty invocations buffer', async () => {
+		const first = await sandbox.execute(
+			`await api.searchSymbols({ query: 'A' });
+			 await api.impactAnalysis({ symbolId: 'x' });`,
+		);
+		expect(first.invocations).toEqual(['searchSymbols', 'impactAnalysis']);
+
+		const second = await sandbox.execute(`await api.ping();`);
+		// Without per-execute reset, this would be ['searchSymbols',
+		// 'impactAnalysis', 'ping'] — the test would fail.
+		expect(second.invocations).toEqual(['ping']);
+	});
+
 	it('should record an invocation even when the underlying API call fails', async () => {
 		(mockClient.executeMcpTool as unknown as jest.Mock).mockResolvedValueOnce({
 			success: false,
