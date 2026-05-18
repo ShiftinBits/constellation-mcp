@@ -16,6 +16,7 @@ jest.mock('fs', () => ({
 		access: jest.fn(),
 		stat: jest.fn(),
 		readFile: jest.fn(),
+		readdir: jest.fn(),
 		constants: {
 			R_OK: 4,
 		},
@@ -33,6 +34,9 @@ import { promises as fs, constants } from 'fs';
 const mockAccess = fs.access as jest.MockedFunction<typeof fs.access>;
 const mockStat = fs.stat as jest.MockedFunction<typeof fs.stat>;
 const mockReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
+const mockReaddir = fs.readdir as unknown as jest.MockedFunction<
+	(...args: any[]) => Promise<any>
+>;
 
 // Helper to create mock Stats object
 function createMockStats(overrides: Partial<Stats> = {}): Stats {
@@ -423,6 +427,195 @@ describe('FileUtils', () => {
 			const result = await FileUtils.directoryExists('/path');
 
 			expect(result).toBe(false);
+		});
+	});
+
+	describe('findConstellationJsonCandidates', () => {
+		/** Build a Dirent-like object for the readdir mock. */
+		const dir = (name: string) => ({
+			name,
+			isDirectory: () => true,
+			isFile: () => false,
+		});
+		const file = (name: string) => ({
+			name,
+			isDirectory: () => false,
+			isFile: () => true,
+		});
+
+		it('should return constellation.json from a direct child directory', async () => {
+			// Arrange: start dir has no constellation.json; one child does.
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === path.join('/workspace', 'child-a', 'constellation.json')) {
+					return undefined;
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockImplementation(async (p: any) => {
+				if (p === path.resolve('/workspace')) {
+					return [dir('child-a'), dir('child-b')];
+				}
+				return [];
+			});
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/workspace',
+				3,
+			);
+
+			expect(result).toEqual([
+				path.join('/workspace', 'child-a', 'constellation.json'),
+			]);
+		});
+
+		it('should return constellation.json at the start directory itself', async () => {
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === path.join(path.resolve('/proj'), 'constellation.json')) {
+					return undefined;
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockResolvedValue([]);
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/proj',
+				3,
+			);
+
+			expect(result).toEqual([
+				path.join(path.resolve('/proj'), 'constellation.json'),
+			]);
+		});
+
+		it('should respect maxDepth and not descend past it', async () => {
+			// constellation.json at depth 4 should NOT be returned with maxDepth=2
+			const deep = path.join(
+				'/root',
+				'level1',
+				'level2',
+				'level3',
+				'level4',
+				'constellation.json',
+			);
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === deep) return undefined;
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockImplementation(async (p: any) => {
+				const segments = path
+					.relative(path.resolve('/root'), p as string)
+					.split(path.sep)
+					.filter(Boolean);
+				const depth = segments.length;
+				if (depth < 4) return [dir(`level${depth + 1}`)];
+				return [];
+			});
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/root',
+				2,
+			);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should skip node_modules, .git, dist, build, out, coverage, and dotfile directories', async () => {
+			mockAccess.mockImplementation(async (p: any) => {
+				// Only return ok for paths inside ALLOWED, never for skipped dirs.
+				const segments = (p as string).split(path.sep);
+				const skipped = [
+					'node_modules',
+					'.git',
+					'dist',
+					'build',
+					'out',
+					'coverage',
+					'.hidden',
+				];
+				if (segments.some((s) => skipped.includes(s))) {
+					throw new Error('should not be visited');
+				}
+				if (p === path.join('/root', 'allowed', 'constellation.json')) {
+					return undefined;
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockImplementation(async (p: any) => {
+				if (p === path.resolve('/root')) {
+					return [
+						dir('node_modules'),
+						dir('.git'),
+						dir('dist'),
+						dir('build'),
+						dir('out'),
+						dir('coverage'),
+						dir('.hidden'),
+						dir('allowed'),
+					];
+				}
+				return [];
+			});
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/root',
+				3,
+			);
+
+			expect(result).toEqual([
+				path.join('/root', 'allowed', 'constellation.json'),
+			]);
+		});
+
+		it('should return empty array when no candidates exist', async () => {
+			mockAccess.mockRejectedValue(new Error('ENOENT'));
+			mockReaddir.mockResolvedValue([dir('sub1'), file('README.md')]);
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/empty',
+				3,
+			);
+
+			expect(result).toEqual([]);
+		});
+
+		it('should silently continue when readdir fails on a subdirectory', async () => {
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === path.join('/root', 'ok', 'constellation.json')) {
+					return undefined;
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockImplementation(async (p: any) => {
+				if (p === path.resolve('/root')) {
+					return [dir('ok'), dir('forbidden')];
+				}
+				if (p === path.join('/root', 'forbidden')) {
+					throw new Error('EACCES');
+				}
+				return [];
+			});
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/root',
+				3,
+			);
+
+			expect(result).toEqual([path.join('/root', 'ok', 'constellation.json')]);
+		});
+
+		it('should stop scanning once maxDirs is reached', async () => {
+			// Every directory has 5 child subdirectories; with maxDirs=3 we
+			// should never visit more than 3 directories regardless of fan-out.
+			mockAccess.mockRejectedValue(new Error('ENOENT'));
+			let readdirCalls = 0;
+			mockReaddir.mockImplementation(async () => {
+				readdirCalls++;
+				return [dir('a'), dir('b'), dir('c'), dir('d'), dir('e')];
+			});
+
+			await FileUtils.findConstellationJsonCandidates('/root', 5, 3);
+
+			expect(readdirCalls).toBeLessThanOrEqual(3);
 		});
 	});
 });

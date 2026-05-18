@@ -226,30 +226,52 @@ class ConfigCache {
 				};
 			}
 
-			// No config file found - return degraded mode config
+			// No config file found at git root — scan for candidate project
+			// roots under this directory and throw a structured error before
+			// any sandbox execution. The thrown error is caught by the tool
+			// handler and routed through createStructuredError, which yields
+			// the CWD_NOT_INDEXED MCP error code.
 			console.error(`[ConfigCache] No ${CONFIG_FILENAME} found at: ${gitRoot}`);
 
-			const defaultConfig = ConstellationConfig.createDefault();
-			const initializationError =
-				`File ${CONFIG_FILENAME} not found at git repository root: ${gitRoot}\n\n` +
-				'The Constellation MCP server requires a constellation.json configuration file ' +
-				'at the root of your git repository.\n\n' +
-				'To fix this:\n' +
-				'1. Navigate to your git repository root\n' +
-				'2. Run: constellation init\n' +
-				'3. Run: constellation auth\n' +
-				'4. Run: constellation index\n\n' +
-				`For more information, visit: ${DOCS_URLS.root}`;
-
-			return {
-				config: this.applyEnvironmentOverrides(defaultConfig),
+			const candidates = await FileUtils.findConstellationJsonCandidates(
 				gitRoot,
-				loadedAt: Date.now(),
-				configLoaded: false,
-				initializationError,
-			};
+				3,
+			);
+
+			const guidance =
+				candidates.length > 0
+					? [
+							`No ${CONFIG_FILENAME} was found at git root '${gitRoot}'.`,
+							`Discovered ${candidates.length} candidate project root${candidates.length === 1 ? '' : 's'}: ${candidates
+								.map((c) => path.dirname(c))
+								.join(', ')}`,
+							'Re-invoke `code_intel` with `cwd` set to one of these project roots.',
+							'The Constellation workspace is multi-project: each project owns its own constellation.json at its repo root.',
+						]
+					: [
+							`No ${CONFIG_FILENAME} was found at git root '${gitRoot}', and no candidate project roots were discovered under it.`,
+							'Run `constellation init` inside the target project, then `constellation auth` and `constellation index`.',
+							`For more information, visit: ${DOCS_URLS.root}`,
+						];
+
+			throw new ConfigCacheError(
+				`No ${CONFIG_FILENAME} found at git root '${gitRoot}'` +
+					(candidates.length > 0
+						? ` (${candidates.length} candidate project root${candidates.length === 1 ? '' : 's'} discovered)`
+						: ''),
+				'CWD_NOT_INDEXED',
+				guidance,
+				{ gitRoot, candidates },
+			);
 		} catch (error) {
-			// Error loading config - return degraded mode with error
+			// CWD_NOT_INDEXED is a structured failure mode — propagate it
+			// to the caller so the tool layer routes through createStructuredError.
+			if (error instanceof ConfigCacheError) {
+				throw error;
+			}
+
+			// Error loading config (JSON parse failure, read error on an
+			// existing file, etc.) - return degraded mode with error
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
 			console.error(`[ConfigCache] Error loading config: ${errorMessage}`);
@@ -330,17 +352,24 @@ class ConfigCache {
  * Error thrown by ConfigCache operations.
  */
 export class ConfigCacheError extends Error {
+	public readonly gitRoot?: string;
+	public readonly candidates?: string[];
+
 	constructor(
 		message: string,
 		public readonly code:
 			| 'INVALID_CWD'
 			| 'NOT_GIT_REPO'
 			| 'NO_CONFIG'
-			| 'CONFIG_PARSE_ERROR',
+			| 'CONFIG_PARSE_ERROR'
+			| 'CWD_NOT_INDEXED',
 		public readonly guidance: string[],
+		context?: { gitRoot?: string; candidates?: string[] },
 	) {
 		super(message);
 		this.name = 'ConfigCacheError';
+		this.gitRoot = context?.gitRoot;
+		this.candidates = context?.candidates;
 	}
 }
 

@@ -50,13 +50,18 @@ jest.mock('../../../src/config/config-cache.js', () => ({
 		hasDefaultConfig: jest.fn(() => true),
 	},
 	ConfigCacheError: class ConfigCacheError extends Error {
+		public readonly gitRoot?: string;
+		public readonly candidates?: string[];
 		constructor(
 			message: string,
 			public readonly code: string,
 			public readonly guidance: string[],
+			context?: { gitRoot?: string; candidates?: string[] },
 		) {
 			super(message);
 			this.name = 'ConfigCacheError';
+			this.gitRoot = context?.gitRoot;
+			this.candidates = context?.candidates;
 		}
 	},
 }));
@@ -993,6 +998,79 @@ describe('registerQueryCodeGraphTool', () => {
 				configLoaded: true,
 				gitRoot: '/test/project',
 			});
+		});
+
+		it('should return CWD_NOT_INDEXED structured error and skip sandbox when cwd has no constellation.json', async () => {
+			const { configCache, ConfigCacheError } =
+				await import('../../../src/config/config-cache.js');
+			const candidates = [
+				'/workspace/constellation-core/constellation.json',
+				'/workspace/constellation-mcp/constellation.json',
+			];
+
+			(configCache.getConfigForPath as jest.Mock).mockImplementationOnce(() => {
+				throw new (ConfigCacheError as any)(
+					"No constellation.json found at git root '/workspace' (2 candidate project roots discovered)",
+					'CWD_NOT_INDEXED',
+					[
+						"No constellation.json was found at git root '/workspace'.",
+						'Discovered 2 candidate project roots: /workspace/constellation-core, /workspace/constellation-mcp',
+						'Re-invoke `code_intel` with `cwd` set to one of these project roots.',
+						'The Constellation workspace is multi-project: each project owns its own constellation.json at its repo root.',
+					],
+					{ gitRoot: '/workspace', candidates },
+				);
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({query:"x"});',
+				cwd: '/workspace',
+			});
+
+			expect(result.isError).toBe(true);
+
+			// Hard-block: sandbox must NOT have been instantiated for this failure.
+			expect(MockedCodeModeRuntime).not.toHaveBeenCalled();
+			expect(mockRuntime.execute).not.toHaveBeenCalled();
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.success).toBe(false);
+			expect(parsed.error.code).toBe('CWD_NOT_INDEXED');
+			expect(parsed.error.recoverable).toBe(true);
+			expect(parsed.error.context.gitRoot).toBe('/workspace');
+			expect(parsed.error.context.candidates).toEqual(candidates);
+			expect(parsed.error.guidance.join(' ')).toContain('Re-invoke');
+			expect(parsed.error.guidance.join(' ')).toContain('multi-project');
+		});
+
+		it('should return CWD_NOT_INDEXED with empty candidates when no project roots discovered', async () => {
+			const { configCache, ConfigCacheError } =
+				await import('../../../src/config/config-cache.js');
+
+			(configCache.getConfigForPath as jest.Mock).mockImplementationOnce(() => {
+				throw new (ConfigCacheError as any)(
+					"No constellation.json found at git root '/empty-repo'",
+					'CWD_NOT_INDEXED',
+					[
+						"No constellation.json was found at git root '/empty-repo', and no candidate project roots were discovered under it.",
+						'Run `constellation init` inside the target project, then `constellation auth` and `constellation index`.',
+					],
+					{ gitRoot: '/empty-repo', candidates: [] },
+				);
+			});
+
+			const result = await registeredHandler({
+				code: 'return await api.searchSymbols({query:"x"});',
+				cwd: '/empty-repo',
+			});
+
+			expect(result.isError).toBe(true);
+			expect(MockedCodeModeRuntime).not.toHaveBeenCalled();
+
+			const parsed = JSON.parse(result.content[0].text);
+			expect(parsed.error.code).toBe('CWD_NOT_INDEXED');
+			expect(parsed.error.context.candidates).toEqual([]);
+			expect(parsed.error.guidance.join(' ')).toContain('constellation init');
 		});
 
 		it('should return structured JSON for caught exceptions', async () => {

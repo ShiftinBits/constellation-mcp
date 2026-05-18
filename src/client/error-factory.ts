@@ -93,6 +93,29 @@ export function createStructuredError(
 
 	// ConfigCacheError - issues with config resolution
 	if (error instanceof ConfigCacheError) {
+		// CWD_NOT_INDEXED gets its own MCP error code and an enriched context
+		// payload with the discovered candidate project roots, so the calling
+		// agent can re-invoke `code_intel` with a correct `cwd`.
+		if (error.code === 'CWD_NOT_INDEXED') {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.CWD_NOT_INDEXED,
+					type: 'ConfigCacheError',
+					message: `[${error.code}] ${error.message}`,
+					recoverable: true,
+					guidance: error.guidance,
+					context: {
+						...baseContext,
+						gitRoot: error.gitRoot,
+						candidates: error.candidates ?? [],
+					},
+					docs: DOCS_URLS.setup,
+				},
+				formattedMessage: error.message,
+			};
+		}
+
 		return {
 			success: false,
 			error: {

@@ -50,7 +50,7 @@ return { risk: impact.breakingChangeRisk, dependents: deps.directDependents };
 ## Rules
 1. **Async patterns** — Always \`await\` api.* calls. Last expression auto-returned; use explicit \`return\` for control flow.
 2. **Use Promise.all()** — 3-10x faster for independent queries
-3. **Errors** — Structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`.
+3. **Errors** — Structured: \`{error: {code, message, guidance[]}}\`. Empty results include \`resultContext.reason\`. If \`cwd\` resolves to a git root without a \`constellation.json\`, \`code_intel\` fails fast with code \`CWD_NOT_INDEXED\` before any sandbox execution; \`error.context.candidates\` lists discovered project roots — re-invoke with \`cwd\` set to one of those paths.
 4. **Defaults** — \`limit: 50\` (search and dead code).
 5. **Source snippets** — Results include \`sourceSnippet\` for symbols with file+line references. No need to Read files after code_intel — the source context is already in the response.
 
