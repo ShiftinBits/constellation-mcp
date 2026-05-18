@@ -9,6 +9,10 @@ import path from 'path';
 import { ConstellationConfig } from './config.js';
 import { FileUtils } from '../utils/file.utils.js';
 import { DOCS_URLS } from '../constants/urls.js';
+import {
+	CANDIDATE_SCAN_MAX_DEPTH,
+	CANDIDATE_SCAN_MAX_DIRS,
+} from '../constants/config-discovery.js';
 
 /**
  * Configuration context with all resolved values
@@ -240,7 +244,12 @@ class ConfigCache {
 			// constellation.json that didn't exist a moment ago — re-suggesting
 			// the same gitRoot would loop the agent.
 			const candidateRoots = (
-				await FileUtils.findConstellationJsonCandidates(gitRoot, 3)
+				await FileUtils.findConstellationJsonCandidates(
+					gitRoot,
+					CANDIDATE_SCAN_MAX_DEPTH,
+					CANDIDATE_SCAN_MAX_DIRS,
+					CONFIG_FILENAME,
+				)
 			)
 				.map((c) => path.dirname(c))
 				.filter((dir) => dir !== gitRoot);
@@ -255,7 +264,7 @@ class ConfigCache {
 						]
 					: [
 							`No ${CONFIG_FILENAME} was found at git root '${gitRoot}', and no candidate project roots were discovered under it.`,
-							'Run `constellation init` inside the target project, then `constellation auth` and `constellation index`.',
+							`Initialize this project by running \`constellation init\` inside '${gitRoot}' (or a subdirectory that IS the project root), then \`constellation auth\` and \`constellation index\`.`,
 							`For more information, visit: ${DOCS_URLS.root}`,
 						];
 

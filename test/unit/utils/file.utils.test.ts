@@ -436,11 +436,13 @@ describe('FileUtils', () => {
 			name,
 			isDirectory: () => true,
 			isFile: () => false,
+			isSymbolicLink: () => false,
 		});
 		const file = (name: string) => ({
 			name,
 			isDirectory: () => false,
 			isFile: () => true,
+			isSymbolicLink: () => false,
 		});
 
 		it('should return constellation.json from a direct child directory', async () => {
@@ -605,7 +607,8 @@ describe('FileUtils', () => {
 
 		it('should stop scanning once maxDirs is reached', async () => {
 			// Every directory has 5 child subdirectories; with maxDirs=3 we
-			// should never visit more than 3 directories regardless of fan-out.
+			// should visit exactly 3 directories — not more (cap enforced),
+			// not fewer (BFS actually ran).
 			mockAccess.mockRejectedValue(new Error('ENOENT'));
 			let readdirCalls = 0;
 			mockReaddir.mockImplementation(async () => {
@@ -615,7 +618,67 @@ describe('FileUtils', () => {
 
 			await FileUtils.findConstellationJsonCandidates('/root', 5, 3);
 
-			expect(readdirCalls).toBeLessThanOrEqual(3);
+			expect(readdirCalls).toBe(3);
+		});
+
+		it('should skip symlinked directories so a hostile workspace cannot escape startDir', async () => {
+			// `escape` is a symlink pointing somewhere outside the start dir.
+			// If the BFS followed it, it could surface candidates from /etc or /home.
+			const symlinkEntry = {
+				name: 'escape',
+				isDirectory: () => true,
+				isSymbolicLink: () => true,
+				isFile: () => false,
+			};
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === path.join('/root', 'real', 'constellation.json')) {
+					return undefined;
+				}
+				// If the BFS followed the symlink, this path would be visited.
+				if ((p as string).includes('escape')) {
+					throw new Error('symlinked path must not be visited');
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockImplementation(async (p: any) => {
+				if (p === path.resolve('/root')) {
+					return [symlinkEntry, dir('real')];
+				}
+				if ((p as string).includes('escape')) {
+					throw new Error('readdir must not be called on a symlinked dir');
+				}
+				return [];
+			});
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/root',
+				3,
+			);
+
+			expect(result).toEqual([
+				path.join('/root', 'real', 'constellation.json'),
+			]);
+		});
+
+		it('should search for a custom config filename when provided', async () => {
+			mockAccess.mockImplementation(async (p: any) => {
+				if (p === path.join(path.resolve('/proj'), 'my-config.json')) {
+					return undefined;
+				}
+				throw new Error('ENOENT');
+			});
+			mockReaddir.mockResolvedValue([]);
+
+			const result = await FileUtils.findConstellationJsonCandidates(
+				'/proj',
+				3,
+				200,
+				'my-config.json',
+			);
+
+			expect(result).toEqual([
+				path.join(path.resolve('/proj'), 'my-config.json'),
+			]);
 		});
 	});
 });

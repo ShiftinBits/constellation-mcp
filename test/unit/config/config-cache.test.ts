@@ -185,7 +185,7 @@ describe('ConfigCache', () => {
 			expect(mockFileUtils.readFile).toHaveBeenCalledTimes(1);
 		});
 
-		it('should throw CWD_NOT_INDEXED when constellation.json not found and no candidates discovered', async () => {
+		it('should throw a ConfigCacheError when constellation.json not found and no candidates discovered', async () => {
 			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
@@ -194,15 +194,17 @@ describe('ConfigCache', () => {
 			await expect(configCache.getConfigForPath('/project')).rejects.toThrow(
 				ConfigCacheError,
 			);
+		});
 
-			// Re-arrange and re-run to inspect the thrown error
+		it('should populate code, gitRoot, empty candidates, and init guidance on the thrown error', async () => {
 			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
 			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([]);
-			configCache.clearCache();
+
 			try {
 				await configCache.getConfigForPath('/project');
+				throw new Error('expected throw');
 			} catch (err) {
 				const e = err as ConfigCacheError;
 				expect(e.code).toBe('CWD_NOT_INDEXED');

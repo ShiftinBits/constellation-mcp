@@ -1043,6 +1043,17 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.context.candidates).toEqual(candidates);
 			expect(parsed.error.guidance.join(' ')).toContain('Re-invoke');
 			expect(parsed.error.guidance.join(' ')).toContain('multi-project');
+
+			// projectId/branchName must NOT appear with placeholder 'unknown'
+			// values: config never resolved, so surfacing them would mislead.
+			expect(parsed.error.context.projectId).toBeUndefined();
+			expect(parsed.error.context.branchName).toBeUndefined();
+
+			// suggestedCode must contain a literal corrected invocation so the
+			// agent has an unambiguous recovery action (no same-cwd retry loop).
+			expect(parsed.error.suggestedCode).toBeDefined();
+			expect(parsed.error.suggestedCode).toContain('code_intel');
+			expect(parsed.error.suggestedCode).toContain(candidates[0]);
 		});
 
 		it('should return CWD_NOT_INDEXED with empty candidates when no project roots discovered', async () => {
@@ -1073,6 +1084,8 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(parsed.error.code).toBe('CWD_NOT_INDEXED');
 			expect(parsed.error.context.candidates).toEqual([]);
 			expect(parsed.error.guidance.join(' ')).toContain('constellation init');
+			// No suggestedCode when there are no candidates to point at.
+			expect(parsed.error.suggestedCode).toBeUndefined();
 		});
 
 		it('should return structured JSON for caught exceptions', async () => {

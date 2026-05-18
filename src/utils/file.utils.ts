@@ -72,25 +72,29 @@ export class FileUtils {
 	}
 
 	/**
-	 * Breadth-first scan for `constellation.json` files under `startDir`.
+	 * Breadth-first scan for a named config file under `startDir`.
 	 *
 	 * Used to suggest candidate project roots when the supplied `cwd`
 	 * resolves to a git root that itself has no `constellation.json`
 	 * (e.g. a multi-project workspace root).
 	 *
 	 * Skips noisy directories (`node_modules`, `.git`, `dist`, `build`,
-	 * `out`, `coverage`, and any dotfile-prefixed directory) and caps the
-	 * total number of directories scanned to avoid pathological monorepos.
+	 * `out`, `coverage`, and any dotfile-prefixed directory), refuses to
+	 * follow symlinked directories (so a hostile workspace cannot escape
+	 * `startDir`), and caps the total number of directories scanned to
+	 * avoid pathological monorepos.
 	 *
-	 * @param startDir Root directory to begin the scan
-	 * @param maxDepth Maximum directory levels to descend (default 3)
-	 * @param maxDirs  Maximum directories visited before stopping (default 200)
-	 * @returns Absolute paths to discovered `constellation.json` files
+	 * @param startDir       Root directory to begin the scan
+	 * @param maxDepth       Maximum directory levels to descend (default 3)
+	 * @param maxDirs        Maximum directories visited before stopping (default 200)
+	 * @param configFilename Config filename to search for (default `'constellation.json'`)
+	 * @returns Absolute paths to discovered config files
 	 */
 	static async findConstellationJsonCandidates(
 		startDir: string,
 		maxDepth: number = 3,
 		maxDirs: number = 200,
+		configFilename: string = 'constellation.json',
 	): Promise<string[]> {
 		const skipDirs = new Set([
 			'node_modules',
@@ -110,7 +114,7 @@ export class FileUtils {
 			const { dir, depth } = queue.shift()!;
 			visited++;
 
-			const configPath = path.join(dir, 'constellation.json');
+			const configPath = path.join(dir, configFilename);
 			if (await FileUtils.fileIsReadable(configPath)) {
 				candidates.push(configPath);
 			}
@@ -127,6 +131,11 @@ export class FileUtils {
 			}
 
 			for (const entry of entries) {
+				// Refuse to descend into symlinks — `Dirent.isDirectory()` follows
+				// symlinks, so without this guard a workspace containing a symlink
+				// like `projects -> /` could cause the scanner to walk the host
+				// filesystem and surface unrelated `constellation.json` paths.
+				if (entry.isSymbolicLink()) continue;
 				if (!entry.isDirectory()) continue;
 				if (entry.name.startsWith('.')) continue;
 				if (skipDirs.has(entry.name)) continue;
