@@ -82,7 +82,10 @@ export interface McpStructuredError {
 		apiMethod?: string;
 		/** Resolved git root (set on CWD_NOT_INDEXED) */
 		gitRoot?: string;
-		/** Discovered candidate `constellation.json` paths (set on CWD_NOT_INDEXED) */
+		/**
+		 * Discovered candidate project root *directories* (set on CWD_NOT_INDEXED).
+		 * Each value is directly usable as a `cwd` argument on retry.
+		 */
 		candidates?: string[];
 	};
 

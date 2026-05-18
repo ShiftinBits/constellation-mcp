@@ -233,18 +233,23 @@ class ConfigCache {
 			// the CWD_NOT_INDEXED MCP error code.
 			console.error(`[ConfigCache] No ${CONFIG_FILENAME} found at: ${gitRoot}`);
 
-			const candidates = await FileUtils.findConstellationJsonCandidates(
-				gitRoot,
-				3,
-			);
+			// Normalize candidates to project-root *directories* (not the
+			// constellation.json file paths) so the value is directly usable
+			// as a `cwd` argument on retry. Also drop the gitRoot itself in
+			// case a TOCTOU race lets findConstellationJsonCandidates see a
+			// constellation.json that didn't exist a moment ago — re-suggesting
+			// the same gitRoot would loop the agent.
+			const candidateRoots = (
+				await FileUtils.findConstellationJsonCandidates(gitRoot, 3)
+			)
+				.map((c) => path.dirname(c))
+				.filter((dir) => dir !== gitRoot);
 
 			const guidance =
-				candidates.length > 0
+				candidateRoots.length > 0
 					? [
 							`No ${CONFIG_FILENAME} was found at git root '${gitRoot}'.`,
-							`Discovered ${candidates.length} candidate project root${candidates.length === 1 ? '' : 's'}: ${candidates
-								.map((c) => path.dirname(c))
-								.join(', ')}`,
+							`Discovered ${candidateRoots.length} candidate project root${candidateRoots.length === 1 ? '' : 's'}: ${candidateRoots.join(', ')}`,
 							'Re-invoke `code_intel` with `cwd` set to one of these project roots.',
 							'The Constellation workspace is multi-project: each project owns its own constellation.json at its repo root.',
 						]
@@ -256,12 +261,12 @@ class ConfigCache {
 
 			throw new ConfigCacheError(
 				`No ${CONFIG_FILENAME} found at git root '${gitRoot}'` +
-					(candidates.length > 0
-						? ` (${candidates.length} candidate project root${candidates.length === 1 ? '' : 's'} discovered)`
+					(candidateRoots.length > 0
+						? ` (${candidateRoots.length} candidate project root${candidateRoots.length === 1 ? '' : 's'} discovered)`
 						: ''),
 				'CWD_NOT_INDEXED',
 				guidance,
-				{ gitRoot, candidates },
+				{ gitRoot, candidates: candidateRoots },
 			);
 		} catch (error) {
 			// CWD_NOT_INDEXED is a structured failure mode — propagate it

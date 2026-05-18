@@ -1003,9 +1003,11 @@ describe('registerQueryCodeGraphTool', () => {
 		it('should return CWD_NOT_INDEXED structured error and skip sandbox when cwd has no constellation.json', async () => {
 			const { configCache, ConfigCacheError } =
 				await import('../../../src/config/config-cache.js');
+			// Candidates are project root DIRECTORIES (directly usable as `cwd`),
+			// not the constellation.json file paths themselves.
 			const candidates = [
-				'/workspace/constellation-core/constellation.json',
-				'/workspace/constellation-mcp/constellation.json',
+				'/workspace/constellation-core',
+				'/workspace/constellation-mcp',
 			];
 
 			(configCache.getConfigForPath as jest.Mock).mockImplementationOnce(() => {
