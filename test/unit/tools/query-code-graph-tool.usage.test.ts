@@ -1,9 +1,10 @@
 /**
- * Query Code Graph Tool — SB-679 usage telemetry wiring
+ * Query Code Graph Tool — usage telemetry wiring
  *
  * Verifies the tool handler's fire-and-forget POST to /intel/v1/usage:
- *  - Emits exactly one POST per successful code_intel call when gate is on
- *  - Emits zero POSTs when the gate is off
+ *  - Emits exactly one POST per successful code_intel call when telemetry
+ *    is enabled (the default — see CONSTELLATION_USAGE_METRICS)
+ *  - Emits zero POSTs when telemetry is explicitly disabled
  *  - Emits zero POSTs when the script ran no api methods
  *  - Emits zero POSTs on error paths (structured error, validation failure)
  *  - POST failure (500 / network error) does not propagate to the response
@@ -64,7 +65,7 @@ const MockedRuntime = CodeModeRuntime as jest.MockedClass<
 	typeof CodeModeRuntime
 >;
 
-describe('code_intel — usage telemetry wiring (SB-679)', () => {
+describe('code_intel — usage telemetry wiring', () => {
 	let mockServer: any;
 	let registeredHandler: any;
 	let mockRuntime: any;
@@ -73,6 +74,7 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		delete process.env.CONSTELLATION_USAGE_METRICS;
 		delete process.env.USAGE_TRACKING_ENABLED;
 		delete process.env.USAGE_ENDPOINT_URL;
 
@@ -99,7 +101,8 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 
 	const flushMicrotasks = () => new Promise((r) => setImmediate(r));
 
-	it('should NOT post when USAGE_TRACKING_ENABLED is unset', async () => {
+	it('should NOT post when CONSTELLATION_USAGE_METRICS=false (explicit opt-out)', async () => {
+		process.env.CONSTELLATION_USAGE_METRICS = 'false';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: {},
@@ -113,8 +116,43 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('should POST exactly one event per successful call when gate is on', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
+	it('should NOT post when CONSTELLATION_USAGE_METRICS=0', async () => {
+		process.env.CONSTELLATION_USAGE_METRICS = '0';
+		mockRuntime.execute.mockResolvedValue({
+			success: true,
+			result: {},
+			executionTime: 50,
+			invocations: ['searchSymbols'],
+		} as never);
+
+		await registeredHandler({ code: 'x', cwd: '/test/project' });
+		await flushMicrotasks();
+
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('should NOT post when legacy USAGE_TRACKING_ENABLED=false and new flag is unset', async () => {
+		// Transitional guard: operators who explicitly opted out under the
+		// old contract must stay disabled until they migrate to the new
+		// flag. Without this branch they would be silently flipped on.
+		process.env.USAGE_TRACKING_ENABLED = 'false';
+		mockRuntime.execute.mockResolvedValue({
+			success: true,
+			result: {},
+			executionTime: 50,
+			invocations: ['searchSymbols'],
+		} as never);
+
+		await registeredHandler({ code: 'x', cwd: '/test/project' });
+		await flushMicrotasks();
+
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('should POST exactly one event per successful call when telemetry is enabled (default)', async () => {
+		// beforeEach deleted CONSTELLATION_USAGE_METRICS and the legacy
+		// USAGE_TRACKING_ENABLED; this test deliberately leaves both unset
+		// to exercise the default-on (opt-out) path.
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: { ok: 1 },
@@ -149,7 +187,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should NOT post when the script ran no api methods', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: { ok: 1 },
@@ -169,7 +206,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 		// "successful run only" — invocations may be non-empty from
 		// calls that ran before the failure, so the gate has to
 		// branch on `response.success`, not just structuredError absence.
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: false,
 			error: 'executor returned a soft failure',
@@ -184,7 +220,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should NOT post when execution returns a structured error', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: false,
 			executionTime: 10,
@@ -206,7 +241,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should swallow POST 500 — response to LLM is unaffected', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		fetchMock.mockResolvedValue({ ok: false, status: 500 } as Response);
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
@@ -227,7 +261,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should swallow POST network rejection — response to LLM is unaffected', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
@@ -248,7 +281,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should honor USAGE_ENDPOINT_URL override', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		process.env.USAGE_ENDPOINT_URL = 'http://override.local/u';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
