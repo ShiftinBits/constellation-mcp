@@ -109,7 +109,11 @@ export function resolveUsageEndpointUrl(apiUrl: string): string {
 
 /**
  * Build a usage event payload from the inputs available at the end of
- * a successful `code_intel` call.
+ * a successful `code_intel` call. Returns `null` when the filtered
+ * invocations array is empty — the receiving endpoint enforces
+ * `.min(1)` and would 400 on an empty array, which the fire-and-forget
+ * POST would swallow silently. Returning `null` lets callers skip the
+ * POST entirely.
  */
 export function buildUsageEvent(args: {
 	projectId: string;
@@ -117,7 +121,7 @@ export function buildUsageEvent(args: {
 	invocations: readonly string[];
 	synthesizedResponse: string;
 	durationMs: number;
-}): UsageEventPayload {
+}): UsageEventPayload | null {
 	// Defense-in-depth: filter to the closed enum and cap the array to
 	// match the receiving endpoint's Zod schema. The server would 400 on
 	// either violation and the fire-and-forget POST would swallow the
@@ -129,6 +133,10 @@ export function buildUsageEvent(args: {
 		if (isExecutorName(name)) {
 			validInvocations.push(name);
 		}
+	}
+
+	if (validInvocations.length === 0) {
+		return null;
 	}
 
 	return {
@@ -157,6 +165,17 @@ export function postUsageEvent(args: {
 }): void {
 	const { endpointUrl, accessKey, payload } = args;
 	const timeoutMs = args.timeoutMs ?? 5000;
+
+	if (!accessKey) {
+		// An empty bearer token would always 401 and the failure would
+		// be swallowed silently — every event would be lost. Skip the
+		// POST and surface the misconfiguration via the debug channel
+		// instead.
+		if (process.env.DEBUG) {
+			console.error('[usage-tracker] access key missing; skipping POST');
+		}
+		return;
+	}
 
 	if (typeof globalThis.fetch !== 'function') {
 		if (process.env.DEBUG) {
