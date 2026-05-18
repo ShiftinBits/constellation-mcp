@@ -73,7 +73,7 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		delete process.env.USAGE_TRACKING_ENABLED;
+		delete process.env.CONSTELLATION_USAGE_METRICS;
 		delete process.env.USAGE_ENDPOINT_URL;
 
 		mockRuntime = {
@@ -99,7 +99,8 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 
 	const flushMicrotasks = () => new Promise((r) => setImmediate(r));
 
-	it('should NOT post when USAGE_TRACKING_ENABLED is unset', async () => {
+	it('should NOT post when CONSTELLATION_USAGE_METRICS=false (explicit opt-out)', async () => {
+		process.env.CONSTELLATION_USAGE_METRICS = 'false';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: {},
@@ -113,8 +114,22 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
-	it('should POST exactly one event per successful call when gate is on', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
+	it('should NOT post when CONSTELLATION_USAGE_METRICS=0', async () => {
+		process.env.CONSTELLATION_USAGE_METRICS = '0';
+		mockRuntime.execute.mockResolvedValue({
+			success: true,
+			result: {},
+			executionTime: 50,
+			invocations: ['searchSymbols'],
+		} as never);
+
+		await registeredHandler({ code: 'x', cwd: '/test/project' });
+		await flushMicrotasks();
+
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('should POST exactly one event per successful call when telemetry is enabled (default)', async () => {
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: { ok: 1 },
@@ -149,7 +164,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should NOT post when the script ran no api methods', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
 			result: { ok: 1 },
@@ -169,7 +183,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 		// "successful run only" — invocations may be non-empty from
 		// calls that ran before the failure, so the gate has to
 		// branch on `response.success`, not just structuredError absence.
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: false,
 			error: 'executor returned a soft failure',
@@ -184,7 +197,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should NOT post when execution returns a structured error', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		mockRuntime.execute.mockResolvedValue({
 			success: false,
 			executionTime: 10,
@@ -206,7 +218,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should swallow POST 500 — response to LLM is unaffected', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		fetchMock.mockResolvedValue({ ok: false, status: 500 } as Response);
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
@@ -227,7 +238,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should swallow POST network rejection — response to LLM is unaffected', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
 		mockRuntime.execute.mockResolvedValue({
 			success: true,
@@ -248,7 +258,6 @@ describe('code_intel — usage telemetry wiring (SB-679)', () => {
 	});
 
 	it('should honor USAGE_ENDPOINT_URL override', async () => {
-		process.env.USAGE_TRACKING_ENABLED = 'true';
 		process.env.USAGE_ENDPOINT_URL = 'http://override.local/u';
 		mockRuntime.execute.mockResolvedValue({
 			success: true,

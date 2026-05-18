@@ -26,7 +26,7 @@ describe('usage-tracker', () => {
 	const originalEnv = { ...process.env };
 
 	beforeEach(() => {
-		delete process.env.USAGE_TRACKING_ENABLED;
+		delete process.env.CONSTELLATION_USAGE_METRICS;
 		delete process.env.USAGE_ENDPOINT_URL;
 	});
 
@@ -82,20 +82,22 @@ describe('usage-tracker', () => {
 	});
 
 	describe('isUsageTrackingEnabled', () => {
-		it('should return false when the env var is unset', () => {
-			expect(isUsageTrackingEnabled()).toBe(false);
+		it('should return true when the env var is unset (opt-out default)', () => {
+			expect(isUsageTrackingEnabled()).toBe(true);
 		});
 
-		it('should return false for any value other than literal "true"', () => {
-			for (const v of ['1', 'yes', 'TRUE', 'on', '']) {
-				process.env.USAGE_TRACKING_ENABLED = v;
+		it('should return false when explicitly set to "false" or "0" (case-insensitive)', () => {
+			for (const v of ['false', 'FALSE', 'False', '0', ' false ', ' 0 ']) {
+				process.env.CONSTELLATION_USAGE_METRICS = v;
 				expect(isUsageTrackingEnabled()).toBe(false);
 			}
 		});
 
-		it('should return true only when set to "true"', () => {
-			process.env.USAGE_TRACKING_ENABLED = 'true';
-			expect(isUsageTrackingEnabled()).toBe(true);
+		it('should return true for any non-disable value', () => {
+			for (const v of ['', 'true', '1', 'yes', 'TRUE', 'on', 'anything']) {
+				process.env.CONSTELLATION_USAGE_METRICS = v;
+				expect(isUsageTrackingEnabled()).toBe(true);
+			}
 		});
 	});
 

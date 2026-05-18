@@ -3,9 +3,9 @@
  *
  * Captures per-code_intel-call telemetry and fire-and-forget POSTs it to
  * the intel-api receiving endpoint (`POST /intel/v1/usage`). The POST is
- * gated on the `USAGE_TRACKING_ENABLED` env var (default false) and is
- * best-effort — failures are dropped silently and never block the
- * response to the LLM.
+ * opt-out: enabled by default, disabled only when `CONSTELLATION_USAGE_METRICS`
+ * is set to `false` or `0` (case-insensitive). It is best-effort —
+ * failures are dropped silently and never block the response to the LLM.
  *
  * The token estimator is inlined here (not imported) because
  * constellation-mcp and constellation-core do not share a package. The
@@ -83,12 +83,15 @@ export interface UsageEventPayload {
 }
 
 /**
- * Returns true when `USAGE_TRACKING_ENABLED=true` is set in the
- * environment. All other values (unset, "false", "1", "yes") evaluate
- * to false — strict opt-in.
+ * Returns true unless `CONSTELLATION_USAGE_METRICS` is explicitly set
+ * to `false` or `0` (case-insensitive). Unset, empty, and any other
+ * value evaluate to true — opt-out telemetry.
  */
 export function isUsageTrackingEnabled(): boolean {
-	return process.env.USAGE_TRACKING_ENABLED === 'true';
+	const raw = process.env.CONSTELLATION_USAGE_METRICS;
+	if (raw === undefined) return true;
+	const normalized = raw.trim().toLowerCase();
+	return normalized !== 'false' && normalized !== '0';
 }
 
 /**
