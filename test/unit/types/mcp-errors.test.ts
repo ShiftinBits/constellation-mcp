@@ -13,6 +13,7 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.AUTHZ_ERROR).toBe('AUTHZ_ERROR');
 		expect(ErrorCode.AUTH_EXPIRED).toBe('AUTH_EXPIRED');
 		expect(ErrorCode.NOT_CONFIGURED).toBe('NOT_CONFIGURED');
+		expect(ErrorCode.CWD_NOT_INDEXED).toBe('CWD_NOT_INDEXED');
 		expect(ErrorCode.API_UNREACHABLE).toBe('API_UNREACHABLE');
 		expect(ErrorCode.PROJECT_NOT_INDEXED).toBe('PROJECT_NOT_INDEXED');
 		expect(ErrorCode.BRANCH_NOT_FOUND).toBe('BRANCH_NOT_FOUND');
@@ -30,9 +31,9 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
 	});
 
-	it('should have exactly 19 error codes', () => {
+	it('should have exactly 20 error codes', () => {
 		const codeCount = Object.keys(ErrorCode).length;
-		expect(codeCount).toBe(19);
+		expect(codeCount).toBe(20);
 	});
 
 	it('should not contain any undefined values', () => {
@@ -148,6 +149,10 @@ describe('isRecoverableError', () => {
 			expect(isRecoverableError(ErrorCode.AUTH_EXPIRED)).toBe(true);
 		});
 
+		it('should return true for CWD_NOT_INDEXED', () => {
+			expect(isRecoverableError(ErrorCode.CWD_NOT_INDEXED)).toBe(true);
+		});
+
 		it('should return true for NOT_CONFIGURED', () => {
 			expect(isRecoverableError(ErrorCode.NOT_CONFIGURED)).toBe(true);
 		});
@@ -230,7 +235,7 @@ describe('isRecoverableError', () => {
 		);
 
 		// Verify expected counts
-		expect(recoverableCodes.length).toBe(10);
+		expect(recoverableCodes.length).toBe(11);
 		expect(nonRecoverableCodes.length).toBe(9);
 	});
 });

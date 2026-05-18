@@ -19,6 +19,7 @@ export const ErrorCode = {
 
 	// Configuration
 	NOT_CONFIGURED: 'NOT_CONFIGURED',
+	CWD_NOT_INDEXED: 'CWD_NOT_INDEXED',
 	API_UNREACHABLE: 'API_UNREACHABLE',
 
 	// Project State
@@ -79,6 +80,13 @@ export interface McpStructuredError {
 		branchName?: string;
 		/** Specific API method being called */
 		apiMethod?: string;
+		/** Resolved git root (set on CWD_NOT_INDEXED) */
+		gitRoot?: string;
+		/**
+		 * Discovered candidate project root *directories* (set on CWD_NOT_INDEXED).
+		 * Each value is directly usable as a `cwd` argument on retry.
+		 */
+		candidates?: string[];
 	};
 
 	/** Optional documentation URL for more information */
@@ -143,6 +151,7 @@ export function isRecoverableError(code: ErrorCodeType): boolean {
 		ErrorCode.AUTHZ_ERROR,
 		ErrorCode.AUTH_EXPIRED,
 		ErrorCode.NOT_CONFIGURED,
+		ErrorCode.CWD_NOT_INDEXED,
 		ErrorCode.PROJECT_NOT_INDEXED,
 		ErrorCode.BRANCH_NOT_FOUND,
 		ErrorCode.STALE_INDEX,

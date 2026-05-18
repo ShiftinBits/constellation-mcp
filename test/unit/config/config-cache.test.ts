@@ -28,6 +28,7 @@ jest.mock('../../../src/utils/file.utils.js', () => ({
 		fileIsReadable: jest.fn(),
 		readFile: jest.fn(),
 		isRootDirectory: jest.fn(),
+		findConstellationJsonCandidates: jest.fn(),
 	},
 }));
 
@@ -184,25 +185,106 @@ describe('ConfigCache', () => {
 			expect(mockFileUtils.readFile).toHaveBeenCalledTimes(1);
 		});
 
-		it('should return degraded config when constellation.json not found', async () => {
-			const defaultConfig = {
-				projectId: 'default-project',
-				apiUrl: 'https://api.constellationdev.io',
-				branch: 'main',
-				languages: { typescript: { fileExtensions: ['.ts'] } },
-			} as unknown as ConstellationConfig;
-
+		it('should throw a ConfigCacheError when constellation.json not found and no candidates discovered', async () => {
 			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
 			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
 			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
-			mockConstellationConfig.createDefault.mockReturnValueOnce(defaultConfig);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([]);
 
-			const result = await configCache.getConfigForPath('/project');
-
-			expect(result.configLoaded).toBe(false);
-			expect(result.initializationError).toContain(
-				'constellation.json not found',
+			await expect(configCache.getConfigForPath('/project')).rejects.toThrow(
+				ConfigCacheError,
 			);
+		});
+
+		it('should populate code, gitRoot, empty candidates, and init guidance on the thrown error', async () => {
+			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
+			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
+			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([]);
+
+			try {
+				await configCache.getConfigForPath('/project');
+				throw new Error('expected throw');
+			} catch (err) {
+				const e = err as ConfigCacheError;
+				expect(e.code).toBe('CWD_NOT_INDEXED');
+				expect(e.candidates).toEqual([]);
+				expect(e.gitRoot).toBeDefined();
+				expect(e.guidance.join(' ')).toContain('constellation init');
+			}
+		});
+
+		it('should throw CWD_NOT_INDEXED with candidate project root directories (not file paths) when subdirectories contain constellation.json', async () => {
+			const discoveredFiles = [
+				'/project/sub-a/constellation.json',
+				'/project/sub-b/constellation.json',
+			];
+			const expectedRoots = ['/project/sub-a', '/project/sub-b'];
+			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
+			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
+			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce(
+				discoveredFiles,
+			);
+
+			try {
+				await configCache.getConfigForPath('/project');
+				throw new Error('expected throw');
+			} catch (err) {
+				const e = err as ConfigCacheError;
+				expect(e.code).toBe('CWD_NOT_INDEXED');
+				// Candidates must be directories (usable as `cwd` on retry), not the
+				// constellation.json file paths themselves.
+				expect(e.candidates).toEqual(expectedRoots);
+				expect(e.gitRoot).toBeDefined();
+				expect(e.guidance.join(' ')).toContain('Re-invoke');
+				expect(e.guidance.join(' ')).toContain('multi-project');
+			}
+		});
+
+		it('should drop the gitRoot itself from candidates to avoid a retry loop', async () => {
+			// TOCTOU guard: if findConstellationJsonCandidates returns a
+			// constellation.json at the gitRoot (e.g., one that appeared between
+			// the readable-check and the BFS), the gitRoot must NOT be surfaced
+			// as a candidate — it just failed.
+			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
+			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
+			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([
+				'/project/constellation.json',
+				'/project/sub-a/constellation.json',
+			]);
+
+			try {
+				await configCache.getConfigForPath('/project');
+				throw new Error('expected throw');
+			} catch (err) {
+				const e = err as ConfigCacheError;
+				expect(e.candidates).toEqual(['/project/sub-a']);
+			}
+		});
+
+		it('should not cache the result when CWD_NOT_INDEXED is thrown', async () => {
+			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
+			mockFileUtils.directoryExists.mockResolvedValueOnce(true);
+			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
+			mockFileUtils.isGitRepository.mockResolvedValueOnce(true);
+			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
+			mockFileUtils.fileIsReadable.mockResolvedValueOnce(false);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([]);
+			mockFileUtils.findConstellationJsonCandidates.mockResolvedValueOnce([]);
+
+			await expect(
+				configCache.getConfigForPath('/project'),
+			).rejects.toBeInstanceOf(ConfigCacheError);
+
+			// Second call must re-throw (i.e., must not be served from cache as a degraded entry).
+			await expect(
+				configCache.getConfigForPath('/project'),
+			).rejects.toBeInstanceOf(ConfigCacheError);
+
+			// The fact that fileIsReadable was called twice confirms the cache miss.
+			expect(mockFileUtils.fileIsReadable).toHaveBeenCalledTimes(2);
 		});
 
 		it('should apply CONSTELLATION_API_URL env override', async () => {

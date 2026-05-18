@@ -93,6 +93,46 @@ export function createStructuredError(
 
 	// ConfigCacheError - issues with config resolution
 	if (error instanceof ConfigCacheError) {
+		// CWD_NOT_INDEXED gets its own MCP error code and an enriched context
+		// payload with the discovered candidate project roots, so the calling
+		// agent can re-invoke `code_intel` with a correct `cwd`.
+		if (error.code === 'CWD_NOT_INDEXED') {
+			const candidates = error.candidates ?? [];
+			// Omit projectId/branchName for this error: config never resolved,
+			// and surfacing the placeholder 'unknown' values misleads agents
+			// into thinking those are real identifiers.
+			const cwdErrorContext: {
+				apiMethod?: string;
+				gitRoot?: string;
+				candidates: string[];
+			} = {
+				apiMethod,
+				gitRoot: error.gitRoot,
+				candidates,
+			};
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.CWD_NOT_INDEXED,
+					type: 'ConfigCacheError',
+					message: `[${error.code}] ${error.message}`,
+					recoverable: true,
+					guidance: error.guidance,
+					context: cwdErrorContext,
+					docs: DOCS_URLS.setup,
+					// When candidates are available, hand the agent a literal
+					// corrected invocation so there is no ambiguity about the
+					// recovery action (preventing same-cwd retry loops).
+					...(candidates.length > 0
+						? {
+								suggestedCode: `// Re-invoke with cwd set to a discovered project root:\nawait code_intel({ cwd: ${JSON.stringify(candidates[0])}, code: "..." });`,
+							}
+						: {}),
+				},
+				formattedMessage: error.message,
+			};
+		}
+
 		return {
 			success: false,
 			error: {
