@@ -84,14 +84,39 @@ export interface UsageEventPayload {
 
 /**
  * Returns true unless `CONSTELLATION_USAGE_METRICS` is explicitly set
- * to `false` or `0` (case-insensitive). Unset, empty, and any other
- * value evaluate to true — opt-out telemetry.
+ * to `'false'` or `'0'` (case-insensitive, whitespace-trimmed). Any
+ * other value — including unset, empty string, `'true'`, `'1'`,
+ * `'yes'`, `'on'`, `'no'`, `'off'`, or arbitrary strings — evaluates
+ * to true (opt-out telemetry). Empty string is treated identically to
+ * unset because many deployment systems (Docker Compose, Kubernetes
+ * ConfigMaps, `export VAR=` in a shell) make `''` operationally
+ * indistinguishable from absent.
+ *
+ * Transitional behavior: the prior opt-in flag `USAGE_TRACKING_ENABLED`
+ * is still honored as an explicit opt-out — if it is set to `'false'`
+ * or `'0'` and the new flag is unset/empty, telemetry is disabled.
+ * This protects operators who explicitly suppressed telemetry under
+ * the old opt-in regime from being silently flipped on by this change.
+ * The legacy flag will be removed in a future release.
  */
 export function isUsageTrackingEnabled(): boolean {
 	const raw = process.env.CONSTELLATION_USAGE_METRICS;
-	if (raw === undefined) return true;
-	const normalized = raw.trim().toLowerCase();
-	return normalized !== 'false' && normalized !== '0';
+	if (raw !== undefined && raw.trim() !== '') {
+		const normalized = raw.trim().toLowerCase();
+		return normalized !== 'false' && normalized !== '0';
+	}
+
+	// Transitional: honor the legacy USAGE_TRACKING_ENABLED=false/0 as an
+	// explicit disable until that flag is removed in a future release.
+	const legacy = process.env.USAGE_TRACKING_ENABLED;
+	if (legacy !== undefined && legacy.trim() !== '') {
+		const legacyNormalized = legacy.trim().toLowerCase();
+		if (legacyNormalized === 'false' || legacyNormalized === '0') {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**

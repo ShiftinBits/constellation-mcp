@@ -27,6 +27,7 @@ describe('usage-tracker', () => {
 
 	beforeEach(() => {
 		delete process.env.CONSTELLATION_USAGE_METRICS;
+		delete process.env.USAGE_TRACKING_ENABLED;
 		delete process.env.USAGE_ENDPOINT_URL;
 	});
 
@@ -86,18 +87,73 @@ describe('usage-tracker', () => {
 			expect(isUsageTrackingEnabled()).toBe(true);
 		});
 
-		it('should return false when explicitly set to "false" or "0" (case-insensitive)', () => {
+		it('should return false when explicitly set to "false" or "0" (case-insensitive, trimmed)', () => {
 			for (const v of ['false', 'FALSE', 'False', '0', ' false ', ' 0 ']) {
 				process.env.CONSTELLATION_USAGE_METRICS = v;
 				expect(isUsageTrackingEnabled()).toBe(false);
 			}
 		});
 
-		it('should return true for any non-disable value', () => {
-			for (const v of ['', 'true', '1', 'yes', 'TRUE', 'on', 'anything']) {
+		it('should return true for any non-disable value (including no/off/yes/on/arbitrary)', () => {
+			// The contract is narrow on purpose: only 'false' and '0' disable.
+			// Common shell disable words like 'no' and 'off' enable telemetry,
+			// matching the opt-out posture. AGENTS.md documents this explicitly.
+			for (const v of [
+				'true',
+				'1',
+				'yes',
+				'TRUE',
+				'on',
+				'no',
+				'off',
+				'disable',
+				'disabled',
+				'anything',
+			]) {
 				process.env.CONSTELLATION_USAGE_METRICS = v;
 				expect(isUsageTrackingEnabled()).toBe(true);
 			}
+		});
+
+		it('should treat empty string identically to unset (returns true)', () => {
+			// ConfigMaps and `export VAR=` make '' indistinguishable from
+			// absent; we treat empty as unset so an operator clearing the
+			// value doesn't accidentally enable telemetry they intended to
+			// leave at the default.
+			process.env.CONSTELLATION_USAGE_METRICS = '';
+			expect(isUsageTrackingEnabled()).toBe(true);
+		});
+
+		describe('legacy USAGE_TRACKING_ENABLED honored as transitional opt-out', () => {
+			it('should return false when legacy flag is "false" and new flag is unset', () => {
+				process.env.USAGE_TRACKING_ENABLED = 'false';
+				expect(isUsageTrackingEnabled()).toBe(false);
+			});
+
+			it('should return false when legacy flag is "0" and new flag is unset', () => {
+				process.env.USAGE_TRACKING_ENABLED = '0';
+				expect(isUsageTrackingEnabled()).toBe(false);
+			});
+
+			it('should honor the legacy flag case-insensitively with trimming', () => {
+				for (const v of ['FALSE', ' false ', ' 0 ']) {
+					process.env.USAGE_TRACKING_ENABLED = v;
+					expect(isUsageTrackingEnabled()).toBe(false);
+				}
+			});
+
+			it('should ignore non-disable legacy values (the old "true" no longer toggles anything)', () => {
+				for (const v of ['true', '1', 'yes', '', 'anything']) {
+					process.env.USAGE_TRACKING_ENABLED = v;
+					expect(isUsageTrackingEnabled()).toBe(true);
+				}
+			});
+
+			it('should let the new flag override the legacy flag when both are set', () => {
+				process.env.CONSTELLATION_USAGE_METRICS = 'true';
+				process.env.USAGE_TRACKING_ENABLED = 'false';
+				expect(isUsageTrackingEnabled()).toBe(true);
+			});
 		});
 	});
 

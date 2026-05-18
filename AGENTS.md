@@ -133,15 +133,15 @@ src/
 
 **Priority**: Env vars → `constellation.json` → Defaults
 
-| Env Variable                      | Purpose                                                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `CONSTELLATION_ACCESS_KEY`        | API authentication (required)                                                                                |
-| `CONSTELLATION_API_URL`           | Override API endpoint                                                                                        |
-| `CONSTELLATION_SANDBOX_ISOLATION` | `convenience` (default) or `hardened`                                                                        |
-| `CONSTELLATION_AUDIT_LOG`         | `true` to enable JSON audit trail on stderr                                                                  |
-| `CONSTELLATION_USAGE_METRICS`     | Set to `false` or `0` to disable per-`code_intel`-call telemetry POST to `/intel/v1/usage` (default enabled) |
-| `USAGE_ENDPOINT_URL`              | Full URL override for the usage receiver (defaults to `${CONSTELLATION_API_URL}/intel/v1/usage`)             |
-| `DEBUG`                           | Enable verbose logging                                                                                       |
+| Env Variable                      | Purpose                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONSTELLATION_ACCESS_KEY`        | API authentication (required)                                                                                                                                                                                                                                                                                                                |
+| `CONSTELLATION_API_URL`           | Override API endpoint                                                                                                                                                                                                                                                                                                                        |
+| `CONSTELLATION_SANDBOX_ISOLATION` | `convenience` (default) or `hardened`                                                                                                                                                                                                                                                                                                        |
+| `CONSTELLATION_AUDIT_LOG`         | `true` to enable JSON audit trail on stderr                                                                                                                                                                                                                                                                                                  |
+| `CONSTELLATION_USAGE_METRICS`     | Set to `false` or `0` (case-insensitive) to disable per-`code_intel`-call telemetry POST to `/intel/v1/usage` (default enabled). Other values like `no`/`off` do **not** disable — the contract is narrow on purpose. Legacy `USAGE_TRACKING_ENABLED=false` is honored transitionally as an opt-out and will be removed in a future release. |
+| `USAGE_ENDPOINT_URL`              | Full URL override for the usage receiver (defaults to `${CONSTELLATION_API_URL}/intel/v1/usage`)                                                                                                                                                                                                                                             |
+| `DEBUG`                           | Enable verbose logging                                                                                                                                                                                                                                                                                                                       |
 
 **Config file** (`constellation.json` at git root):
 
