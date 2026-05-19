@@ -112,6 +112,28 @@ describe('estimateTimeoutMs', () => {
 			const result = estimateTimeoutMs(ast(code));
 			expect(result.parallelismFactor).toBe(1);
 		});
+
+		it('does NOT apply the factor for Promise.race (not a fan-out primitive)', () => {
+			const code = `await Promise.race([
+				api.findCircularDependencies({}),
+				api.findOrphanedCode({})
+			]);`;
+			const result = estimateTimeoutMs(ast(code));
+			expect(result.parallelismFactor).toBe(1);
+		});
+
+		it('applies the factor when Promise.all mixes computed and static api calls', () => {
+			const code = `
+				const fn = 'findOrphanedCode';
+				await Promise.all([
+					api.findCircularDependencies({}),
+					api[fn]({})
+				]);
+			`;
+			const result = estimateTimeoutMs(ast(code));
+			expect(result.parallelismFactor).toBe(TIMEOUT_PARALLELISM_FACTOR);
+			expect(result.calls).toHaveLength(2);
+		});
 	});
 
 	describe('computed api[…]() fallback', () => {

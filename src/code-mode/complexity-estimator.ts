@@ -3,7 +3,10 @@
  *
  * Derives a per-execution timeout budget from the user's Code Mode script by
  * counting `api.<method>(…)` call expressions and bucketing them by weight.
- * Reuses the acorn AST produced by the existing validator — no reparse.
+ * Operates on a pre-parsed acorn AST so the estimator itself adds no parse
+ * pass — the runtime passes in the tree produced by the validator. (The
+ * sandbox still runs its own defense-in-depth re-validation internally;
+ * eliminating that second parse is intentionally out of scope here.)
  *
  * Pure function, no I/O, deterministic. Sub-millisecond on the 100 KB max code.
  */
@@ -218,9 +221,14 @@ export function estimateTimeoutMs(
 
 	const parallelismFactor = parallel ? TIMEOUT_PARALLELISM_FACTOR : 1.0;
 	const totalWeight = calls.reduce((sum, c) => sum + c.weight, 0);
-	const estimatedMs =
+	// Round to defend against fractional milliseconds if the parallelism
+	// factor or unit constants are ever tuned to non-integer multiples —
+	// fractional ms have no meaning to setTimeout and would leak into
+	// telemetry.
+	const estimatedMs = Math.round(
 		TIMEOUT_ESTIMATOR_BASE_MS +
-		totalWeight * TIMEOUT_ESTIMATOR_UNIT_MS * parallelismFactor;
+			totalWeight * TIMEOUT_ESTIMATOR_UNIT_MS * parallelismFactor,
+	);
 	const desired = opts.explicitTimeoutMs ?? estimatedMs;
 	const appliedMs = clamp(desired, minMs, maxMs);
 

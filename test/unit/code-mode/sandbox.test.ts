@@ -2370,4 +2370,59 @@ describe('CodeModeSandbox', () => {
 			expect(mockClient.executeMcpTool).toHaveBeenCalledTimes(1);
 		});
 	});
+
+	describe('execOpts (SB-802 per-call dynamic timeout)', () => {
+		it('should use execOpts.timeoutMs over the constructor default for a single execution', async () => {
+			// 50 ms override forces a fast timeout; sandbox should report a
+			// timeout error referencing the per-call value, not the
+			// constructor's. Uses the same sync-loop pattern as the existing
+			// timeout test — `while(i >= 0)` bypasses the dangerous-patterns
+			// regex (`while(true)`) and trips VM's synchronous timeout.
+			const result = await sandbox.execute(
+				'let i = 0; while(i >= 0) { i++; }',
+				{ timeoutMs: 50 },
+			);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('50ms');
+		}, 5000);
+
+		it('should attach execOpts.timeoutBreakdown to the success result', async () => {
+			const breakdown = {
+				baseMs: 5000,
+				calls: [{ method: 'ping', weight: 1 }],
+				parallelismFactor: 1,
+				estimatedMs: 7000,
+				appliedMs: 7000,
+				warnings: [],
+			};
+
+			const result = await sandbox.execute('return 42;', {
+				timeoutBreakdown: breakdown,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.timeoutBreakdown).toEqual(breakdown);
+		});
+
+		it('should attach execOpts.timeoutBreakdown to a validation-failure early return', async () => {
+			const breakdown = {
+				baseMs: 5000,
+				calls: [],
+				parallelismFactor: 1,
+				estimatedMs: 5000,
+				appliedMs: 5000,
+				warnings: [],
+			};
+
+			// `require()` is blocked by the validator — triggers the early-return
+			// path that should still surface the timeoutBreakdown.
+			const result = await sandbox.execute('return require("fs");', {
+				timeoutBreakdown: breakdown,
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.timeoutBreakdown).toEqual(breakdown);
+		});
+	});
 });

@@ -275,6 +275,26 @@ describe('registerQueryCodeGraphTool', () => {
 			);
 		});
 
+		it('should forward an undefined timeout to runtime.execute when omitted (SB-802)', async () => {
+			// The estimator distinguishes "no override" from an explicit value.
+			// If the handler ever populates `timeout` with the default before
+			// calling execute, dynamic estimation is silently bypassed.
+			mockRuntime.execute.mockResolvedValue({
+				success: true,
+				result: null,
+			});
+			mockRuntime.formatResult.mockReturnValue('{}');
+
+			await registeredHandler({
+				code: 'return 1;',
+			});
+
+			expect(mockRuntime.execute).toHaveBeenCalledWith({
+				code: 'return 1;',
+				timeout: undefined,
+			});
+		});
+
 		it('should pass code to runtime.execute', async () => {
 			mockRuntime.execute.mockResolvedValue({
 				success: true,

@@ -230,6 +230,22 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 						indexedFileCount: z.number(),
 					})
 					.optional(),
+				timeoutBreakdown: z
+					.object({
+						baseMs: z.number(),
+						calls: z.array(
+							z.object({
+								method: z.string(),
+								weight: z.number(),
+								computed: z.literal(true).optional(),
+							}),
+						),
+						parallelismFactor: z.number(),
+						estimatedMs: z.number(),
+						appliedMs: z.number(),
+						warnings: z.array(z.string()),
+					})
+					.optional(),
 				error: z.string().optional(),
 			},
 			annotations: {

@@ -46,6 +46,7 @@ import { addAutoReturn } from './auto-return.js';
 import type { TimeoutBreakdown } from './complexity-estimator.js';
 import { validateAst } from './validators/index.js';
 import type { Node as AcornNode } from 'acorn';
+import { METHOD_WEIGHTS } from '../constants/sandbox-limits.js';
 import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	DEFAULT_MEMORY_LIMIT_MB,
@@ -189,6 +190,38 @@ export interface ConstellationApi {
 	help(methodName?: string): string;
 	getCapabilities(): Promise<ProjectCapabilities>;
 }
+
+/**
+ * Compile-time check (SB-802): every method declared on `ConstellationApi`
+ * must have an entry in `METHOD_WEIGHTS`. If a future method is added to
+ * the API without a corresponding weight, TypeScript will fail this
+ * assignment, forcing the weight table to stay in sync with the API.
+ *
+ * The value is intentionally unused at runtime — this is a structural
+ * proof, not a runtime artifact.
+ */
+type _AssertMethodWeightsCoverApi = {
+	[K in keyof ConstellationApi]: K extends keyof typeof METHOD_WEIGHTS
+		? true
+		: never;
+};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _methodWeightsCoverApi: _AssertMethodWeightsCoverApi = {
+	searchSymbols: true,
+	getSymbolDetails: true,
+	getDependencies: true,
+	getDependents: true,
+	findCircularDependencies: true,
+	traceSymbolUsage: true,
+	getCallGraph: true,
+	impactAnalysis: true,
+	findOrphanedCode: true,
+	getArchitectureOverview: true,
+	ping: true,
+	listMethods: true,
+	help: true,
+	getCapabilities: true,
+};
 
 /**
  * Configuration options for the Code Mode sandbox execution environment.
@@ -398,6 +431,7 @@ export class CodeModeSandbox {
 				error: `Security validation failed: ${validation.errors?.join(', ')}`,
 				logs: validation.warnings?.map((w) => `[WARN] ${w}`) || [],
 				executionTime: Date.now() - startTime,
+				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		}
 		// Include warnings in logs if validation passed
@@ -1239,7 +1273,7 @@ ${transformed}
 	 * `timeoutMs` is the effective per-execution timeout (may differ from
 	 * `this.options.timeout` when the runtime applied a dynamic estimate).
 	 */
-	private formatError(error: any, timeoutMs?: number): string {
+	private formatError(error: unknown, timeoutMs?: number): string {
 		const effectiveTimeout = timeoutMs ?? this.options.timeout;
 		if (error instanceof Error) {
 			if (error.message.includes('Script execution timed out')) {

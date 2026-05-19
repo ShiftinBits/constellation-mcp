@@ -20,6 +20,7 @@ import {
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import {
+	DEFAULT_EXECUTION_TIMEOUT_MS,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
 	RESULT_SIZE_WARNING_THRESHOLD,
@@ -290,9 +291,11 @@ export class CodeModeRuntime {
 		} else if (typeof request.timeout === 'number') {
 			effectiveTimeoutMs = clampTimeout(request.timeout);
 		} else {
-			// No AST and no explicit override: give the script the full
-			// budget so we never silently undershoot what the user intended.
-			effectiveTimeoutMs = MAX_EXECUTION_TIMEOUT_MS;
+			// No AST (parse failed) and no explicit override: fall back to the
+			// configured neutral default. In practice the VM will catch the
+			// syntax error almost immediately, so this rarely matters — but be
+			// explicit instead of relying on the sandbox constructor's default.
+			effectiveTimeoutMs = clampTimeout(DEFAULT_EXECUTION_TIMEOUT_MS);
 		}
 
 		// Execute in sandbox (JavaScript only). Pass the dynamic timeout
