@@ -13,6 +13,7 @@
 
 import type { Node } from 'acorn';
 import {
+	type ApiMethodWeightName,
 	COMPUTED_API_FALLBACK_WEIGHT,
 	MAX_EXECUTION_TIMEOUT_MS,
 	METHOD_WEIGHTS,
@@ -176,8 +177,13 @@ export function estimateTimeoutMs(
 						hasComputedWarning = true;
 					}
 				} else if (apiCheck.methodName) {
-					const weight = METHOD_WEIGHTS[apiCheck.methodName];
-					if (typeof weight === 'number') {
+					// METHOD_WEIGHTS has a literal-keyed type to enable the
+					// compile-time coverage check in sandbox.ts; at runtime we
+					// look up an arbitrary string from the AST, so the cast is
+					// guarded by Object.hasOwn.
+					if (Object.hasOwn(METHOD_WEIGHTS, apiCheck.methodName)) {
+						const weight =
+							METHOD_WEIGHTS[apiCheck.methodName as ApiMethodWeightName];
 						calls.push({ method: apiCheck.methodName, weight });
 					}
 					// Unknown method names are ignored — the api proxy emits a

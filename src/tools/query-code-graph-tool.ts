@@ -108,13 +108,19 @@ function toSchemaCompliantOutput(
  * Note: MCP SDK skips outputSchema validation when isError is true,
  * so this content passes through without validation. We conform to
  * SchemaCompliantOutput for consistency and forward compatibility.
+ *
+ * `timeoutBreakdown` is included when available (SB-802): on the most
+ * common error path — `EXECUTION_TIMEOUT` — the agent needs to see what
+ * budget was attempted so it can scope down or override.
  */
 function toErrorStructuredContent(
 	errorResponse: McpErrorResponse,
+	timeoutBreakdown?: SchemaCompliantOutput['timeoutBreakdown'],
 ): SchemaCompliantOutput {
 	return {
 		success: false,
 		error: errorResponse.error.message,
+		...(timeoutBreakdown ? { timeoutBreakdown } : {}),
 	};
 }
 
@@ -405,8 +411,12 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(response.structuredError, null, 2),
 							},
 						],
+						// SB-802: surface the timeout breakdown on error paths too —
+						// most agent-facing errors here are EXECUTION_TIMEOUT, where
+						// the breakdown is the actionable diagnostic.
 						structuredContent: toErrorStructuredContent(
 							response.structuredError,
+							response.timeoutBreakdown,
 						),
 						isError: true,
 					};

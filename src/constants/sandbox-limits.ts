@@ -28,7 +28,13 @@ export const MAX_CODE_SIZE = 100 * 1024; // 100KB
 // Weights bucket api.<method>() calls by typical execution cost. The estimator
 // sums these weights across an execution's AST and converts the total into a
 // timeout budget; explicit `timeout` overrides still win and are clamped.
-export const METHOD_WEIGHTS: Readonly<Record<string, number>> = Object.freeze({
+//
+// The literal-keyed type is important: `keyof typeof METHOD_WEIGHTS` resolves
+// to the union of literal method names, which lets sandbox.ts statically
+// assert (via `_AssertMethodWeightsCoverApi`) that every `ConstellationApi`
+// method has a weight entry here. Using `Record<string, number>` would
+// collapse `keyof` to `string` and silently neuter the check.
+const METHOD_WEIGHTS_RAW = {
 	// Trivial (sync, no I/O)
 	listMethods: 0,
 	help: 0,
@@ -47,7 +53,12 @@ export const METHOD_WEIGHTS: Readonly<Record<string, number>> = Object.freeze({
 	findOrphanedCode: 8,
 	findCircularDependencies: 8,
 	getArchitectureOverview: 8,
-});
+} as const;
+
+export type ApiMethodWeightName = keyof typeof METHOD_WEIGHTS_RAW;
+
+export const METHOD_WEIGHTS: Readonly<Record<ApiMethodWeightName, number>> =
+	Object.freeze(METHOD_WEIGHTS_RAW);
 
 export const TIMEOUT_ESTIMATOR_BASE_MS = 5_000;
 export const TIMEOUT_ESTIMATOR_UNIT_MS = 2_000;

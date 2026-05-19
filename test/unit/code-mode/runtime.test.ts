@@ -925,12 +925,13 @@ describe('CodeModeRuntime', () => {
 			);
 		});
 
-		it('should surface timeoutBreakdown in the CodeModeResponse', async () => {
+		it('should surface timeoutBreakdown in the CodeModeResponse (from runtime estimator)', async () => {
 			const code = `await api.ping();`;
 			mockSandbox.validateCode.mockReturnValue({
 				valid: true,
 				ast: parseAst(code),
 			});
+			// Sandbox returns no breakdown — runtime's local estimate must fill in.
 			mockSandbox.execute.mockResolvedValue({
 				success: true,
 				result: 'pong',
@@ -945,6 +946,35 @@ describe('CodeModeRuntime', () => {
 			expect(response.timeoutBreakdown?.calls).toEqual([
 				{ method: 'ping', weight: 1 },
 			]);
+		});
+
+		it('should prefer the sandbox-echoed timeoutBreakdown when present', async () => {
+			const code = `await api.ping();`;
+			const sandboxEchoed = {
+				baseMs: 5000,
+				calls: [{ method: 'ping', weight: 1 }],
+				parallelismFactor: 1,
+				estimatedMs: 7000,
+				appliedMs: 7000,
+				warnings: ['echoed-from-sandbox'],
+			};
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+				timeoutBreakdown: sandboxEchoed,
+			});
+
+			const response = await runtime.execute({ code });
+
+			// `result.timeoutBreakdown ?? timeoutBreakdown` should take the
+			// sandbox-echoed object verbatim (preserves the warnings array etc.).
+			expect(response.timeoutBreakdown).toBe(sandboxEchoed);
 		});
 
 		it('should respect an explicit timeout over the static estimate (clamped)', async () => {
