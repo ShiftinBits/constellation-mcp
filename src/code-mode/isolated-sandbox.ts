@@ -15,7 +15,12 @@
  */
 
 import { fork, type ChildProcess } from 'child_process';
-import type { SandboxOptions, SandboxResult } from './sandbox.js';
+import type { Node as AcornNode } from 'acorn';
+import type {
+	SandboxExecutionOptions,
+	SandboxOptions,
+	SandboxResult,
+} from './sandbox.js';
 import type { WorkerRequest, WorkerResponse } from './sandbox-worker.js';
 import { CodeModeSandbox } from './sandbox.js';
 import { WORKER_PATH } from './worker-path.js';
@@ -43,10 +48,17 @@ export class IsolatedSandbox {
 	}
 
 	/**
-	 * Execute code in an isolated child process
+	 * Execute code in an isolated child process.
+	 *
+	 * Honors `execOpts.timeoutMs` for per-call dynamic timeout (SB-802) and
+	 * surfaces `execOpts.timeoutBreakdown` in the result.
 	 */
-	async execute(code: string): Promise<SandboxResult> {
+	async execute(
+		code: string,
+		execOpts?: SandboxExecutionOptions,
+	): Promise<SandboxResult> {
 		const startTime = Date.now();
+		const effectiveTimeout = execOpts?.timeoutMs ?? this.timeout;
 
 		// Validate code before spawning a child process (fail fast)
 		const validation = this.validateCode(code);
@@ -56,6 +68,7 @@ export class IsolatedSandbox {
 				error: `Security validation failed: ${validation.errors?.join(', ')}`,
 				logs: validation.warnings?.map((w) => `[WARN] ${w}`) || [],
 				executionTime: Date.now() - startTime,
+				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		}
 
@@ -82,11 +95,11 @@ export class IsolatedSandbox {
 					cleanup();
 					resolve({
 						success: false,
-						error: `Execution timeout: Code took longer than ${this.timeout}ms to execute (hardened mode)`,
+						error: `Execution timeout: Code took longer than ${effectiveTimeout}ms to execute (hardened mode)`,
 						executionTime: Date.now() - startTime,
 					});
 				}
-			}, this.timeout + 1000); // Extra 1s buffer for IPC overhead
+			}, effectiveTimeout + 1000); // Extra 1s buffer for IPC overhead
 
 			// Handle worker response
 			child.on('message', (message: WorkerResponse) => {
@@ -158,7 +171,7 @@ export class IsolatedSandbox {
 					gitRoot: configContext.gitRoot,
 				},
 				options: {
-					timeout: this.timeout,
+					timeout: effectiveTimeout,
 					memoryLimit: this.memoryLimit,
 					allowConsole: this.options.allowConsole,
 					allowTimers: this.options.allowTimers,
@@ -171,12 +184,15 @@ export class IsolatedSandbox {
 	}
 
 	/**
-	 * Validate code before execution (delegates to CodeModeSandbox)
+	 * Validate code before execution (delegates to CodeModeSandbox).
+	 * Surfaces the parsed acorn AST so the runtime can reuse it for the
+	 * timeout estimator (SB-802).
 	 */
 	validateCode(code: string): {
 		valid: boolean;
 		errors?: string[];
 		warnings?: string[];
+		ast?: AcornNode;
 	} {
 		return this.validationSandbox.validateCode(code);
 	}

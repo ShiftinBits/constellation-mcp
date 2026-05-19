@@ -20,6 +20,12 @@ export interface AstValidationResult {
 	/** Warning-level AST findings that don't block execution (SB-258) */
 	warnings: string[];
 	parseError?: string;
+	/**
+	 * The parsed acorn AST. Attached when parsing succeeded so downstream
+	 * consumers (e.g. the timeout estimator) can reuse the same tree without
+	 * reparsing. Absent when parsing failed (see `parseError`).
+	 */
+	ast?: Node;
 }
 
 export interface LocationInfo {
@@ -103,5 +109,6 @@ export function validateAst(code: string): AstValidationResult {
 		valid: errors.length === 0,
 		errors,
 		warnings,
+		ast,
 	};
 }

@@ -43,7 +43,9 @@ import {
 	type ProjectCapabilities,
 } from './capabilities.js';
 import { addAutoReturn } from './auto-return.js';
+import type { TimeoutBreakdown } from './complexity-estimator.js';
 import { validateAst } from './validators/index.js';
+import type { Node as AcornNode } from 'acorn';
 import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	DEFAULT_MEMORY_LIMIT_MB,
@@ -296,6 +298,25 @@ export interface SandboxResult {
 	 * getCapabilities) bypass the executor and are excluded.
 	 */
 	invocations?: string[];
+	/**
+	 * Breakdown of how the per-execution timeout was derived (SB-802).
+	 * Populated when the timeout was computed by the estimator OR overridden
+	 * via per-execution options. Surfaced in tool response metadata so
+	 * agents can self-correct.
+	 */
+	timeoutBreakdown?: TimeoutBreakdown;
+}
+
+/**
+ * Per-execution overrides passed to {@link CodeModeSandbox.execute}.
+ * Lets the runtime hand the estimator's `appliedMs` to the sandbox without
+ * mutating the sandbox's constructor-time defaults.
+ */
+export interface SandboxExecutionOptions {
+	/** Per-call timeout override in milliseconds. Wins over constructor default. */
+	timeoutMs?: number;
+	/** Estimator breakdown to surface in the result (SB-802). */
+	timeoutBreakdown?: TimeoutBreakdown;
 }
 
 /**
@@ -339,9 +360,17 @@ export class CodeModeSandbox {
 	}
 
 	/**
-	 * Execute JavaScript code in sandboxed environment
+	 * Execute JavaScript code in sandboxed environment.
+	 *
+	 * @param code   The user script.
+	 * @param execOpts Optional per-call overrides. `timeoutMs` replaces the
+	 *   constructor default for this single invocation; `timeoutBreakdown` is
+	 *   passed through to the result so the tool layer can surface it.
 	 */
-	async execute(code: string): Promise<SandboxResult> {
+	async execute(
+		code: string,
+		execOpts?: SandboxExecutionOptions,
+	): Promise<SandboxResult> {
 		const startTime = Date.now();
 		const logs: string[] = [];
 
@@ -376,8 +405,10 @@ export class CodeModeSandbox {
 			logs.push(...validation.warnings.map((w) => `[WARN] ${w}`));
 		}
 
-		// Declare handles outside try block for cleanup
-		const timeoutMs = this.options.timeout;
+		// Declare handles outside try block for cleanup.
+		// Per-execution timeout override (SB-802) wins over constructor default;
+		// the runtime sets this from the dynamic estimator.
+		const timeoutMs = execOpts?.timeoutMs ?? this.options.timeout;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 		let memoryCheckHandle: ReturnType<typeof setInterval> | undefined;
 		// Guard flag to prevent double rejection (covers timeout and memory exceeded)
@@ -477,6 +508,7 @@ export class CodeModeSandbox {
 				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
 				resultContext: executionState.resultContext ?? undefined,
 				invocations: [...executionState.invocations],
+				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -502,7 +534,7 @@ export class CodeModeSandbox {
 
 			return {
 				success: false,
-				error: this.formatError(error),
+				error: this.formatError(error, timeoutMs),
 				structuredError,
 				logs,
 				executionTime,
@@ -513,6 +545,7 @@ export class CodeModeSandbox {
 				// The usage-tracker integration explicitly gates on
 				// `response.success` so this does NOT fire spurious POSTs.
 				invocations: [...executionState.invocations],
+				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -1201,12 +1234,16 @@ ${transformed}
 	}
 
 	/**
-	 * Format error for user-friendly output
+	 * Format error for user-friendly output.
+	 *
+	 * `timeoutMs` is the effective per-execution timeout (may differ from
+	 * `this.options.timeout` when the runtime applied a dynamic estimate).
 	 */
-	private formatError(error: any): string {
+	private formatError(error: any, timeoutMs?: number): string {
+		const effectiveTimeout = timeoutMs ?? this.options.timeout;
 		if (error instanceof Error) {
 			if (error.message.includes('Script execution timed out')) {
-				return `Execution timeout: Code took longer than ${this.options.timeout}ms to execute`;
+				return `Execution timeout: Code took longer than ${effectiveTimeout}ms to execute`;
 			}
 			if (error instanceof MemoryExceededError) {
 				return error.message; // Already formatted nicely
@@ -1217,13 +1254,16 @@ ${transformed}
 	}
 
 	/**
-	 * Validate code before execution (optional pre-flight check)
-	 * Returns errors (blocking) and warnings (informational)
+	 * Validate code before execution (optional pre-flight check).
+	 * Returns errors (blocking), warnings (informational), and the parsed
+	 * acorn AST (when parsing succeeded) so callers can reuse the tree
+	 * without reparsing (SB-802 timeout estimator).
 	 */
 	validateCode(code: string): {
 		valid: boolean;
 		errors?: string[];
 		warnings?: string[];
+		ast?: AcornNode;
 	} {
 		const errors: string[] = [];
 
@@ -1328,6 +1368,7 @@ ${transformed}
 			valid: errors.length === 0,
 			errors: errors.length > 0 ? errors : undefined,
 			warnings: warnings.length > 0 ? warnings : undefined,
+			ast: astResult.ast,
 		};
 	}
 }

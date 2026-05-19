@@ -5,11 +5,23 @@
  * Manages sandbox creation, code execution, and result formatting.
  */
 
-import { CodeModeSandbox, SandboxOptions, SandboxResult } from './sandbox.js';
+import type { Node as AcornNode } from 'acorn';
+import {
+	CodeModeSandbox,
+	SandboxExecutionOptions,
+	SandboxOptions,
+	SandboxResult,
+} from './sandbox.js';
 import { IsolatedSandbox } from './isolated-sandbox.js';
+import {
+	estimateTimeoutMs,
+	type TimeoutBreakdown,
+} from './complexity-estimator.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import {
+	MAX_EXECUTION_TIMEOUT_MS,
+	MIN_EXECUTION_TIMEOUT_MS,
 	RESULT_SIZE_WARNING_THRESHOLD,
 	RESULT_SIZE_HARD_LIMIT,
 	TRUNCATED_ARRAY_PREVIEW_ITEMS,
@@ -90,6 +102,12 @@ export interface CodeModeResponse {
 		sandboxed: boolean;
 		validated: boolean;
 	};
+	/**
+	 * Breakdown of how the per-execution timeout was derived (SB-802).
+	 * Surfaced so calling agents can self-correct and the team can refine
+	 * the weight table from real telemetry.
+	 */
+	timeoutBreakdown?: TimeoutBreakdown;
 	[x: string]: unknown; // Index signature for MCP SDK compatibility
 }
 
@@ -175,12 +193,23 @@ function truncateResult(result: unknown, maxSize: number): TruncatedResult {
 
 /** Shared interface for sandbox implementations */
 interface SandboxExecutor {
-	execute(code: string): Promise<SandboxResult>;
+	execute(
+		code: string,
+		execOpts?: SandboxExecutionOptions,
+	): Promise<SandboxResult>;
 	validateCode(code: string): {
 		valid: boolean;
 		errors?: string[];
 		warnings?: string[];
+		ast?: AcornNode;
 	};
+}
+
+function clampTimeout(n: number): number {
+	return Math.min(
+		Math.max(n, MIN_EXECUTION_TIMEOUT_MS),
+		MAX_EXECUTION_TIMEOUT_MS,
+	);
 }
 
 /**
@@ -242,8 +271,31 @@ export class CodeModeRuntime {
 			}
 		}
 
-		// Execute in sandbox (JavaScript only)
-		const result = await this.sandbox.execute(request.code);
+		// SB-802: Derive the per-execution timeout from the validator's AST.
+		// Explicit `request.timeout` still wins (clamped). When parsing failed
+		// (validation already returned a parseError warning) we have no AST —
+		// fall back to the explicit override or the constructor default,
+		// clamped.
+		let timeoutBreakdown: TimeoutBreakdown | undefined;
+		let effectiveTimeoutMs: number | undefined;
+		if (validation.ast) {
+			timeoutBreakdown = estimateTimeoutMs(validation.ast, {
+				explicitTimeoutMs: request.timeout,
+			});
+			effectiveTimeoutMs = timeoutBreakdown.appliedMs;
+			for (const w of timeoutBreakdown.warnings) {
+				warningLogs.push(`[WARN] ${w}`);
+			}
+		} else if (typeof request.timeout === 'number') {
+			effectiveTimeoutMs = clampTimeout(request.timeout);
+		}
+
+		// Execute in sandbox (JavaScript only). Pass the dynamic timeout
+		// through per-call options so we don't mutate sandbox state.
+		const result = await this.sandbox.execute(request.code, {
+			timeoutMs: effectiveTimeoutMs,
+			timeoutBreakdown,
+		});
 
 		// Combine warning logs with execution logs
 		const allLogs = [...warningLogs, ...(result.logs || [])];
@@ -293,6 +345,7 @@ export class CodeModeRuntime {
 			lastIndexedAt: result.lastIndexedAt,
 			resultContext: result.resultContext,
 			invocations: result.invocations,
+			timeoutBreakdown: result.timeoutBreakdown ?? timeoutBreakdown,
 			metadata: {
 				language: 'javascript',
 				sandboxed: true,
@@ -317,6 +370,10 @@ export class CodeModeRuntime {
 		}
 		if (response.resultContext) {
 			output.resultContext = response.resultContext;
+		}
+
+		if (response.timeoutBreakdown) {
+			output.timeoutBreakdown = response.timeoutBreakdown;
 		}
 
 		if (response.success) {

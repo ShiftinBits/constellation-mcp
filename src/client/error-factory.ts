@@ -330,6 +330,7 @@ if (!caps.isIndexed) {
 				'Try a more specific query to reduce processing time',
 				'Break down the request into smaller parts',
 				'Check network connectivity',
+				"Timeouts are auto-derived from your code's complexity — heavy whole-project methods (findCircularDependencies, findOrphanedCode, impactAnalysis, getArchitectureOverview) cost the most. Reduce scope (smaller limits, sequential calls instead of Promise.all), or pass an explicit `timeout` (1000-60000 ms) to override.",
 			],
 			context: baseContext,
 		};
@@ -476,7 +477,7 @@ function createErrorFromMessage(
 				guidance: [
 					'Try a more specific query',
 					'Break down the request into smaller parts',
-					'Increase timeout if possible',
+					"Timeouts are auto-derived from your code's complexity — heavy whole-project methods (findCircularDependencies, findOrphanedCode, impactAnalysis, getArchitectureOverview) cost the most. Reduce scope or pass an explicit `timeout` (1000-60000 ms) to override.",
 				],
 				context: baseContext,
 			},

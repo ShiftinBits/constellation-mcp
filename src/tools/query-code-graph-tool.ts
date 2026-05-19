@@ -58,6 +58,14 @@ interface SchemaCompliantOutput {
 		branchIndexed: boolean;
 		indexedFileCount: number;
 	};
+	timeoutBreakdown?: {
+		baseMs: number;
+		calls: Array<{ method: string; weight: number; computed?: true }>;
+		parallelismFactor: number;
+		estimatedMs: number;
+		appliedMs: number;
+		warnings: string[];
+	};
 	error?: string;
 	[x: string]: unknown;
 }
@@ -77,6 +85,9 @@ function toSchemaCompliantOutput(
 	if (response.asOfCommit) output.asOfCommit = response.asOfCommit;
 	if (response.lastIndexedAt) output.lastIndexedAt = response.lastIndexedAt;
 	if (response.resultContext) output.resultContext = response.resultContext;
+	if (response.timeoutBreakdown) {
+		output.timeoutBreakdown = response.timeoutBreakdown;
+	}
 
 	if (response.success) {
 		if (response.result !== undefined) output.result = response.result;
@@ -193,9 +204,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					.min(MIN_EXECUTION_TIMEOUT_MS)
 					.max(MAX_EXECUTION_TIMEOUT_MS)
 					.optional()
-					.default(DEFAULT_EXECUTION_TIMEOUT_MS)
 					.describe(
-						`Maximum execution time in milliseconds (default: ${DEFAULT_EXECUTION_TIMEOUT_MS}, max: ${MAX_EXECUTION_TIMEOUT_MS})`,
+						`Optional execution-time override in milliseconds. When omitted, the sandbox derives the timeout from the static complexity of your code (heavier api.* methods raise the budget) and clamps the result to [${MIN_EXECUTION_TIMEOUT_MS}, ${MAX_EXECUTION_TIMEOUT_MS}]. The breakdown is returned in the response so you can see what was applied. Explicit values still win and are clamped to the same range.`,
 					),
 				cwd: z
 					.string()
@@ -348,15 +358,21 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					};
 				}
 
-				// Create runtime with configuration
+				// Create runtime with configuration. The constructor `timeout`
+				// is only a fallback used by sandbox internals when no
+				// per-call override is supplied (e.g. when the AST cannot
+				// be parsed). The real per-execution timeout is derived by
+				// the estimator inside runtime.execute().
 				const runtime = new CodeModeRuntime({
-					timeout: timeout || DEFAULT_EXECUTION_TIMEOUT_MS,
+					timeout: timeout ?? DEFAULT_EXECUTION_TIMEOUT_MS,
 					allowConsole: true,
 					allowTimers: false,
 					configContext,
 				});
 
-				// Execute the code
+				// Execute the code — passing `timeout` verbatim (may be
+				// undefined) so the estimator can distinguish "no override"
+				// from an explicit value.
 				const response = await runtime.execute({
 					code,
 					timeout,
