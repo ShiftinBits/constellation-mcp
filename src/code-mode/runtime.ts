@@ -104,7 +104,7 @@ export interface CodeModeResponse {
 		validated: boolean;
 	};
 	/**
-	 * Breakdown of how the per-execution timeout was derived (SB-802).
+	 * Breakdown of how the per-execution timeout was derived.
 	 * Surfaced so calling agents can self-correct and the team can refine
 	 * the weight table from real telemetry.
 	 */
@@ -272,7 +272,7 @@ export class CodeModeRuntime {
 			}
 		}
 
-		// SB-802: Derive the per-execution timeout from the validator's AST.
+		// Derive the per-execution timeout from the validator's AST.
 		// Explicit `request.timeout` still wins (clamped). When parsing failed
 		// (validation already returned a parseError warning) we have no AST —
 		// the VM will catch the syntax error almost immediately, so the

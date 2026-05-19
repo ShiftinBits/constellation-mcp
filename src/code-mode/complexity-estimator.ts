@@ -1,5 +1,5 @@
 /**
- * Complexity Estimator (SB-802)
+ * Complexity Estimator
  *
  * Derives a per-execution timeout budget from the user's Code Mode script by
  * counting `api.<method>(…)` call expressions and bucketing them by weight.

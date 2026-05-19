@@ -275,7 +275,7 @@ describe('registerQueryCodeGraphTool', () => {
 			);
 		});
 
-		it('should forward an undefined timeout to runtime.execute when omitted (SB-802)', async () => {
+		it('should forward an undefined timeout to runtime.execute when omitted', async () => {
 			// The estimator distinguishes "no override" from an explicit value.
 			// If the handler ever populates `timeout` with the default before
 			// calling execute, dynamic estimation is silently bypassed.
@@ -782,7 +782,7 @@ describe('registerQueryCodeGraphTool', () => {
 			});
 		});
 
-		it('should surface timeoutBreakdown on the structuredError path (SB-802)', async () => {
+		it('should surface timeoutBreakdown on the structuredError path', async () => {
 			// EXECUTION_TIMEOUT is the most common error where the agent
 			// needs to see what budget was attempted to know how to scope down.
 			const structuredError = {

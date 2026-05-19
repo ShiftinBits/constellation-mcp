@@ -192,7 +192,7 @@ export interface ConstellationApi {
 }
 
 /**
- * Compile-time check (SB-802): every method declared on `ConstellationApi`
+ * Compile-time check: every method declared on `ConstellationApi`
  * must have an entry in `METHOD_WEIGHTS`. If a future method is added to
  * the API without a corresponding weight, TypeScript will fail this
  * assignment, forcing the weight table to stay in sync with the API.
@@ -332,7 +332,7 @@ export interface SandboxResult {
 	 */
 	invocations?: string[];
 	/**
-	 * Breakdown of how the per-execution timeout was derived (SB-802).
+	 * Breakdown of how the per-execution timeout was derived.
 	 * Populated when the timeout was computed by the estimator OR overridden
 	 * via per-execution options. Surfaced in tool response metadata so
 	 * agents can self-correct.
@@ -348,7 +348,7 @@ export interface SandboxResult {
 export interface SandboxExecutionOptions {
 	/** Per-call timeout override in milliseconds. Wins over constructor default. */
 	timeoutMs?: number;
-	/** Estimator breakdown to surface in the result (SB-802). */
+	/** Estimator breakdown to surface in the result. */
 	timeoutBreakdown?: TimeoutBreakdown;
 }
 
@@ -440,7 +440,7 @@ export class CodeModeSandbox {
 		}
 
 		// Declare handles outside try block for cleanup.
-		// Per-execution timeout override (SB-802) wins over constructor default;
+		// Per-execution timeout override wins over constructor default;
 		// the runtime sets this from the dynamic estimator.
 		const timeoutMs = execOpts?.timeoutMs ?? this.options.timeout;
 		let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -1291,7 +1291,7 @@ ${transformed}
 	 * Validate code before execution (optional pre-flight check).
 	 * Returns errors (blocking), warnings (informational), and the parsed
 	 * acorn AST (when parsing succeeded) so callers can reuse the tree
-	 * without reparsing (SB-802 timeout estimator).
+	 * without reparsing (timeout estimator).
 	 */
 	validateCode(code: string): {
 		valid: boolean;

@@ -889,7 +889,7 @@ describe('CodeModeRuntime', () => {
 		});
 	});
 
-	describe('dynamic timeout estimation (SB-802)', () => {
+	describe('dynamic timeout estimation', () => {
 		const parseAst = (code: string) =>
 			parse(code, {
 				ecmaVersion: 'latest',

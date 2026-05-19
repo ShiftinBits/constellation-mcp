@@ -2371,7 +2371,7 @@ describe('CodeModeSandbox', () => {
 		});
 	});
 
-	describe('execOpts (SB-802 per-call dynamic timeout)', () => {
+	describe('execOpts (per-call dynamic timeout)', () => {
 		it('should use execOpts.timeoutMs over the constructor default for a single execution', async () => {
 			// 50 ms override forces a fast timeout; sandbox should report a
 			// timeout error referencing the per-call value, not the

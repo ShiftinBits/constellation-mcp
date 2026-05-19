@@ -24,7 +24,7 @@ export const MAX_CONSOLE_OBJECT_SIZE = 500;
 // Code input limits
 export const MAX_CODE_SIZE = 100 * 1024; // 100KB
 
-// Dynamic timeout estimator (SB-802)
+// Dynamic timeout estimator
 // Weights bucket api.<method>() calls by typical execution cost. The estimator
 // sums these weights across an execution's AST and converts the total into a
 // timeout budget; explicit `timeout` overrides still win and are clamped.

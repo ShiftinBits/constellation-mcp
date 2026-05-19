@@ -50,7 +50,7 @@ export class IsolatedSandbox {
 	/**
 	 * Execute code in an isolated child process.
 	 *
-	 * Honors `execOpts.timeoutMs` for per-call dynamic timeout (SB-802) and
+	 * Honors `execOpts.timeoutMs` for per-call dynamic timeout and
 	 * surfaces `execOpts.timeoutBreakdown` in the result.
 	 */
 	async execute(
@@ -89,7 +89,7 @@ export class IsolatedSandbox {
 			};
 
 			// Worker IPC has no knowledge of the runtime-computed breakdown
-			// (SB-802), so we attach it to every resolve path here.
+			//, so we attach it to every resolve path here.
 			const breakdown = execOpts?.timeoutBreakdown;
 
 			// Timeout kill — SIGKILL ensures no escape
@@ -198,7 +198,7 @@ export class IsolatedSandbox {
 	/**
 	 * Validate code before execution (delegates to CodeModeSandbox).
 	 * Surfaces the parsed acorn AST so the runtime can reuse it for the
-	 * timeout estimator (SB-802).
+	 * timeout estimator.
 	 */
 	validateCode(code: string): {
 		valid: boolean;

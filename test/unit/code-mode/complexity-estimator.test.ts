@@ -1,5 +1,5 @@
 /**
- * Complexity Estimator Unit Tests (SB-802)
+ * Complexity Estimator Unit Tests
  *
  * Verifies the static AST-based timeout estimator that derives per-execution
  * timeout budgets from `api.<method>(…)` call counts and bucket weights.
@@ -74,7 +74,7 @@ describe('estimateTimeoutMs', () => {
 
 	describe('Promise.all / Promise.allSettled parallelism', () => {
 		it('applies the parallelism factor when Promise.all has ≥2 api calls', () => {
-			// The exact repro from SB-802.
+			// The exact repro from the bug report.
 			const code = `await Promise.all([
 				api.findCircularDependencies({ maxCycleLength: 8 }),
 				api.findOrphanedCode({ limit: 5 })

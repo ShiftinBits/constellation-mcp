@@ -109,7 +109,7 @@ function toSchemaCompliantOutput(
  * so this content passes through without validation. We conform to
  * SchemaCompliantOutput for consistency and forward compatibility.
  *
- * `timeoutBreakdown` is included when available (SB-802): on the most
+ * `timeoutBreakdown` is included when available: on the most
  * common error path — `EXECUTION_TIMEOUT` — the agent needs to see what
  * budget was attempted so it can scope down or override.
  */
@@ -289,6 +289,12 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				};
 			}
 
+			// Hoisted so the outer catch can surface the estimator's
+			// timeoutBreakdown if execution threw AFTER the estimator ran
+			//. Without this, an unexpected throw would discard the
+			// computed budget that the agent needs for self-correction.
+			let response: CodeModeResponse | undefined;
+
 			try {
 				// Check for configuration errors (e.g., missing constellation.json)
 				if (configContext.initializationError) {
@@ -394,8 +400,10 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 
 				// Execute the code — passing `timeout` verbatim (may be
 				// undefined) so the estimator can distinguish "no override"
-				// from an explicit value.
-				const response = await runtime.execute({
+				// from an explicit value. Assignment uses the hoisted
+				// `response` so the outer catch can read timeoutBreakdown
+				// after an unexpected throw.
+				response = await runtime.execute({
 					code,
 					timeout,
 				});
@@ -411,7 +419,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(response.structuredError, null, 2),
 							},
 						],
-						// SB-802: surface the timeout breakdown on error paths too —
+						// surface the timeout breakdown on error paths too —
 						// most agent-facing errors here are EXECUTION_TIMEOUT, where
 						// the breakdown is the actionable diagnostic.
 						structuredContent: toErrorStructuredContent(
@@ -449,6 +457,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							invocations: response.invocations,
 							synthesizedResponse: formatted,
 							durationMs: response.executionTime ?? 0,
+							timeoutBreakdown: response.timeoutBreakdown,
 						});
 						if (payload !== null) {
 							postUsageEvent({
@@ -496,7 +505,13 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							text: JSON.stringify(structuredError, null, 2),
 						},
 					],
-					structuredContent: toErrorStructuredContent(structuredError),
+					// if execution threw AFTER the estimator ran,
+					// the breakdown is available via the hoisted `response`
+					// and is the actionable signal for the agent.
+					structuredContent: toErrorStructuredContent(
+						structuredError,
+						response?.timeoutBreakdown,
+					),
 					isError: true,
 				};
 			}

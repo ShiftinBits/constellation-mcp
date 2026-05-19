@@ -287,6 +287,65 @@ describe('usage-tracker', () => {
 			});
 			expect(event).toBeNull();
 		});
+
+		it('should omit timeout_breakdown when none is provided', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['ping'],
+				synthesizedResponse: 'pong',
+				durationMs: 5,
+			});
+			expect(event?.timeout_breakdown).toBeUndefined();
+		});
+
+		it('should convert a camelCase timeoutBreakdown to snake_case wire format', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['findOrphanedCode'],
+				synthesizedResponse: 'ok',
+				durationMs: 19000,
+				timeoutBreakdown: {
+					baseMs: 5000,
+					estimatedMs: 21000,
+					appliedMs: 21000,
+					parallelismFactor: 1,
+					calls: [{ method: 'findOrphanedCode', weight: 8 }],
+					warnings: [],
+				},
+			});
+			expect(event?.timeout_breakdown).toEqual({
+				base_ms: 5000,
+				estimated_ms: 21000,
+				applied_ms: 21000,
+				parallelism_factor: 1,
+				calls: [{ method: 'findOrphanedCode', weight: 8 }],
+				warnings: [],
+			});
+		});
+
+		it('should preserve the computed flag on call entries', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['searchSymbols'],
+				synthesizedResponse: 'ok',
+				durationMs: 100,
+				timeoutBreakdown: {
+					baseMs: 5000,
+					estimatedMs: 11000,
+					appliedMs: 11000,
+					parallelismFactor: 1,
+					calls: [{ method: '<computed>', weight: 3, computed: true }],
+					warnings: ['Computed api[…]() call detected'],
+				},
+			});
+			expect(event?.timeout_breakdown?.calls).toEqual([
+				{ method: '<computed>', weight: 3, computed: true },
+			]);
+			expect(event?.timeout_breakdown?.warnings).toHaveLength(1);
+		});
 	});
 
 	describe('postUsageEvent', () => {
