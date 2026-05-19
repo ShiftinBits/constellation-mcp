@@ -274,10 +274,11 @@ export class CodeModeRuntime {
 		// SB-802: Derive the per-execution timeout from the validator's AST.
 		// Explicit `request.timeout` still wins (clamped). When parsing failed
 		// (validation already returned a parseError warning) we have no AST —
-		// fall back to the explicit override or the constructor default,
-		// clamped.
+		// the VM will catch the syntax error almost immediately, so the
+		// timeout barely matters; but be explicit rather than silently
+		// falling back to the constructor's 30 s default.
 		let timeoutBreakdown: TimeoutBreakdown | undefined;
-		let effectiveTimeoutMs: number | undefined;
+		let effectiveTimeoutMs: number;
 		if (validation.ast) {
 			timeoutBreakdown = estimateTimeoutMs(validation.ast, {
 				explicitTimeoutMs: request.timeout,
@@ -288,6 +289,10 @@ export class CodeModeRuntime {
 			}
 		} else if (typeof request.timeout === 'number') {
 			effectiveTimeoutMs = clampTimeout(request.timeout);
+		} else {
+			// No AST and no explicit override: give the script the full
+			// budget so we never silently undershoot what the user intended.
+			effectiveTimeoutMs = MAX_EXECUTION_TIMEOUT_MS;
 		}
 
 		// Execute in sandbox (JavaScript only). Pass the dynamic timeout

@@ -88,6 +88,10 @@ export class IsolatedSandbox {
 				}
 			};
 
+			// Worker IPC has no knowledge of the runtime-computed breakdown
+			// (SB-802), so we attach it to every resolve path here.
+			const breakdown = execOpts?.timeoutBreakdown;
+
 			// Timeout kill — SIGKILL ensures no escape
 			const timeoutHandle = setTimeout(() => {
 				if (!resolved) {
@@ -97,6 +101,7 @@ export class IsolatedSandbox {
 						success: false,
 						error: `Execution timeout: Code took longer than ${effectiveTimeout}ms to execute (hardened mode)`,
 						executionTime: Date.now() - startTime,
+						timeoutBreakdown: breakdown,
 					});
 				}
 			}, effectiveTimeout + 1000); // Extra 1s buffer for IPC overhead
@@ -110,12 +115,16 @@ export class IsolatedSandbox {
 				child.unref();
 
 				if (message.type === 'result') {
-					resolve(message.result);
+					resolve({
+						...message.result,
+						timeoutBreakdown: message.result.timeoutBreakdown ?? breakdown,
+					});
 				} else {
 					resolve({
 						success: false,
 						error: message.error,
 						executionTime: Date.now() - startTime,
+						timeoutBreakdown: breakdown,
 					});
 				}
 			});
@@ -129,6 +138,7 @@ export class IsolatedSandbox {
 					success: false,
 					error: `Worker process error: ${error.message}`,
 					executionTime: Date.now() - startTime,
+					timeoutBreakdown: breakdown,
 				});
 			});
 
@@ -143,12 +153,14 @@ export class IsolatedSandbox {
 						success: false,
 						error: `Worker killed (signal: SIGKILL). Likely exceeded memory limit (${this.memoryLimit}MB) or timeout.`,
 						executionTime: Date.now() - startTime,
+						timeoutBreakdown: breakdown,
 					});
 				} else if (exitCode !== 0) {
 					resolve({
 						success: false,
 						error: `Worker exited with code ${exitCode}`,
 						executionTime: Date.now() - startTime,
+						timeoutBreakdown: breakdown,
 					});
 				}
 				// exitCode 0 here (not yet resolved) means result IPC was missed — rare edge case
