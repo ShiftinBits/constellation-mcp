@@ -58,6 +58,14 @@ interface SchemaCompliantOutput {
 		branchIndexed: boolean;
 		indexedFileCount: number;
 	};
+	timeoutBreakdown?: {
+		baseMs: number;
+		calls: Array<{ method: string; weight: number; computed?: true }>;
+		parallelismFactor: number;
+		estimatedMs: number;
+		appliedMs: number;
+		warnings: string[];
+	};
 	error?: string;
 	[x: string]: unknown;
 }
@@ -77,6 +85,9 @@ function toSchemaCompliantOutput(
 	if (response.asOfCommit) output.asOfCommit = response.asOfCommit;
 	if (response.lastIndexedAt) output.lastIndexedAt = response.lastIndexedAt;
 	if (response.resultContext) output.resultContext = response.resultContext;
+	if (response.timeoutBreakdown) {
+		output.timeoutBreakdown = response.timeoutBreakdown;
+	}
 
 	if (response.success) {
 		if (response.result !== undefined) output.result = response.result;
@@ -97,13 +108,19 @@ function toSchemaCompliantOutput(
  * Note: MCP SDK skips outputSchema validation when isError is true,
  * so this content passes through without validation. We conform to
  * SchemaCompliantOutput for consistency and forward compatibility.
+ *
+ * `timeoutBreakdown` is included when available: on the most
+ * common error path — `EXECUTION_TIMEOUT` — the agent needs to see what
+ * budget was attempted so it can scope down or override.
  */
 function toErrorStructuredContent(
 	errorResponse: McpErrorResponse,
+	timeoutBreakdown?: SchemaCompliantOutput['timeoutBreakdown'],
 ): SchemaCompliantOutput {
 	return {
 		success: false,
 		error: errorResponse.error.message,
+		...(timeoutBreakdown ? { timeoutBreakdown } : {}),
 	};
 }
 
@@ -193,9 +210,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					.min(MIN_EXECUTION_TIMEOUT_MS)
 					.max(MAX_EXECUTION_TIMEOUT_MS)
 					.optional()
-					.default(DEFAULT_EXECUTION_TIMEOUT_MS)
 					.describe(
-						`Maximum execution time in milliseconds (default: ${DEFAULT_EXECUTION_TIMEOUT_MS}, max: ${MAX_EXECUTION_TIMEOUT_MS})`,
+						`Optional execution-time override in milliseconds. When omitted, the sandbox derives the timeout from the static complexity of your code (heavier api.* methods raise the budget) and clamps the result to [${MIN_EXECUTION_TIMEOUT_MS}, ${MAX_EXECUTION_TIMEOUT_MS}]. The breakdown is returned in the response so you can see what was applied. Explicit values still win and are clamped to the same range.`,
 					),
 				cwd: z
 					.string()
@@ -218,6 +234,22 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 						reason: z.string(),
 						branchIndexed: z.boolean(),
 						indexedFileCount: z.number(),
+					})
+					.optional(),
+				timeoutBreakdown: z
+					.object({
+						baseMs: z.number(),
+						calls: z.array(
+							z.object({
+								method: z.string(),
+								weight: z.number(),
+								computed: z.literal(true).optional(),
+							}),
+						),
+						parallelismFactor: z.number(),
+						estimatedMs: z.number(),
+						appliedMs: z.number(),
+						warnings: z.array(z.string()),
 					})
 					.optional(),
 				error: z.string().optional(),
@@ -256,6 +288,12 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					isError: true,
 				};
 			}
+
+			// Hoisted so the outer catch can surface the estimator's
+			// timeoutBreakdown if execution threw AFTER the estimator ran
+			//. Without this, an unexpected throw would discard the
+			// computed budget that the agent needs for self-correction.
+			let response: CodeModeResponse | undefined;
 
 			try {
 				// Check for configuration errors (e.g., missing constellation.json)
@@ -348,16 +386,24 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					};
 				}
 
-				// Create runtime with configuration
+				// Create runtime with configuration. The constructor `timeout`
+				// is only a fallback used by sandbox internals when no
+				// per-call override is supplied (e.g. when the AST cannot
+				// be parsed). The real per-execution timeout is derived by
+				// the estimator inside runtime.execute().
 				const runtime = new CodeModeRuntime({
-					timeout: timeout || DEFAULT_EXECUTION_TIMEOUT_MS,
+					timeout: timeout ?? DEFAULT_EXECUTION_TIMEOUT_MS,
 					allowConsole: true,
 					allowTimers: false,
 					configContext,
 				});
 
-				// Execute the code
-				const response = await runtime.execute({
+				// Execute the code — passing `timeout` verbatim (may be
+				// undefined) so the estimator can distinguish "no override"
+				// from an explicit value. Assignment uses the hoisted
+				// `response` so the outer catch can read timeoutBreakdown
+				// after an unexpected throw.
+				response = await runtime.execute({
 					code,
 					timeout,
 				});
@@ -373,8 +419,12 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								text: JSON.stringify(response.structuredError, null, 2),
 							},
 						],
+						// surface the timeout breakdown on error paths too —
+						// most agent-facing errors here are EXECUTION_TIMEOUT, where
+						// the breakdown is the actionable diagnostic.
 						structuredContent: toErrorStructuredContent(
 							response.structuredError,
+							response.timeoutBreakdown,
 						),
 						isError: true,
 					};
@@ -407,6 +457,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							invocations: response.invocations,
 							synthesizedResponse: formatted,
 							durationMs: response.executionTime ?? 0,
+							timeoutBreakdown: response.timeoutBreakdown,
 						});
 						if (payload !== null) {
 							postUsageEvent({
@@ -454,7 +505,13 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							text: JSON.stringify(structuredError, null, 2),
 						},
 					],
-					structuredContent: toErrorStructuredContent(structuredError),
+					// if execution threw AFTER the estimator ran,
+					// the breakdown is available via the hoisted `response`
+					// and is the actionable signal for the agent.
+					structuredContent: toErrorStructuredContent(
+						structuredError,
+						response?.timeoutBreakdown,
+					),
 					isError: true,
 				};
 			}

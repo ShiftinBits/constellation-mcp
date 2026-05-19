@@ -69,6 +69,30 @@ export function estimateTokens(text: string): number {
 export const MAX_INVOCATIONS_PER_EVENT = 200;
 
 /**
+ * Per-call entry of the dynamic timeout estimator, serialized
+ * in snake_case for wire compatibility.
+ */
+export interface UsageTimeoutBreakdownCall {
+	method: string;
+	weight: number;
+	computed?: true;
+}
+
+/**
+ * Dynamic-timeout breakdown attached to a usage event. Lets the team
+ * refine METHOD_WEIGHTS from real production data. All fields are
+ * snake_case to match the rest of the payload contract.
+ */
+export interface UsageTimeoutBreakdown {
+	base_ms: number;
+	estimated_ms: number;
+	applied_ms: number;
+	parallelism_factor: number;
+	calls: UsageTimeoutBreakdownCall[];
+	warnings: string[];
+}
+
+/**
  * Wire payload accepted by `POST /intel/v1/usage`. The closed
  * `ExecutorName` enum is enforced at build time AND at the server's
  * Zod boundary; mismatches surface as 400s, not silent data.
@@ -80,6 +104,8 @@ export interface UsageEventPayload {
 	invocations: ExecutorName[];
 	duration_ms: number;
 	estimator_version: TokenEstimatorVersion;
+	/** Optional dynamic-timeout breakdown for weight-table tuning. */
+	timeout_breakdown?: UsageTimeoutBreakdown;
 }
 
 /**
@@ -149,6 +175,23 @@ export function buildUsageEvent(args: {
 	invocations: readonly string[];
 	synthesizedResponse: string;
 	durationMs: number;
+	/**
+	 * Optional timeout breakdown to attach. Camel-case fields from
+	 * the in-process `TimeoutBreakdown` type are converted to snake_case
+	 * here for wire compatibility.
+	 */
+	timeoutBreakdown?: {
+		baseMs: number;
+		estimatedMs: number;
+		appliedMs: number;
+		parallelismFactor: number;
+		calls: ReadonlyArray<{
+			method: string;
+			weight: number;
+			computed?: true;
+		}>;
+		warnings: readonly string[];
+	};
 }): UsageEventPayload | null {
 	// Defense-in-depth: filter to the closed enum and cap the array to
 	// match the receiving endpoint's Zod schema. The server would 400 on
@@ -167,7 +210,7 @@ export function buildUsageEvent(args: {
 		return null;
 	}
 
-	return {
+	const payload: UsageEventPayload = {
 		project_id: args.projectId,
 		branch_name: args.branchName,
 		actual_tokens: estimateTokens(args.synthesizedResponse),
@@ -175,6 +218,24 @@ export function buildUsageEvent(args: {
 		duration_ms: Math.max(0, Math.round(args.durationMs)),
 		estimator_version: TOKEN_ESTIMATOR_VERSION,
 	};
+
+	if (args.timeoutBreakdown) {
+		const tb = args.timeoutBreakdown;
+		payload.timeout_breakdown = {
+			base_ms: Math.max(0, Math.round(tb.baseMs)),
+			estimated_ms: Math.max(0, Math.round(tb.estimatedMs)),
+			applied_ms: Math.max(0, Math.round(tb.appliedMs)),
+			parallelism_factor: tb.parallelismFactor,
+			calls: tb.calls.map((c) => ({
+				method: c.method,
+				weight: c.weight,
+				...(c.computed ? { computed: true as const } : {}),
+			})),
+			warnings: [...tb.warnings],
+		};
+	}
+
+	return payload;
 }
 
 /**

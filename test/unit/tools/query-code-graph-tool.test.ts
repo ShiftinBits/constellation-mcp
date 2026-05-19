@@ -275,6 +275,30 @@ describe('registerQueryCodeGraphTool', () => {
 			);
 		});
 
+		it('should forward an undefined timeout to runtime.execute when omitted', async () => {
+			// The estimator distinguishes "no override" from an explicit value.
+			// If the handler ever populates `timeout` with the default before
+			// calling execute, dynamic estimation is silently bypassed.
+			// (Mirrors the "use default timeout" test above which omits `cwd`
+			// and relies on configCache.getDefaultConfig — the SDK's Zod
+			// `cwd` validation runs before the handler in production but is
+			// bypassed in this direct-invocation test.)
+			mockRuntime.execute.mockResolvedValue({
+				success: true,
+				result: null,
+			});
+			mockRuntime.formatResult.mockReturnValue('{}');
+
+			await registeredHandler({
+				code: 'return 1;',
+			});
+
+			expect(mockRuntime.execute).toHaveBeenCalledWith({
+				code: 'return 1;',
+				timeout: undefined,
+			});
+		});
+
 		it('should pass code to runtime.execute', async () => {
 			mockRuntime.execute.mockResolvedValue({
 				success: true,
@@ -755,6 +779,49 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(result.structuredContent).toEqual({
 				success: false,
 				error: 'Invalid API key',
+			});
+		});
+
+		it('should surface timeoutBreakdown on the structuredError path', async () => {
+			// EXECUTION_TIMEOUT is the most common error where the agent
+			// needs to see what budget was attempted to know how to scope down.
+			const structuredError = {
+				success: false as const,
+				error: {
+					code: 'EXECUTION_TIMEOUT' as const,
+					type: 'TimeoutError',
+					message: 'Operation timed out',
+					recoverable: true,
+					guidance: ['Pass an explicit `timeout` to override.'],
+				},
+				formattedMessage: 'Timed out',
+			};
+			const breakdown = {
+				baseMs: 5000,
+				calls: [{ method: 'findOrphanedCode' as const, weight: 8 }],
+				parallelismFactor: 1,
+				estimatedMs: 21_000,
+				appliedMs: 21_000,
+				warnings: [],
+			};
+
+			mockRuntime.execute.mockResolvedValue({
+				success: false,
+				error: 'Timed out',
+				structuredError,
+				executionTime: 21_000,
+				timeoutBreakdown: breakdown,
+			});
+
+			const result = await registeredHandler({
+				code: 'await api.findOrphanedCode({});',
+			});
+
+			expect(result.isError).toBe(true);
+			expect(result.structuredContent).toEqual({
+				success: false,
+				error: 'Operation timed out',
+				timeoutBreakdown: breakdown,
 			});
 		});
 

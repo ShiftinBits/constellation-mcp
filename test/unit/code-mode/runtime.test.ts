@@ -3,11 +3,16 @@
  */
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { parse } from 'acorn';
 import { IsolatedSandbox } from '../../../src/code-mode/isolated-sandbox.js';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
+import {
+	DEFAULT_EXECUTION_TIMEOUT_MS,
+	MAX_EXECUTION_TIMEOUT_MS,
+} from '../../../src/constants/sandbox-limits.js';
 
 // Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
 jest.mock('../../../src/code-mode/worker-path.js', () => ({
@@ -880,6 +885,138 @@ describe('CodeModeRuntime', () => {
 			);
 			expect(result.structuredError?.error.context?.apiMethod).toBe(
 				'searchSymbols',
+			);
+		});
+	});
+
+	describe('dynamic timeout estimation', () => {
+		const parseAst = (code: string) =>
+			parse(code, {
+				ecmaVersion: 'latest',
+				allowAwaitOutsideFunction: true,
+				allowReturnOutsideFunction: true,
+			});
+
+		it('should pass the estimator-derived appliedMs as timeoutMs to sandbox.execute', async () => {
+			const code = `await api.findOrphanedCode({ limit: 5 });`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				logs: [],
+				executionTime: 1,
+			});
+
+			await runtime.execute({ code });
+
+			// 5000 + 8 * 2000 * 1.0 = 21000
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				code,
+				expect.objectContaining({
+					timeoutMs: 21000,
+					timeoutBreakdown: expect.objectContaining({
+						appliedMs: 21000,
+						parallelismFactor: 1,
+					}),
+				}),
+			);
+		});
+
+		it('should surface timeoutBreakdown in the CodeModeResponse (from runtime estimator)', async () => {
+			const code = `await api.ping();`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			// Sandbox returns no breakdown — runtime's local estimate must fill in.
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+			});
+
+			const response = await runtime.execute({ code });
+
+			expect(response.timeoutBreakdown).toBeDefined();
+			expect(response.timeoutBreakdown?.appliedMs).toBe(7000); // 5000 + 1*2000
+			expect(response.timeoutBreakdown?.calls).toEqual([
+				{ method: 'ping', weight: 1 },
+			]);
+		});
+
+		it('should prefer the sandbox-echoed timeoutBreakdown when present', async () => {
+			const code = `await api.ping();`;
+			const sandboxEchoed = {
+				baseMs: 5000,
+				calls: [{ method: 'ping', weight: 1 }],
+				parallelismFactor: 1,
+				estimatedMs: 7000,
+				appliedMs: 7000,
+				warnings: ['echoed-from-sandbox'],
+			};
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+				timeoutBreakdown: sandboxEchoed,
+			});
+
+			const response = await runtime.execute({ code });
+
+			// `result.timeoutBreakdown ?? timeoutBreakdown` should take the
+			// sandbox-echoed object verbatim (preserves the warnings array etc.).
+			expect(response.timeoutBreakdown).toBe(sandboxEchoed);
+		});
+
+		it('should respect an explicit timeout over the static estimate (clamped)', async () => {
+			const code = `await Promise.all([api.findOrphanedCode({}), api.findCircularDependencies({})]);`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				logs: [],
+				executionTime: 1,
+			});
+
+			await runtime.execute({ code, timeout: 1500 });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				code,
+				expect.objectContaining({ timeoutMs: 1500 }),
+			);
+		});
+
+		it('should fall back to DEFAULT_EXECUTION_TIMEOUT_MS when the AST is unavailable and no explicit timeout is given', async () => {
+			// Simulate the parse-failure path: valid: true with no ast attached.
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				logs: [],
+				executionTime: 1,
+			});
+
+			await runtime.execute({ code: 'const x = (' });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				'const x = (',
+				expect.objectContaining({ timeoutMs: DEFAULT_EXECUTION_TIMEOUT_MS }),
+			);
+			// timeoutMs is bounded by MAX so future tuning can't accidentally exceed the ceiling.
+			expect(DEFAULT_EXECUTION_TIMEOUT_MS).toBeLessThanOrEqual(
+				MAX_EXECUTION_TIMEOUT_MS,
 			);
 		});
 	});
