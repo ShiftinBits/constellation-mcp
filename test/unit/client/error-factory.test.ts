@@ -551,7 +551,7 @@ describe('createStructuredError - UnsupportedLanguageError mapping', () => {
 	});
 });
 
-describe('INVALID_SYMBOL_KIND_FOR_CALL_GRAPH (SB-804)', () => {
+describe('INVALID_SYMBOL_KIND_FOR_CALL_GRAPH error mapping', () => {
 	it('should map the marker to VALIDATION_ERROR with kind-aware guidance', () => {
 		const error = new Error(
 			'INVALID_SYMBOL_KIND_FOR_CALL_GRAPH: Symbol "CodeModeSandbox" has kind "class", which cannot have a call graph. Only functions and methods participate in call relationships. To analyze a member of this class, look up the symbolId of a specific method (e.g., via getSymbolDetails or searchSymbols with query "CodeModeSandbox.").',

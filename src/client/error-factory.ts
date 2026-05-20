@@ -489,10 +489,13 @@ function createErrorFromMessage(
 		};
 	}
 
-	// Non-callable symbol passed to getCallGraph (SB-804).
+	// Non-callable symbol passed to getCallGraph.
 	// Must be evaluated before the generic "invalid" handler below so the
 	// custom guidance isn't replaced by the generic validation guidance.
 	if (message.includes('invalid_symbol_kind_for_call_graph')) {
+		// Detection uses the lowercased `message`; capture uses the original
+		// `error.message` because the patterns rely on capitalized field names
+		// (`Symbol "..."`, `kind "..."`) as emitted by graph-query.service.ts.
 		const kindMatch = error.message.match(/kind "([^"]+)"/);
 		const nameMatch = error.message.match(/Symbol "([^"]+)"/);
 		const kind = kindMatch?.[1] ?? 'non-callable';
