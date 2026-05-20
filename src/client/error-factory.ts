@@ -496,27 +496,26 @@ function createErrorFromMessage(
 		// Detection uses the lowercased `message`; capture uses the original
 		// `error.message` because the patterns rely on capitalized field names
 		// (`Symbol "..."`, `kind "..."`) as emitted by graph-query.service.ts.
+		// Quotes/newlines are stripped from the name on the Core side, so the
+		// captures here are safe to interpolate into the guidance message.
 		const kindMatch = error.message.match(/kind "([^"]+)"/);
-		const nameMatch = error.message.match(/Symbol "([^"]+)"/);
 		const kind = kindMatch?.[1] ?? 'non-callable';
-		const name = nameMatch?.[1];
+		const friendlyMessage = `getCallGraph requires a function or method symbolId; received kind "${kind}"`;
 		return {
 			success: false,
 			error: {
 				code: ErrorCode.VALIDATION_ERROR,
 				type: 'ValidationError',
-				message: `getCallGraph requires a function or method symbolId; received kind "${kind}"`,
+				message: friendlyMessage,
 				recoverable: true,
 				guidance: [
 					`The provided symbolId resolves to a ${kind}, which cannot have a call graph. Only functions and methods participate in call relationships.`,
-					name
-						? `To analyze a member of "${name}", first look up its methods with: await api.getSymbolDetails({ symbolId }) or await api.searchSymbols({ query: "${name}." }).`
-						: 'Look up a specific method symbolId with searchSymbols or getSymbolDetails, then pass that to getCallGraph.',
-					'Example: await api.getCallGraph({ symbolId: "<methodSymbolId>" })',
+					'Use api.getSymbolDetails({ symbolId }) on the original symbol to discover its member ids, or call api.searchSymbols({ query: "<method-name>" }) to locate a specific method.',
+					'Example: const methodId = (await api.searchSymbols({ query: "myMethod" })).symbols[0].id; await api.getCallGraph({ symbolId: methodId });',
 				],
 				context: baseContext,
 			},
-			formattedMessage: error.message,
+			formattedMessage: friendlyMessage,
 		};
 	}
 
