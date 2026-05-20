@@ -332,7 +332,7 @@ interface FindOrphanedCodeResult {
     total: number;                       // Total orphaned symbols on the branch
     returned: number;                    // Symbols in this response
     hasMore: boolean;
-    currentOffset: number;
+    currentOffset?: number;              // Always populated in practice for paginated responses
     nextOffset?: number;                 // Present when hasMore is true
   };
 }
