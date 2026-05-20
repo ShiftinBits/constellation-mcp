@@ -325,8 +325,9 @@ interface FindOrphanedCodeResult {
   orphanedFiles: OrphanedFile[];        // Server-capped, not user-paginated
   summary?: {
     totalOrphanedSymbols: number;        // Pre-pagination total
-    totalOrphanedFiles: number;          // Returned files (capped)
-    potentialDeletions: number;          // totalOrphanedSymbols + totalOrphanedFiles
+    totalOrphanedFiles: number;          // True total on the branch (may exceed orphanedFiles.length)
+    potentialDeletions: number;          // Universe-scoped sum (not page-scoped)
+    filesTruncated?: boolean;            // true when orphanedFiles was server-capped (more exist)
   };
   pagination?: {
     total: number;                       // Total orphaned symbols on the branch
