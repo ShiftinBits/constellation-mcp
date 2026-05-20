@@ -53,7 +53,11 @@ describe('method-summaries', () => {
 		const summary = METHOD_SUMMARIES.getCallGraph;
 
 		it('should use the canonical direction enum (incoming | outgoing | both)', () => {
-			expect(summary).toContain("direction?: 'incoming' | 'outgoing' | 'both'");
+			// Whitespace-tolerant regex so the assertion does not break when
+			// the surrounding interface comment is reflowed.
+			expect(summary).toMatch(
+				/direction\?:\s*'incoming'\s*\|\s*'outgoing'\s*\|\s*'both'/,
+			);
 		});
 
 		it('should not document deprecated direction values in the canonical type', () => {
