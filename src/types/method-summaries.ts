@@ -245,6 +245,8 @@ interface GetCallGraphParams {
   depth?: number;                       // Traversal depth
 }
 // Note: Provide either symbolId OR (symbolName + filePath)
+// Note: symbolId must resolve to a function or method. Passing a class/interface/type
+//       returns a VALIDATION_ERROR — call getSymbolDetails first to find member ids.
 
 interface GetCallGraphResult {
   root: CallGraphNode;

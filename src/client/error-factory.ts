@@ -489,6 +489,34 @@ function createErrorFromMessage(
 		};
 	}
 
+	// Non-callable symbol passed to getCallGraph (SB-804).
+	// Must be evaluated before the generic "invalid" handler below so the
+	// custom guidance isn't replaced by the generic validation guidance.
+	if (message.includes('invalid_symbol_kind_for_call_graph')) {
+		const kindMatch = error.message.match(/kind "([^"]+)"/);
+		const nameMatch = error.message.match(/Symbol "([^"]+)"/);
+		const kind = kindMatch?.[1] ?? 'non-callable';
+		const name = nameMatch?.[1];
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.VALIDATION_ERROR,
+				type: 'ValidationError',
+				message: `getCallGraph requires a function or method symbolId; received kind "${kind}"`,
+				recoverable: true,
+				guidance: [
+					`The provided symbolId resolves to a ${kind}, which cannot have a call graph. Only functions and methods participate in call relationships.`,
+					name
+						? `To analyze a member of "${name}", first look up its methods with: await api.getSymbolDetails({ symbolId }) or await api.searchSymbols({ query: "${name}." }).`
+						: 'Look up a specific method symbolId with searchSymbols or getSymbolDetails, then pass that to getCallGraph.',
+					'Example: await api.getCallGraph({ symbolId: "<methodSymbolId>" })',
+				],
+				context: baseContext,
+			},
+			formattedMessage: error.message,
+		};
+	}
+
 	// Validation errors
 	if (
 		message.includes('invalid') ||

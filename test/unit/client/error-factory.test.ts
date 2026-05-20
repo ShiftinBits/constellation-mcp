@@ -551,6 +551,68 @@ describe('createStructuredError - UnsupportedLanguageError mapping', () => {
 	});
 });
 
+describe('INVALID_SYMBOL_KIND_FOR_CALL_GRAPH (SB-804)', () => {
+	it('should map the marker to VALIDATION_ERROR with kind-aware guidance', () => {
+		const error = new Error(
+			'INVALID_SYMBOL_KIND_FOR_CALL_GRAPH: Symbol "CodeModeSandbox" has kind "class", which cannot have a call graph. Only functions and methods participate in call relationships. To analyze a member of this class, look up the symbolId of a specific method (e.g., via getSymbolDetails or searchSymbols with query "CodeModeSandbox.").',
+		);
+
+		const result = createStructuredError(error, 'getCallGraph');
+
+		expect(result.success).toBe(false);
+		expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+		expect(result.error.type).toBe('ValidationError');
+		expect(result.error.recoverable).toBe(true);
+		expect(result.error.message).toContain('class');
+		expect(result.error.guidance.length).toBeGreaterThanOrEqual(3);
+		expect(result.error.guidance[0]).toContain('class');
+		// guidance[1] should mention the symbol name and suggest a recovery method
+		expect(result.error.guidance[1]).toContain('CodeModeSandbox');
+		expect(result.error.guidance[1]).toMatch(/searchSymbols|getSymbolDetails/);
+		expect(result.error.guidance[2]).toContain('getCallGraph');
+	});
+
+	it('should map the marker for interface kind with interface-specific guidance', () => {
+		const error = new Error(
+			'INVALID_SYMBOL_KIND_FOR_CALL_GRAPH: Symbol "FooService" has kind "interface", which cannot have a call graph.',
+		);
+
+		const result = createStructuredError(error, 'getCallGraph');
+
+		expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+		expect(result.error.message).toContain('interface');
+		expect(result.error.guidance[0]).toContain('interface');
+		expect(result.error.guidance[1]).toContain('FooService');
+	});
+
+	it('should fall back to safe defaults when name/kind capture fails', () => {
+		const error = new Error('INVALID_SYMBOL_KIND_FOR_CALL_GRAPH: malformed');
+
+		const result = createStructuredError(error);
+
+		expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+		expect(result.error.message).toContain('non-callable');
+		// guidance[1] should still be present even without a name capture
+		expect(result.error.guidance.length).toBeGreaterThanOrEqual(3);
+		expect(result.error.guidance[1]).toMatch(/searchSymbols|getSymbolDetails/);
+	});
+
+	it('should win over the generic invalid/validation branch', () => {
+		// The marker message contains "invalid" — the generic branch would otherwise
+		// return VALIDATION_ERROR with generic guidance. Pin the ordering by
+		// checking that the kind appears in the message (specific path).
+		const error = new Error(
+			'INVALID_SYMBOL_KIND_FOR_CALL_GRAPH: Symbol "X" has kind "enum", invalid for getCallGraph',
+		);
+
+		const result = createStructuredError(error);
+
+		expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
+		expect(result.error.message).toContain('enum');
+		expect(result.error.guidance[0]).toContain('enum');
+	});
+});
+
 describe('Error code consistency', () => {
 	it('should use valid ErrorCode values', () => {
 		const validCodes = Object.values(ErrorCode);
