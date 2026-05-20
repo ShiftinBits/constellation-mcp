@@ -314,15 +314,34 @@ interface FindOrphanedCodeParams {
   filePattern?: string;                 // Glob pattern to scope search (e.g., "src/**")
   filterByKind?: string[];              // Filter by symbol kind (e.g., ['function', 'class'])
   exportedOnly?: boolean;               // Only check exported symbols
-  excludeTests?: boolean;              // Exclude test files
-  includeReasons?: boolean;             // Include reason for orphan status
+  excludeTests?: boolean;               // Exclude test files (default: true)
+  limit?: number;                       // Max symbols per page (default 50, max 100)
+  offset?: number;                      // Pagination offset for orphanedSymbols
   includeConfidence?: boolean;          // Include confidence score
 }
 
 interface FindOrphanedCodeResult {
-  orphanedSymbols: OrphanedSymbol[];
-  orphanedFiles: OrphanedFile[];
+  orphanedSymbols: OrphanedSymbol[];    // Paginated by limit/offset
+  orphanedFiles: OrphanedFile[];        // Server-capped, not user-paginated
+  summary?: {
+    totalOrphanedSymbols: number;        // Pre-pagination total
+    totalOrphanedFiles: number;          // True total on the branch (may exceed orphanedFiles.length)
+    potentialDeletions: number;          // Universe-scoped sum (not page-scoped)
+    filesTruncated?: boolean;            // true when orphanedFiles was server-capped (more exist)
+  };
+  pagination?: {
+    total: number;                       // Total orphaned symbols on the branch
+    returned: number;                    // Symbols in this response
+    hasMore: boolean;
+    currentOffset?: number;              // Always populated in practice for paginated responses
+    nextOffset?: number;                 // Present when hasMore is true
+  };
 }
+
+// Empty case: when BOTH orphanedSymbols and orphanedFiles are empty,
+// the response includes resultContext.reason ("no_matches" or
+// "branch_not_indexed") so callers can distinguish "nothing found"
+// from "branch not indexed yet".
 
 // OrphanedSymbol:
 //   .symbolId   - Symbol ID
@@ -330,14 +349,14 @@ interface FindOrphanedCodeResult {
 //   .kind       - Symbol kind
 //   .filePath   - File path
 //   .isExported - Whether exported
-//   .reason     - Why it's considered orphaned (if includeReasons)
-//   .confidence - Confidence score (if includeConfidence)
+//   .reason     - Why it's considered orphaned
+//   .confidence - Confidence score (0-1)
 
 // OrphanedFile:
 //   .filePath    - File path
 //   .reason      - Why it's considered orphaned
 //   .lastUpdated - Last modification date
-//   .confidence  - Confidence score (if includeConfidence)`,
+//   .confidence  - Confidence score (0-1)`,
 
 	getArchitectureOverview: `// === getArchitectureOverview ===
 // Get high-level project structure and metrics

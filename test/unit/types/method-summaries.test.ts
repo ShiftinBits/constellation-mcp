@@ -49,6 +49,16 @@ describe('method-summaries', () => {
 		}
 	});
 
+	it('findOrphanedCode summary should document pagination and summary fields', () => {
+		const summary = METHOD_SUMMARIES.findOrphanedCode;
+		expect(summary).toContain('pagination?');
+		expect(summary).toContain('summary?');
+		expect(summary).toContain('totalOrphanedSymbols');
+		expect(summary).toContain('totalOrphanedFiles');
+		expect(summary).toContain('hasMore');
+		expect(summary).toContain('resultContext');
+	});
+
 	describe('resolveMethodName', () => {
 		it('should resolve canonical method names', () => {
 			expect(resolveMethodName('searchSymbols')).toBe('searchSymbols');
