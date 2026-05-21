@@ -98,6 +98,12 @@ export interface CodeModeResponse {
 	 * by the tool layer to emit usage-tracking telemetry.
 	 */
 	invocations?: string[];
+	/**
+	 * Per-invocation raw token estimates parallel to `invocations`.
+	 * Populated by the sandbox; used by the tool layer to build the
+	 * v2 usage-event payload.
+	 */
+	invocationActualTokens?: number[];
 	metadata?: {
 		language: string;
 		sandboxed: boolean;
@@ -353,6 +359,7 @@ export class CodeModeRuntime {
 			lastIndexedAt: result.lastIndexedAt,
 			resultContext: result.resultContext,
 			invocations: result.invocations,
+			invocationActualTokens: result.invocationActualTokens,
 			timeoutBreakdown: result.timeoutBreakdown ?? timeoutBreakdown,
 			metadata: {
 				language: 'javascript',
