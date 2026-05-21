@@ -68,8 +68,8 @@ function getGuideMethodsSection(): string {
 | Question | Call |
 |----------|------|
 | "Where is X?" | \`searchSymbols({query: "X"})\` |
-| "What does X call?" | \`getCallGraph({symbolId, direction: "callees"})\` |
-| "What calls X?" | \`getCallGraph({symbolId, direction: "callers"})\` |
+| "What does X call?" | \`getCallGraph({symbolId, direction: "outgoing"})\` |
+| "What calls X?" | \`getCallGraph({symbolId, direction: "incoming"})\` |
 | "What does this file import?" | \`getDependencies({filePath})\` |
 | "What imports this file?" | \`getDependents({filePath})\` |
 | "What would break?" | \`impactAnalysis({symbolId})\` |
@@ -84,7 +84,7 @@ Three methods answer "what uses X?" at different granularity:
 | Granularity | Method | Best For |
 |-------------|--------|----------|
 | **File imports** | \`getDependents({filePath})\` | "Which files import this module?" — file-level coupling |
-| **Call chain** | \`getCallGraph({symbolId, direction: "callers"})\` | "Which functions call this function?" — call hierarchy |
+| **Call chain** | \`getCallGraph({symbolId, direction: "incoming"})\` | "Which functions call this function?" — call hierarchy |
 | **All usages** | \`traceSymbolUsage({symbolId})\` | "Every place this symbol appears" — imports, calls, type refs, inheritance |
 
 **Not sure?** Start with \`traceSymbolUsage\` for comprehensive results. Narrow to \`getDependents\` for file-level or \`getCallGraph\` for call-chain only.

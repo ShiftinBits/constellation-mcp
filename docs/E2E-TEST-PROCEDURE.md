@@ -1451,7 +1451,7 @@ if (search.symbols?.length === 0) {
 }
 const result = await api.getCallGraph({
 	symbolId: search.symbols[0].id,
-	direction: 'callees',
+	direction: 'outgoing',
 	depth: 2,
 });
 return {
@@ -1506,7 +1506,7 @@ if (search.symbols?.length === 0) {
 }
 const result = await api.getCallGraph({
 	symbolId: search.symbols[0].id,
-	direction: 'callers',
+	direction: 'incoming',
 	depth: 2,
 });
 return {

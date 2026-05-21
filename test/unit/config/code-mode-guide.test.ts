@@ -173,6 +173,20 @@ describe('code-mode-guide', () => {
 			expect(guide).toContain('constellation://docs/guide/recipes');
 			expect(guide).toContain('constellation://docs/guide/recovery');
 		});
+
+		describe('getCallGraph direction examples', () => {
+			it('should use canonical "incoming" / "outgoing" values in examples', () => {
+				const guide = getCodeModeGuide();
+				expect(guide).toContain('direction: "incoming"');
+				expect(guide).toContain('direction: "outgoing"');
+			});
+
+			it('should not advertise deprecated "callers" / "callees" direction values as examples', () => {
+				const guide = getCodeModeGuide();
+				expect(guide).not.toContain('direction: "callers"');
+				expect(guide).not.toContain('direction: "callees"');
+			});
+		});
 	});
 
 	describe('GUIDE_SECTIONS', () => {

@@ -241,7 +241,10 @@ interface GetCallGraphParams {
   symbolId?: string;                    // Unique symbol ID (preferred)
   symbolName?: string;                  // Symbol name (use with filePath)
   filePath?: string;                    // File path (use with symbolName)
-  direction?: 'callers' | 'callees' | 'both';  // Which direction to traverse (default: 'both')
+  // Direction to traverse (default: 'both').
+  // 'incoming' = who calls this symbol; 'outgoing' = what this symbol calls.
+  // Deprecated aliases 'callers' / 'callees' still work for one release.
+  direction?: 'incoming' | 'outgoing' | 'both';
   depth?: number;                       // Traversal depth
 }
 // Note: Provide either symbolId OR (symbolName + filePath)

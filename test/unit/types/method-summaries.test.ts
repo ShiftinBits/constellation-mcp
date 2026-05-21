@@ -49,6 +49,35 @@ describe('method-summaries', () => {
 		}
 	});
 
+	describe('getCallGraph summary', () => {
+		const summary = METHOD_SUMMARIES.getCallGraph;
+
+		it('should use the canonical direction enum (incoming | outgoing | both)', () => {
+			// Whitespace-tolerant regex so the assertion does not break when
+			// the surrounding interface comment is reflowed.
+			expect(summary).toMatch(
+				/direction\?:\s*'incoming'\s*\|\s*'outgoing'\s*\|\s*'both'/,
+			);
+		});
+
+		it('should not document deprecated direction values in the canonical type', () => {
+			expect(summary).not.toMatch(
+				/direction\?:\s*'callers'\s*\|\s*'callees'\s*\|\s*'both'/,
+			);
+		});
+
+		it('should still document response keys callers and callees (response shape unchanged)', () => {
+			expect(summary).toContain('callers?:');
+			expect(summary).toContain('callees?:');
+		});
+
+		it('should mention deprecation of legacy aliases for discoverability', () => {
+			expect(summary.toLowerCase()).toContain('deprecated');
+			expect(summary).toContain('callers');
+			expect(summary).toContain('callees');
+		});
+	});
+
 	it('findOrphanedCode summary should document pagination and summary fields', () => {
 		const summary = METHOD_SUMMARIES.findOrphanedCode;
 		expect(summary).toContain('pagination?');
