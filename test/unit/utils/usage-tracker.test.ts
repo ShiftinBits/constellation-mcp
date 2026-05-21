@@ -405,7 +405,12 @@ describe('usage-tracker', () => {
 			expect(headers.authorization).toBe('Bearer ak:secret');
 			expect(headers['content-type']).toBe('application/json');
 			expect((init as RequestInit).method).toBe('POST');
-			expect(JSON.parse((init as RequestInit).body as string)).toEqual(payload);
+			const body = JSON.parse((init as RequestInit).body as string);
+			expect(body).toEqual(payload);
+			// Explicit v2 contract assertion — guards against accidental
+			// removal of the version literal from buildUsageEvent's output.
+			expect(body.usage_event_version).toBe('2');
+			expect(Array.isArray(body.actual_tokens)).toBe(true);
 		});
 
 		it('should not throw when fetch rejects (failure is swallowed)', async () => {

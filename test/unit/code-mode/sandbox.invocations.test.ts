@@ -21,6 +21,7 @@ import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
 import { ConstellationClient } from '../../../src/client/constellation-client.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
+import { estimateTokens } from '../../../src/utils/usage-tracker.js';
 
 jest.mock('../../../src/client/constellation-client.js', () => {
 	const actual = jest.requireActual<
@@ -199,7 +200,9 @@ describe('CodeModeSandbox invocations tracking (SB-679)', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.invocationActualTokens).toBeDefined();
-			const expectedTokens = Math.ceil(JSON.stringify(knownData).length / 3.5);
+			// Use the same estimator the sandbox uses, so a formula change in
+			// usage-tracker won't silently drift this assertion.
+			const expectedTokens = estimateTokens(JSON.stringify(knownData));
 			expect(result.invocationActualTokens![0]).toBe(expectedTokens);
 		});
 
@@ -261,6 +264,28 @@ describe('CodeModeSandbox invocations tracking (SB-679)', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.invocationActualTokens).toEqual([]);
+		});
+
+		it('should keep arrays aligned when executeMcpTool itself throws (raw exception)', async () => {
+			// Mid-call throw — not an API-level { success: false } response.
+			// This exercises the outer catch path that's separate from the
+			// !result.success path.
+			mockClient.executeMcpTool.mockRejectedValueOnce(
+				new Error('network exploded') as unknown as never,
+			);
+
+			const result = await sandbox.execute(
+				`try { await api.ping(); } catch (e) {}
+				 await api.searchSymbols({ query: 'OK' });`,
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.invocations!.length).toBe(
+				result.invocationActualTokens!.length,
+			);
+			expect(result.invocations).toEqual(['ping', 'searchSymbols']);
+			expect(result.invocationActualTokens![0]).toBe(0);
+			expect(result.invocationActualTokens![1]).toBeGreaterThan(0);
 		});
 	});
 });
