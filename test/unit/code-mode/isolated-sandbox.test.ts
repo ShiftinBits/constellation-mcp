@@ -162,6 +162,30 @@ describe('IsolatedSandbox', () => {
 			expect(result).toEqual(expectedResult);
 		});
 
+		it('should preserve invocationActualTokens through the IPC round-trip', async () => {
+			// Guards against a regression where the parent destructures the
+			// worker message and silently drops the per-invocation actuals
+			// array — telemetry would zero out without any test failure.
+			const expectedResult = {
+				success: true,
+				result: { symbols: ['foo'] },
+				logs: [],
+				executionTime: 12,
+				invocations: ['searchSymbols', 'getArchitectureOverview'],
+				invocationActualTokens: [42, 280000],
+			};
+
+			const executePromise = sandbox.execute('api.searchSymbols({})');
+			mockChild.emit('message', { type: 'result', result: expectedResult });
+
+			const result = await executePromise;
+			expect(result.invocationActualTokens).toEqual([42, 280000]);
+			expect(result.invocations).toEqual([
+				'searchSymbols',
+				'getArchitectureOverview',
+			]);
+		});
+
 		it('should handle worker error response', async () => {
 			const executePromise = sandbox.execute('bad code');
 			mockChild.emit('message', {

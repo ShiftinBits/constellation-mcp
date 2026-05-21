@@ -57,7 +57,10 @@ import {
 } from '../constants/index.js';
 import { AuditLogger } from '../utils/audit-logger.js';
 import { Metrics } from '../utils/metrics.js';
-import { MAX_INVOCATIONS_PER_EVENT } from '../utils/usage-tracker.js';
+import {
+	estimateTokens,
+	MAX_INVOCATIONS_PER_EVENT,
+} from '../utils/usage-tracker.js';
 import { METHOD_SUMMARIES } from '../types/method-summaries.js';
 import { enrichWithSourceSnippets } from './source-enrichment.js';
 
@@ -332,6 +335,12 @@ export interface SandboxResult {
 	 */
 	invocations?: string[];
 	/**
+	 * Per-invocation raw token estimates parallel to `invocations`. Each
+	 * entry is `estimateTokens(JSON.stringify(rawResult))` for the
+	 * corresponding executor call.
+	 */
+	invocationActualTokens?: number[];
+	/**
 	 * Breakdown of how the per-execution timeout was derived.
 	 * Populated when the timeout was computed by the estimator OR overridden
 	 * via per-execution options. Surfaced in tool response metadata so
@@ -464,6 +473,13 @@ export class CodeModeSandbox {
 			 * createSandboxContext on each api.X() call.
 			 */
 			invocations: [] as string[],
+			/**
+			 * Per-invocation token estimates parallel to `invocations`.
+			 * Each entry is estimateTokens(JSON.stringify(rawResult)) for
+			 * the corresponding executor call. Stays length-equal to
+			 * `invocations` because both are guarded by the same cap.
+			 */
+			invocationActualTokens: [] as number[],
 		};
 
 		try {
@@ -542,6 +558,7 @@ export class CodeModeSandbox {
 				lastIndexedAt: executionState.lastIndexedAt ?? undefined,
 				resultContext: executionState.resultContext ?? undefined,
 				invocations: [...executionState.invocations],
+				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		} catch (error) {
@@ -579,6 +596,7 @@ export class CodeModeSandbox {
 				// The usage-tracker integration explicitly gates on
 				// `response.success` so this does NOT fire spurious POSTs.
 				invocations: [...executionState.invocations],
+				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
 			};
 		} finally {
@@ -673,6 +691,7 @@ export class CodeModeSandbox {
 			} | null;
 			timerCleanup: (() => void) | null;
 			invocations: string[];
+			invocationActualTokens: number[];
 		},
 	): any {
 		// Helper to convert snake_case to camelCase for display
@@ -718,7 +737,9 @@ export class CodeModeSandbox {
 			// override cannot grow the buffer without bound. Excess
 			// names are dropped silently — the receiving endpoint
 			// enforces the same cap and would 400 anyway.
-			if (executionState.invocations.length < MAX_INVOCATIONS_PER_EVENT) {
+			const trackInvocation =
+				executionState.invocations.length < MAX_INVOCATIONS_PER_EVENT;
+			if (trackInvocation) {
 				executionState.invocations.push(snakeToCamel(toolName));
 			}
 
@@ -743,6 +764,9 @@ export class CodeModeSandbox {
 						success: false,
 						error: result.error || 'Unknown error',
 					});
+					if (trackInvocation) {
+						executionState.invocationActualTokens.push(0);
+					}
 					throw new Error(
 						`API call failed: api.${snakeToCamel(toolName)}()\n` +
 							`  Parameters: ${paramsPreview}\n` +
@@ -770,6 +794,13 @@ export class CodeModeSandbox {
 				if (result.metadata?.resultContext) {
 					executionState.resultContext = result.metadata
 						.resultContext as typeof executionState.resultContext;
+				}
+
+				// Record raw-result token estimate before enrichment modifies result.data.
+				if (trackInvocation) {
+					executionState.invocationActualTokens.push(
+						estimateTokens(JSON.stringify(result.data)),
+					);
 				}
 
 				// Enrich response with source snippets from local files (best-effort)
@@ -802,6 +833,10 @@ export class CodeModeSandbox {
 					success: false,
 					error: error instanceof Error ? error.message : String(error),
 				});
+
+				if (trackInvocation) {
+					executionState.invocationActualTokens.push(0);
+				}
 
 				// Preserve typed errors so error-factory can map them to the
 				// correct ErrorCode (AUTH_ERROR, AUTHZ_ERROR, etc.) via instanceof.

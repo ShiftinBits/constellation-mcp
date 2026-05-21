@@ -98,9 +98,11 @@ export interface UsageTimeoutBreakdown {
  * Zod boundary; mismatches surface as 400s, not silent data.
  */
 export interface UsageEventPayload {
+	usage_event_version: '2';
 	project_id: string;
 	branch_name: string;
-	actual_tokens: number;
+	/** Per-invocation raw token estimates, parallel to `invocations`. */
+	actual_tokens: number[];
 	invocations: ExecutorName[];
 	duration_ms: number;
 	estimator_version: TokenEstimatorVersion;
@@ -173,7 +175,7 @@ export function buildUsageEvent(args: {
 	projectId: string;
 	branchName: string;
 	invocations: readonly string[];
-	synthesizedResponse: string;
+	invocationActualTokens: number[];
 	durationMs: number;
 	/**
 	 * Optional timeout breakdown to attach. Camel-case fields from
@@ -198,11 +200,16 @@ export function buildUsageEvent(args: {
 	// either violation and the fire-and-forget POST would swallow the
 	// error silently — the local cap keeps the telemetry path alive
 	// even if a future caller pushes a non-executor name into the buffer.
+	// Filter invocationActualTokens in lockstep so the two arrays stay
+	// length-equal in the wire payload.
 	const validInvocations: ExecutorName[] = [];
-	for (const name of args.invocations) {
+	const validActualTokens: number[] = [];
+	for (let i = 0; i < args.invocations.length; i++) {
 		if (validInvocations.length >= MAX_INVOCATIONS_PER_EVENT) break;
+		const name = args.invocations[i];
 		if (isExecutorName(name)) {
 			validInvocations.push(name);
+			validActualTokens.push(args.invocationActualTokens[i] ?? 0);
 		}
 	}
 
@@ -211,9 +218,10 @@ export function buildUsageEvent(args: {
 	}
 
 	const payload: UsageEventPayload = {
+		usage_event_version: '2',
 		project_id: args.projectId,
 		branch_name: args.branchName,
-		actual_tokens: estimateTokens(args.synthesizedResponse),
+		actual_tokens: validActualTokens,
 		invocations: validInvocations,
 		duration_ms: Math.max(0, Math.round(args.durationMs)),
 		estimator_version: TOKEN_ESTIMATOR_VERSION,

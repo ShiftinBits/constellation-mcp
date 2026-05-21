@@ -189,23 +189,35 @@ describe('usage-tracker', () => {
 	});
 
 	describe('buildUsageEvent', () => {
-		it('should produce a payload matching the wire format', () => {
+		it('should produce a v2 payload with actual_tokens as an array and usage_event_version: "2"', () => {
 			const event = buildUsageEvent({
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['searchSymbols', 'impactAnalysis'],
-				synthesizedResponse: 'x'.repeat(7),
+				invocationActualTokens: [100, 280],
 				durationMs: 312.6,
 			});
 
 			expect(event).toEqual({
+				usage_event_version: '2',
 				project_id: 'proj:0123456789abcdef0123456789abcdef',
 				branch_name: 'main',
-				actual_tokens: 2,
+				actual_tokens: [100, 280],
 				invocations: ['searchSymbols', 'impactAnalysis'],
 				duration_ms: 313,
 				estimator_version: 'chars-div-3.5-v1',
 			});
+		});
+
+		it('should keep actual_tokens and invocations arrays length-equal', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['searchSymbols', 'impactAnalysis'],
+				invocationActualTokens: [100, 280],
+				durationMs: 100,
+			});
+			expect(event!.actual_tokens.length).toBe(event!.invocations.length);
 		});
 
 		it('should clamp negative durations to zero', () => {
@@ -213,7 +225,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['ping'],
-				synthesizedResponse: '',
+				invocationActualTokens: [5],
 				durationMs: -5,
 			});
 			expect(event!.duration_ms).toBe(0);
@@ -225,14 +237,14 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: src,
-				synthesizedResponse: 'a',
+				invocationActualTokens: [42],
 				durationMs: 0,
 			});
 			(event!.invocations as string[]).push('searchSymbols');
 			expect(src).toEqual(['searchSymbols']);
 		});
 
-		it('should drop names that are not in EXECUTOR_NAMES', () => {
+		it('should drop names not in EXECUTOR_NAMES and filter actual_tokens by the same indices', () => {
 			const event = buildUsageEvent({
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
@@ -244,22 +256,25 @@ describe('usage-tracker', () => {
 					'unknownMethod',
 					'impactAnalysis',
 				],
-				synthesizedResponse: '',
+				invocationActualTokens: [10, 20, 30, 40, 50, 60],
 				durationMs: 0,
 			});
 			expect(event!.invocations).toEqual(['searchSymbols', 'impactAnalysis']);
+			expect(event!.actual_tokens).toEqual([10, 60]);
 		});
 
-		it('should cap invocations at MAX_INVOCATIONS_PER_EVENT (200)', () => {
+		it('should cap invocations at MAX_INVOCATIONS_PER_EVENT (200) and cap actual_tokens identically', () => {
 			const oversize = new Array(250).fill('searchSymbols');
+			const oversizeTokens = new Array(250).fill(7).map((_, i) => i);
 			const event = buildUsageEvent({
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: oversize,
-				synthesizedResponse: '',
+				invocationActualTokens: oversizeTokens,
 				durationMs: 0,
 			});
 			expect(event!.invocations.length).toBe(200);
+			expect(event!.actual_tokens.length).toBe(200);
 		});
 
 		it('should return null when filtered invocations are empty', () => {
@@ -271,7 +286,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['listMethods', 'help', 'unknownMethod'],
-				synthesizedResponse: 'whatever',
+				invocationActualTokens: [1, 2, 3],
 				durationMs: 5,
 			});
 			expect(event).toBeNull();
@@ -282,7 +297,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: [],
-				synthesizedResponse: '',
+				invocationActualTokens: [],
 				durationMs: 0,
 			});
 			expect(event).toBeNull();
@@ -293,7 +308,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['ping'],
-				synthesizedResponse: 'pong',
+				invocationActualTokens: [5],
 				durationMs: 5,
 			});
 			expect(event?.timeout_breakdown).toBeUndefined();
@@ -304,7 +319,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['findOrphanedCode'],
-				synthesizedResponse: 'ok',
+				invocationActualTokens: [99],
 				durationMs: 19000,
 				timeoutBreakdown: {
 					baseMs: 5000,
@@ -330,7 +345,7 @@ describe('usage-tracker', () => {
 				projectId: 'proj:0123456789abcdef0123456789abcdef',
 				branchName: 'main',
 				invocations: ['searchSymbols'],
-				synthesizedResponse: 'ok',
+				invocationActualTokens: [42],
 				durationMs: 100,
 				timeoutBreakdown: {
 					baseMs: 5000,
@@ -346,6 +361,17 @@ describe('usage-tracker', () => {
 			]);
 			expect(event?.timeout_breakdown?.warnings).toHaveLength(1);
 		});
+
+		it('should default missing actual_tokens entries to 0 when array is shorter than invocations', () => {
+			const event = buildUsageEvent({
+				projectId: 'proj:0123456789abcdef0123456789abcdef',
+				branchName: 'main',
+				invocations: ['searchSymbols', 'impactAnalysis'],
+				invocationActualTokens: [100],
+				durationMs: 0,
+			});
+			expect(event!.actual_tokens).toEqual([100, 0]);
+		});
 	});
 
 	describe('postUsageEvent', () => {
@@ -353,7 +379,7 @@ describe('usage-tracker', () => {
 			projectId: 'proj:0123456789abcdef0123456789abcdef',
 			branchName: 'main',
 			invocations: ['searchSymbols'],
-			synthesizedResponse: 'x'.repeat(147),
+			invocationActualTokens: [42],
 			durationMs: 10,
 		})!;
 
@@ -379,7 +405,12 @@ describe('usage-tracker', () => {
 			expect(headers.authorization).toBe('Bearer ak:secret');
 			expect(headers['content-type']).toBe('application/json');
 			expect((init as RequestInit).method).toBe('POST');
-			expect(JSON.parse((init as RequestInit).body as string)).toEqual(payload);
+			const body = JSON.parse((init as RequestInit).body as string);
+			expect(body).toEqual(payload);
+			// Explicit v2 contract assertion — guards against accidental
+			// removal of the version literal from buildUsageEvent's output.
+			expect(body.usage_event_version).toBe('2');
+			expect(Array.isArray(body.actual_tokens)).toBe(true);
 		});
 
 		it('should not throw when fetch rejects (failure is swallowed)', async () => {
