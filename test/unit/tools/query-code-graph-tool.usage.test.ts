@@ -158,6 +158,7 @@ describe('code_intel — usage telemetry wiring', () => {
 			result: { ok: 1 },
 			executionTime: 50,
 			invocations: ['searchSymbols', 'impactAnalysis'],
+			invocationActualTokens: [100, 280],
 		} as never);
 
 		const result = (await registeredHandler({
@@ -173,13 +174,16 @@ describe('code_intel — usage telemetry wiring', () => {
 		expect(url).toBe('https://api.constellationdev.io/intel/v1/usage');
 		const body = JSON.parse((init as RequestInit).body as string);
 		expect(body).toMatchObject({
+			usage_event_version: '2',
 			project_id: 'proj:0123456789abcdef0123456789abcdef',
 			branch_name: 'test-branch',
 			invocations: ['searchSymbols', 'impactAnalysis'],
+			actual_tokens: [100, 280],
 			duration_ms: 50,
 			estimator_version: 'chars-div-3.5-v1',
 		});
-		expect(body.actual_tokens).toBeGreaterThan(0);
+		expect(Array.isArray(body.actual_tokens)).toBe(true);
+		expect(body.actual_tokens.length).toBe(body.invocations.length);
 		expect((init as RequestInit).method).toBe('POST');
 		expect(
 			((init as RequestInit).headers as Record<string, string>).authorization,

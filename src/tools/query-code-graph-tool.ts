@@ -455,7 +455,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							projectId: configContext.projectId,
 							branchName: configContext.branchName,
 							invocations: response.invocations,
-							synthesizedResponse: formatted,
+							invocationActualTokens: response.invocationActualTokens ?? [],
 							durationMs: response.executionTime ?? 0,
 							timeoutBreakdown: response.timeoutBreakdown,
 						});
