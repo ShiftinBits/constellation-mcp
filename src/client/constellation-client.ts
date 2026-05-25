@@ -52,6 +52,7 @@ export class ConstellationClient {
 		toolName: string,
 		parameters: TParams,
 		context: { projectId: string; branchName: string },
+		timeoutMs?: number,
 	): Promise<McpToolResult<TResult>> {
 		try {
 			const response = await this.sendRequest(
@@ -62,6 +63,7 @@ export class ConstellationClient {
 					'x-project-id': context.projectId,
 					'x-branch-name': context.branchName,
 				},
+				timeoutMs,
 			);
 
 			// Handle 404 - parse response to distinguish tool-not-found from route-not-found

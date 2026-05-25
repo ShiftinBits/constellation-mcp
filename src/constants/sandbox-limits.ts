@@ -52,7 +52,7 @@ const METHOD_WEIGHTS_RAW = {
 	impactAnalysis: 8,
 	findOrphanedCode: 8,
 	findCircularDependencies: 8,
-	getArchitectureOverview: 8,
+	getArchitectureOverview: 28,
 } as const;
 
 export type ApiMethodWeightName = keyof typeof METHOD_WEIGHTS_RAW;

@@ -358,6 +358,7 @@ describe('CodeModeSandbox', () => {
 					projectId: 'test-project',
 					branchName: 'test-branch',
 				},
+				expect.any(Number),
 			);
 			expect(result.result).toEqual({ symbols: [{ name: 'test' }] });
 		});
@@ -374,6 +375,7 @@ describe('CodeModeSandbox', () => {
 				'get_symbol_details',
 				{ symbolId: '123' },
 				expect.any(Object),
+				expect.any(Number),
 			);
 		});
 
@@ -402,6 +404,7 @@ describe('CodeModeSandbox', () => {
 				'search_symbols',
 				{ query: 'test', limit: 10, types: ['class'] },
 				expect.any(Object),
+				expect.any(Number),
 			);
 		});
 
@@ -518,6 +521,7 @@ describe('CodeModeSandbox', () => {
 					'search_symbols',
 					expect.objectContaining({ query: 'test', isExported: true }),
 					expect.any(Object),
+					expect.any(Number),
 				);
 				// Verify filterByExported is NOT present
 				const callArgs = mockClient.executeMcpTool.mock.calls[0][1];
@@ -2403,6 +2407,25 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(true);
 			expect(result.timeoutBreakdown).toEqual(breakdown);
+		});
+
+		it('should forward execOpts.timeoutMs to client.executeMcpTool as the 4th argument', async () => {
+			const overrideTimeoutMs = 45000;
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			await sandbox.execute(
+				'return await api.searchSymbols({ query: "test" });',
+				{ timeoutMs: overrideTimeoutMs },
+			);
+
+			expect(mockClient.executeMcpTool).toHaveBeenCalledWith(
+				'search_symbols',
+				{ query: 'test' },
+				expect.objectContaining({ projectId: expect.any(String) }),
+				overrideTimeoutMs,
+			);
 		});
 
 		it('should attach execOpts.timeoutBreakdown to a validation-failure early return', async () => {

@@ -183,6 +183,69 @@ describe('ConstellationClient', () => {
 			await expect(promise).rejects.toThrow();
 		});
 
+		it('should forward custom timeoutMs to the AbortController', async () => {
+			const customTimeoutMs = 10000;
+			let abortFired = false;
+			mockFetch.mockImplementation(
+				(_url: RequestInfo | URL, options?: RequestInit) => {
+					return new Promise((_resolve, reject) => {
+						if (options?.signal) {
+							options.signal.addEventListener('abort', () => {
+								abortFired = true;
+								const abortError: any = new Error('The operation was aborted');
+								abortError.name = 'AbortError';
+								reject(abortError);
+							});
+						}
+					});
+				},
+			);
+
+			const promise = client.executeMcpTool(
+				'search_symbols',
+				{},
+				mockContext,
+				customTimeoutMs,
+			);
+
+			// Default timeout is 30000ms; advancing only 11000ms should trigger
+			// the custom 10000ms timeout but not the default 30000ms timeout.
+			jest.advanceTimersByTime(11000);
+
+			await expect(promise).rejects.toThrow();
+			expect(abortFired).toBe(true);
+		});
+
+		it('should use default timeout when timeoutMs is omitted', async () => {
+			let abortFired = false;
+			mockFetch.mockImplementation(
+				(_url: RequestInfo | URL, options?: RequestInit) => {
+					return new Promise((_resolve, reject) => {
+						if (options?.signal) {
+							options.signal.addEventListener('abort', () => {
+								abortFired = true;
+								const abortError: any = new Error('The operation was aborted');
+								abortError.name = 'AbortError';
+								reject(abortError);
+							});
+						}
+					});
+				},
+			);
+
+			const promise = client.executeMcpTool('search_symbols', {}, mockContext);
+
+			// Advance to just before the 30000ms default — abort must not have fired yet
+			jest.advanceTimersByTime(29999);
+			expect(abortFired).toBe(false);
+
+			// Now cross the default threshold
+			jest.advanceTimersByTime(2);
+
+			await expect(promise).rejects.toThrow();
+			expect(abortFired).toBe(true);
+		});
+
 		it('should include correct headers', async () => {
 			mockFetch.mockResolvedValue(
 				createMockResponse(200, true, { success: true, data: {} }),
