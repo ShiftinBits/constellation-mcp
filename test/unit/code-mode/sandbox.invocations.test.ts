@@ -130,6 +130,7 @@ describe('CodeModeSandbox invocations tracking (SB-679)', () => {
 			'search_symbols',
 			expect.any(Object),
 			expect.any(Object),
+			expect.any(Number),
 		);
 		expect(result.invocations).toEqual(['searchSymbols']);
 	});

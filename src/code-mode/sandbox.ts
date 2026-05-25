@@ -484,7 +484,11 @@ export class CodeModeSandbox {
 
 		try {
 			// Create sandbox context with API bindings
-			const sandbox = this.createSandboxContext(logs, executionState);
+			const sandbox = this.createSandboxContext(
+				logs,
+				executionState,
+				timeoutMs,
+			);
 
 			// Wrap code in async IIFE if not already
 			const wrappedCode = this.wrapCode(code);
@@ -693,6 +697,7 @@ export class CodeModeSandbox {
 			invocations: string[];
 			invocationActualTokens: number[];
 		},
+		timeoutMs: number,
 	): any {
 		// Helper to convert snake_case to camelCase for display
 		const snakeToCamel = (str: string): string => {
@@ -751,6 +756,7 @@ export class CodeModeSandbox {
 					toolName,
 					params,
 					this.options.projectContext,
+					timeoutMs,
 				);
 
 				if (!result.success) {

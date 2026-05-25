@@ -6,6 +6,7 @@
  */
 
 import { ConstellationClient } from '../client/constellation-client.js';
+import { MAX_EXECUTION_TIMEOUT_MS } from '../constants/sandbox-limits.js';
 
 /**
  * Project capabilities returned by api.getCapabilities()
@@ -60,6 +61,7 @@ export async function getProjectCapabilities(
 			'get_architecture_overview',
 			{ includeMetrics: true },
 			context,
+			MAX_EXECUTION_TIMEOUT_MS,
 		);
 
 		if (!overview.success || !overview.data) {
