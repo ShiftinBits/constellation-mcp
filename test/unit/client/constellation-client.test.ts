@@ -208,9 +208,12 @@ describe('ConstellationClient', () => {
 				customTimeoutMs,
 			);
 
-			// Default timeout is 30000ms; advancing only 11000ms should trigger
-			// the custom 10000ms timeout but not the default 30000ms timeout.
-			jest.advanceTimersByTime(11000);
+			// Just before the custom 10000ms timeout, the abort must NOT have fired
+			// (and certainly not the 30000ms default).
+			jest.advanceTimersByTime(9999);
+			expect(abortFired).toBe(false);
+			// Crossing 10000ms triggers the custom timeout.
+			jest.advanceTimersByTime(2);
 
 			await expect(promise).rejects.toThrow();
 			expect(abortFired).toBe(true);

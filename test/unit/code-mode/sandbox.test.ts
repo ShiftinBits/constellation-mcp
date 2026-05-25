@@ -358,7 +358,7 @@ describe('CodeModeSandbox', () => {
 					projectId: 'test-project',
 					branchName: 'test-branch',
 				},
-				expect.any(Number),
+				5000,
 			);
 			expect(result.result).toEqual({ symbols: [{ name: 'test' }] });
 		});
@@ -375,7 +375,7 @@ describe('CodeModeSandbox', () => {
 				'get_symbol_details',
 				{ symbolId: '123' },
 				expect.any(Object),
-				expect.any(Number),
+				5000,
 			);
 		});
 
@@ -404,7 +404,7 @@ describe('CodeModeSandbox', () => {
 				'search_symbols',
 				{ query: 'test', limit: 10, types: ['class'] },
 				expect.any(Object),
-				expect.any(Number),
+				5000,
 			);
 		});
 
@@ -521,7 +521,7 @@ describe('CodeModeSandbox', () => {
 					'search_symbols',
 					expect.objectContaining({ query: 'test', isExported: true }),
 					expect.any(Object),
-					expect.any(Number),
+					5000,
 				);
 				// Verify filterByExported is NOT present
 				const callArgs = mockClient.executeMcpTool.mock.calls[0][1];
