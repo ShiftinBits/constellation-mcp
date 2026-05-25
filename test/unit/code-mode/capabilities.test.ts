@@ -11,6 +11,7 @@ import {
 	getProjectCapabilities,
 	ProjectCapabilities,
 } from '../../../src/code-mode/capabilities.js';
+import { MAX_EXECUTION_TIMEOUT_MS } from '../../../src/constants/sandbox-limits.js';
 
 // Mock ConstellationClient
 jest.mock('../../../src/client/constellation-client.js');
@@ -395,6 +396,7 @@ describe('capabilities', () => {
 					'get_architecture_overview',
 					{ includeMetrics: true },
 					mockContext,
+					MAX_EXECUTION_TIMEOUT_MS,
 				);
 			});
 
@@ -425,6 +427,7 @@ describe('capabilities', () => {
 					'get_architecture_overview',
 					{ includeMetrics: true },
 					customContext,
+					MAX_EXECUTION_TIMEOUT_MS,
 				);
 			});
 		});
