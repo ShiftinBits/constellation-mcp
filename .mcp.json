@@ -1,5 +1,11 @@
 {
 	"mcpServers": {
+		"constellation": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "@constellationdev/mcp@latest"],
+			"tools": ["code_intel"]
+		},
 		"neo4j": {
 			"type": "stdio",
 			"command": "neo4j-mcp",
@@ -9,37 +15,6 @@
 				"NEO4J_PASSWORD": "CorrectHorseBatteryStaple",
 				"NEO4J_DATABASE": "constellation"
 			}
-		},
-		"memory": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@modelcontextprotocol/server-memory@latest"]
-		},
-		"puppeteer": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@modelcontextprotocol/server-puppeteer@latest"]
-		},
-		"context7": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@upstash/context7-mcp@latest"]
-		},
-		"tree-sitter": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@nendo/tree-sitter-mcp@latest", "--mcp"]
-		},
-		"sequential-thinking": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@modelcontextprotocol/server-sequential-thinking@latest"]
-		},
-		"constellation": {
-			"type": "stdio",
-			"command": "npx",
-			"args": ["-y", "@constellationdev/mcp@latest"],
-			"tools": ["code_intel"]
 		}
 	}
 }
