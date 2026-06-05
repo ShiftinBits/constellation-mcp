@@ -2524,6 +2524,7 @@ describe('CodeModeSandbox', () => {
 				calls: [{ method: 'ping', weight: 1 }],
 				parallelismFactor: 1,
 				estimatedMs: 7000,
+				coldStartGraceMs: 0,
 				appliedMs: 7000,
 				warnings: [],
 			};
@@ -2561,6 +2562,7 @@ describe('CodeModeSandbox', () => {
 				calls: [],
 				parallelismFactor: 1,
 				estimatedMs: 5000,
+				coldStartGraceMs: 0,
 				appliedMs: 5000,
 				warnings: [],
 			};

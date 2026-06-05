@@ -809,6 +809,7 @@ describe('registerQueryCodeGraphTool', () => {
 				calls: [{ method: 'findOrphanedCode' as const, weight: 8 }],
 				parallelismFactor: 1,
 				estimatedMs: 21_000,
+				coldStartGraceMs: 0,
 				appliedMs: 21_000,
 				warnings: [],
 			};

@@ -12,6 +12,7 @@ import { parse } from 'acorn';
 import type { Node } from 'acorn';
 import { estimateTimeoutMs } from '../../../src/code-mode/complexity-estimator.js';
 import {
+	COLD_START_GRACE_MS,
 	COMPUTED_API_FALLBACK_WEIGHT,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
@@ -259,9 +260,60 @@ describe('estimateTimeoutMs', () => {
 				calls: [{ method: 'ping', weight: 1 }],
 				parallelismFactor: 1,
 				estimatedMs: TIMEOUT_ESTIMATOR_BASE_MS + TIMEOUT_ESTIMATOR_UNIT_MS,
+				coldStartGraceMs: 0,
 				appliedMs: TIMEOUT_ESTIMATOR_BASE_MS + TIMEOUT_ESTIMATOR_UNIT_MS,
 				warnings: [],
 			});
+		});
+	});
+
+	describe('cold-start grace', () => {
+		it('adds coldStartGraceMs to the auto-estimate and records it in the breakdown', () => {
+			// Light call: base + 1 unit = 7000ms; grace lifts it to 17000ms.
+			const result = estimateTimeoutMs(ast('await api.ping();'), {
+				coldStartGraceMs: COLD_START_GRACE_MS,
+			});
+			expect(result.estimatedMs).toBe(
+				TIMEOUT_ESTIMATOR_BASE_MS + TIMEOUT_ESTIMATOR_UNIT_MS,
+			);
+			expect(result.coldStartGraceMs).toBe(COLD_START_GRACE_MS);
+			expect(result.appliedMs).toBe(
+				TIMEOUT_ESTIMATOR_BASE_MS +
+					TIMEOUT_ESTIMATOR_UNIT_MS +
+					COLD_START_GRACE_MS,
+			);
+			expect(result.warnings).toEqual([
+				expect.stringContaining('Cold-start grace'),
+			]);
+		});
+
+		it('still clamps to MAX_EXECUTION_TIMEOUT_MS when grace would exceed the ceiling', () => {
+			// 28-weight call: base + 56000 = 61000ms, already past the ceiling;
+			// grace cannot push appliedMs above MAX.
+			const result = estimateTimeoutMs(
+				ast('await api.getArchitectureOverview();'),
+				{ coldStartGraceMs: COLD_START_GRACE_MS },
+			);
+			expect(result.coldStartGraceMs).toBe(COLD_START_GRACE_MS);
+			expect(result.appliedMs).toBe(MAX_EXECUTION_TIMEOUT_MS);
+		});
+
+		it('bypasses grace entirely when an explicit override is supplied', () => {
+			const result = estimateTimeoutMs(ast('await api.ping();'), {
+				explicitTimeoutMs: 3000,
+				coldStartGraceMs: COLD_START_GRACE_MS,
+			});
+			expect(result.coldStartGraceMs).toBe(0);
+			expect(result.appliedMs).toBe(3000);
+			expect(result.warnings).toEqual([]);
+		});
+
+		it('defaults coldStartGraceMs to 0 when not supplied (warm path)', () => {
+			const result = estimateTimeoutMs(ast('await api.ping();'));
+			expect(result.coldStartGraceMs).toBe(0);
+			expect(result.appliedMs).toBe(
+				TIMEOUT_ESTIMATOR_BASE_MS + TIMEOUT_ESTIMATOR_UNIT_MS,
+			);
 		});
 	});
 });
