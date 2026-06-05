@@ -14,6 +14,7 @@ import {
 } from '@jest/globals';
 import {
 	CodeModeSandbox,
+	ApiCallLimitError,
 	MemoryExceededError,
 } from '../../../src/code-mode/sandbox.js';
 import {
@@ -179,6 +180,23 @@ describe('CodeModeSandbox', () => {
 
 		it('should be an instance of Error', () => {
 			const error = new MemoryExceededError(200, 128);
+			expect(error).toBeInstanceOf(Error);
+		});
+	});
+
+	describe('ApiCallLimitError', () => {
+		it('should create error with call-count details', () => {
+			const error = new ApiCallLimitError(51, 50);
+
+			expect(error.name).toBe('ApiCallLimitError');
+			expect(error.callCount).toBe(51);
+			expect(error.limitCalls).toBe(50);
+			expect(error.message).toContain('50');
+			expect(error.message).toMatch(/api call limit exceeded/i);
+		});
+
+		it('should be an instance of Error', () => {
+			const error = new ApiCallLimitError(51, 50);
 			expect(error).toBeInstanceOf(Error);
 		});
 	});

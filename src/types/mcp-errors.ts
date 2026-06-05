@@ -36,6 +36,7 @@ export const ErrorCode = {
 	EXECUTION_ERROR: 'EXECUTION_ERROR',
 	EXECUTION_TIMEOUT: 'EXECUTION_TIMEOUT',
 	MEMORY_EXCEEDED: 'MEMORY_EXCEEDED',
+	API_CALL_LIMIT_EXCEEDED: 'API_CALL_LIMIT_EXCEEDED',
 
 	// System
 	RATE_LIMITED: 'RATE_LIMITED',
@@ -158,6 +159,7 @@ export function isRecoverableError(code: ErrorCodeType): boolean {
 		ErrorCode.VALIDATION_ERROR,
 		ErrorCode.UNSUPPORTED_LANGUAGE,
 		ErrorCode.MEMORY_EXCEEDED,
+		ErrorCode.API_CALL_LIMIT_EXCEEDED,
 	];
 	return recoverableCodes.includes(code);
 }

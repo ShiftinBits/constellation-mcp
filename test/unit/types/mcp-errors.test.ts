@@ -31,9 +31,9 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
 	});
 
-	it('should have exactly 20 error codes', () => {
+	it('should have exactly 21 error codes', () => {
 		const codeCount = Object.keys(ErrorCode).length;
-		expect(codeCount).toBe(20);
+		expect(codeCount).toBe(21);
 	});
 
 	it('should not contain any undefined values', () => {
@@ -235,7 +235,7 @@ describe('isRecoverableError', () => {
 		);
 
 		// Verify expected counts
-		expect(recoverableCodes.length).toBe(11);
+		expect(recoverableCodes.length).toBe(12);
 		expect(nonRecoverableCodes.length).toBe(9);
 	});
 });

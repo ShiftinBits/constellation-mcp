@@ -5,7 +5,10 @@
  * machine-readable error codes and actionable guidance for AI assistants.
  */
 
-import { MemoryExceededError } from '../code-mode/sandbox.js';
+import {
+	ApiCallLimitError,
+	MemoryExceededError,
+} from '../code-mode/sandbox.js';
 import {
 	configCache,
 	ConfigCacheError,
@@ -369,6 +372,30 @@ const result = await api.searchSymbols({
 					'Use pagination (limit parameter) to process in smaller batches',
 					'Avoid creating large arrays or objects in loops',
 					'Break complex operations into smaller sequential steps',
+				],
+				context: baseContext,
+			},
+			formattedMessage: error.message,
+		};
+	}
+
+	// API Call Limit Exceeded Error (SB-932) — must precede the generic
+	// `instanceof Error` branch; ApiCallLimitError extends Error and the
+	// catch-all would otherwise demote it to EXECUTION_ERROR with misleading
+	// guidance.
+	if (error instanceof ApiCallLimitError) {
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.API_CALL_LIMIT_EXCEEDED,
+				type: 'ApiCallLimitError',
+				message: error.message,
+				recoverable: true,
+				guidance: [
+					'Batch independent api.* calls with Promise.all instead of awaiting them one at a time',
+					'Narrow the query (smaller limit, more specific query) so fewer calls are needed',
+					'Use one aggregate method (traceSymbolUsage, impactAnalysis, getArchitectureOverview) instead of looping per-item calls',
+					'Split the work across multiple separate code_intel executions',
 				],
 				context: baseContext,
 			},

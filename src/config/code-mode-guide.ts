@@ -233,7 +233,7 @@ Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alte
 - **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
 - **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
 
-Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`API_CALL_LIMIT_EXCEEDED\` → batch with \`Promise.all\`, narrow the query, or split across executions
 
 \`EXECUTION_TIMEOUT\` recovery:
 - Heavy whole-project methods (\`findCircularDependencies\`, \`findOrphanedCode\`, \`impactAnalysis\`, \`getArchitectureOverview\`) cost the most — reduce scope first (smaller \`limit\`, lower \`depth\`); if already near the ceiling, try sequential calls instead of \`Promise.all\`
