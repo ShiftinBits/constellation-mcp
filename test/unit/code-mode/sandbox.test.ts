@@ -653,6 +653,55 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('http');
 		});
 
+		describe('false-positive regression (SB-930)', () => {
+			it('should NOT reject identifier "offs" containing "fs."', () => {
+				const code = 'const offs = [1]; return offs.map((x) => x);';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "subnet" containing "net."', () => {
+				const code =
+					'const subnet = { connect: () => 1 }; return subnet.connect();';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "xhttp" containing "http."', () => {
+				const code = 'const xhttp = { get: () => 1 }; return xhttp.get();';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "subprocess" containing "process."', () => {
+				const code =
+					'const subprocess = { run: () => 1 }; return subprocess.run();';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "child_processor" containing "child_process"', () => {
+				const code = 'const child_processor = 1; return child_processor;';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+		});
+
 		it('should reject infinite while loop', () => {
 			const code = 'while(true) {}';
 			const result = sandbox.validateCode(code);
