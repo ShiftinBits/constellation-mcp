@@ -9,7 +9,10 @@ import {
 	UnsupportedLanguageError,
 } from '../../../src/client/constellation-client.js';
 import { createStructuredError } from '../../../src/client/error-factory.js';
-import { MemoryExceededError } from '../../../src/code-mode/sandbox.js';
+import {
+	ApiCallLimitError,
+	MemoryExceededError,
+} from '../../../src/code-mode/sandbox.js';
 import { ErrorCode } from '../../../src/types/mcp-errors.js';
 
 // Mock config cache - include apiKey to simulate authenticated state
@@ -252,6 +255,38 @@ describe('createStructuredError', () => {
 					(g) => g.includes('pagination') || g.includes('limit'),
 				),
 			).toBe(true);
+		});
+	});
+
+	describe('ApiCallLimitError handling', () => {
+		it('should create structured error with API_CALL_LIMIT_EXCEEDED code', () => {
+			const error = new ApiCallLimitError(51, 50);
+			const result = createStructuredError(error, 'execute');
+
+			expect(result.success).toBe(false);
+			expect(result.error.code).toBe(ErrorCode.API_CALL_LIMIT_EXCEEDED);
+			expect(result.error.type).toBe('ApiCallLimitError');
+			expect(result.error.recoverable).toBe(true);
+		});
+
+		it('should provide accurate batching guidance', () => {
+			const error = new ApiCallLimitError(51, 50);
+			const result = createStructuredError(error, 'execute');
+
+			expect(result.error.guidance.length).toBeGreaterThan(0);
+			expect(result.error.guidance.some((g) => g.includes('Promise.all'))).toBe(
+				true,
+			);
+		});
+
+		it('should not include the misleading generic execution guidance', () => {
+			const error = new ApiCallLimitError(51, 50);
+			const result = createStructuredError(error, 'execute');
+
+			const joined = result.error.guidance.join(' ').toLowerCase();
+			expect(joined).not.toContain('method name spelling');
+			expect(joined).not.toContain('parameter types');
+			expect(joined).not.toContain('listmethods');
 		});
 	});
 

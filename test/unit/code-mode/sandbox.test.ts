@@ -14,6 +14,7 @@ import {
 } from '@jest/globals';
 import {
 	CodeModeSandbox,
+	ApiCallLimitError,
 	MemoryExceededError,
 } from '../../../src/code-mode/sandbox.js';
 import {
@@ -179,6 +180,23 @@ describe('CodeModeSandbox', () => {
 
 		it('should be an instance of Error', () => {
 			const error = new MemoryExceededError(200, 128);
+			expect(error).toBeInstanceOf(Error);
+		});
+	});
+
+	describe('ApiCallLimitError', () => {
+		it('should create error with call-count details', () => {
+			const error = new ApiCallLimitError(51, 50);
+
+			expect(error.name).toBe('ApiCallLimitError');
+			expect(error.callCount).toBe(51);
+			expect(error.limitCalls).toBe(50);
+			expect(error.message).toContain('50');
+			expect(error.message).toMatch(/api call limit exceeded/i);
+		});
+
+		it('should be an instance of Error', () => {
+			const error = new ApiCallLimitError(51, 50);
 			expect(error).toBeInstanceOf(Error);
 		});
 	});
@@ -1943,6 +1961,35 @@ describe('CodeModeSandbox', () => {
 				expect(result.error).not.toContain('API call failed:');
 			},
 		);
+
+		it('should surface API_CALL_LIMIT_EXCEEDED when the api.* call cap is exceeded', async () => {
+			// Arrange: a sandbox capped at a single api.* call, with the client
+			// resolving successfully so the cap (not the client) is what trips.
+			const cappedSandbox = new CodeModeSandbox({
+				timeout: 5000,
+				maxApiCalls: 1,
+				configContext: mockConfigContext,
+			});
+			mockClient.executeMcpTool.mockResolvedValue(
+				createMockResult({ symbols: [] }),
+			);
+
+			// Act: two api.* calls — the second exceeds the cap of 1.
+			const code =
+				'await api.searchSymbols({ query: "a" }); return await api.searchSymbols({ query: "b" });';
+			const result = await cappedSandbox.execute(code);
+
+			// Assert: the typed error propagates through the executor -> VM -> outer
+			// catch and is mapped to the dedicated recoverable code (not the
+			// generic EXECUTION_ERROR catch-all).
+			expect(result.success).toBe(false);
+			expect(result.structuredError).toBeDefined();
+			expect(result.structuredError?.error.code).toBe(
+				'API_CALL_LIMIT_EXCEEDED',
+			);
+			expect(result.structuredError?.error.type).toBe('ApiCallLimitError');
+			expect(result.structuredError?.error.recoverable).toBe(true);
+		});
 
 		it('should not re-wrap already formatted errors', async () => {
 			// Simulate an error that's already formatted by our handler

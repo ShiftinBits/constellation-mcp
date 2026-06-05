@@ -76,7 +76,7 @@ Legacy `USAGE_TRACKING_ENABLED=false` is honored transitionally as an opt-out (t
 
 ## Error Handling
 
-**20 error codes** (`types/mcp-errors.ts`): Auth (`AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`); Config (`NOT_CONFIGURED`, `CWD_NOT_INDEXED`, `API_UNREACHABLE`); Project (`PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`); Execution (`SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `UNSUPPORTED_LANGUAGE`, `EXECUTION_ERROR`, `EXECUTION_TIMEOUT`, `MEMORY_EXCEEDED`); System (`RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`).
+**21 error codes** (`types/mcp-errors.ts`): Auth (`AUTH_ERROR`, `AUTHZ_ERROR`, `AUTH_EXPIRED`); Config (`NOT_CONFIGURED`, `CWD_NOT_INDEXED`, `API_UNREACHABLE`); Project (`PROJECT_NOT_INDEXED`, `BRANCH_NOT_FOUND`, `STALE_INDEX`); Execution (`SYMBOL_NOT_FOUND`, `FILE_NOT_FOUND`, `TOOL_NOT_FOUND`, `VALIDATION_ERROR`, `UNSUPPORTED_LANGUAGE`, `EXECUTION_ERROR`, `EXECUTION_TIMEOUT`, `MEMORY_EXCEEDED`, `API_CALL_LIMIT_EXCEEDED`); System (`RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`).
 
 Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `context`, `docs?`, `suggestedCode?`, `alternativeApproach?`.
 
