@@ -1346,14 +1346,14 @@ ${transformed}
 		const dangerousPatterns = [
 			/require\s*\(/, // No require() calls
 			/import\s+/, // No import statements
-			/eval\s*\(/, // No eval()
-			/Function\s*\(/, // No Function constructor
+			/\beval\s*\(/, // No eval()
+			/\bFunction\s*\(/, // No Function constructor
 			/__proto__/, // No prototype pollution
-			/process\./, // No process access
-			/child_process/, // No child processes
-			/fs\./, // No file system access
-			/net\./, // No network access
-			/http\./, // No HTTP module
+			/\bprocess\./, // No process access
+			/\bchild_process\b/, // No child processes
+			/\bfs\./, // No file system access
+			/\bnet\./, // No network access
+			/\bhttp\./, // No HTTP module
 			// Additional escape vectors
 			/\.constructor\s*(?:\[|\.|\()/, // Block [].constructor.constructor
 			/\bglobalThis\b/, // Block globalThis access
