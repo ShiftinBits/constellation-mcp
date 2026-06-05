@@ -379,7 +379,7 @@ const result = await api.searchSymbols({
 		};
 	}
 
-	// API Call Limit Exceeded Error (SB-932) — must precede the generic
+	// API Call Limit Exceeded Error — must precede the generic
 	// `instanceof Error` branch; ApiCallLimitError extends Error and the
 	// catch-all would otherwise demote it to EXECUTION_ERROR with misleading
 	// guidance.

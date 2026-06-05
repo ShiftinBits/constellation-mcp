@@ -864,18 +864,21 @@ export class CodeModeSandbox {
 				// Wrapping in a generic Error here would erase the type and force
 				// the response to fall through to EXECUTION_ERROR.
 				//
-				// UnsupportedLanguageError is included as defense-in-depth: today
-				// it is thrown by withFilePathLanguageGuard *before* executor()
-				// runs, so this catch is unreachable for that subtype. Keeping
-				// the entry preserves the invariant if a future caller invokes
-				// executor() directly without going through the api Proxy.
+				// UnsupportedLanguageError and ApiCallLimitError are included as
+				// defense-in-depth: today both are thrown *before* this inner try
+				// runs (the language guard before executor(), the call-cap check
+				// before the invocation), so this catch is unreachable for those
+				// subtypes. Keeping the entries preserves the invariant if the cap
+				// check or guard is ever moved inside the try, or a future caller
+				// invokes executor() directly without going through the api Proxy.
 				if (
 					error instanceof AuthenticationError ||
 					error instanceof AuthorizationError ||
 					error instanceof NotFoundError ||
 					error instanceof ToolNotFoundError ||
 					error instanceof TimeoutError ||
-					error instanceof UnsupportedLanguageError
+					error instanceof UnsupportedLanguageError ||
+					error instanceof ApiCallLimitError
 				) {
 					throw error;
 				}

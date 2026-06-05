@@ -26,6 +26,7 @@ describe('ErrorCode', () => {
 		expect(ErrorCode.EXECUTION_ERROR).toBe('EXECUTION_ERROR');
 		expect(ErrorCode.EXECUTION_TIMEOUT).toBe('EXECUTION_TIMEOUT');
 		expect(ErrorCode.MEMORY_EXCEEDED).toBe('MEMORY_EXCEEDED');
+		expect(ErrorCode.API_CALL_LIMIT_EXCEEDED).toBe('API_CALL_LIMIT_EXCEEDED');
 		expect(ErrorCode.RATE_LIMITED).toBe('RATE_LIMITED');
 		expect(ErrorCode.SERVICE_UNAVAILABLE).toBe('SERVICE_UNAVAILABLE');
 		expect(ErrorCode.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
