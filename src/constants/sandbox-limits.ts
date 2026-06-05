@@ -62,6 +62,13 @@ export const METHOD_WEIGHTS: Readonly<Record<ApiMethodWeightName, number>> =
 
 export const TIMEOUT_ESTIMATOR_BASE_MS = 5_000;
 export const TIMEOUT_ESTIMATOR_UNIT_MS = 2_000;
+// One-time additive grace applied to the *auto-estimated* timeout while the
+// process is still cold (before the first successful API round-trip). Absorbs
+// connection establishment + upstream warm-up that the static weight-based
+// estimate does not model, so the lightest-weight first call doesn't get the
+// tightest budget exactly when latency is worst. Bypassed when an explicit
+// `timeout` is supplied; still clamped to MAX_EXECUTION_TIMEOUT_MS.
+export const COLD_START_GRACE_MS = 10_000;
 // Applied when Promise.all/allSettled fans out ≥ 2 api.* calls — fan-out
 // doesn't shrink wall clock when Neo4j is the bottleneck.
 export const TIMEOUT_PARALLELISM_FACTOR = 1.25;

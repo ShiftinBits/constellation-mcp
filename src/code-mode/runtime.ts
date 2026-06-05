@@ -17,9 +17,14 @@ import {
 	estimateTimeoutMs,
 	type TimeoutBreakdown,
 } from './complexity-estimator.js';
+import {
+	coldStartTracker as defaultColdStartTracker,
+	type ColdStartTracker,
+} from './cold-start-tracker.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import {
+	COLD_START_GRACE_MS,
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
@@ -58,6 +63,13 @@ export interface CodeModeRuntimeOptions extends SandboxOptions {
 	 * @default 'convenience'
 	 */
 	isolation?: SandboxIsolation;
+
+	/**
+	 * Process-lifetime cold-start tracker. Consulted to grant the first call(s)
+	 * an additive timeout grace until the first successful API round-trip.
+	 * Defaults to the shared process singleton; injectable for tests.
+	 */
+	coldStartTracker?: ColdStartTracker;
 }
 
 /**
@@ -224,8 +236,11 @@ function clampTimeout(n: number): number {
  */
 export class CodeModeRuntime {
 	private sandbox: SandboxExecutor;
+	private readonly coldStartTracker: ColdStartTracker;
 
 	constructor(options: CodeModeRuntimeOptions) {
+		this.coldStartTracker = options.coldStartTracker ?? defaultColdStartTracker;
+
 		// Determine isolation level: explicit option > env var > default
 		const isolation: SandboxIsolation =
 			options.isolation ||
@@ -284,11 +299,19 @@ export class CodeModeRuntime {
 		// the VM will catch the syntax error almost immediately, so the
 		// timeout barely matters; but be explicit rather than silently
 		// falling back to the constructor's 30 s default.
+		// While the process is cold (before the first successful API round-trip),
+		// add a one-time grace to the auto-estimate to absorb connection +
+		// upstream warm-up. An explicit `request.timeout` bypasses grace inside
+		// the estimator.
+		const coldStartGraceMs = this.coldStartTracker.isColdStart()
+			? COLD_START_GRACE_MS
+			: 0;
 		let timeoutBreakdown: TimeoutBreakdown | undefined;
 		let effectiveTimeoutMs: number;
 		if (validation.ast) {
 			timeoutBreakdown = estimateTimeoutMs(validation.ast, {
 				explicitTimeoutMs: request.timeout,
+				coldStartGraceMs,
 			});
 			effectiveTimeoutMs = timeoutBreakdown.appliedMs;
 			for (const w of timeoutBreakdown.warnings) {
@@ -310,6 +333,14 @@ export class CodeModeRuntime {
 			timeoutMs: effectiveTimeoutMs,
 			timeoutBreakdown,
 		});
+
+		// Flip warm once a real API round-trip has completed successfully — the
+		// point at which connection + upstream warm-up costs have been paid. A
+		// pure-compute script (no api.* calls) or a failed/timed-out call leaves
+		// the process cold so the next real call still gets grace.
+		if (result.success && (result.invocations?.length ?? 0) > 0) {
+			this.coldStartTracker.markWarm();
+		}
 
 		// Combine warning logs with execution logs
 		const allLogs = [...warningLogs, ...(result.logs || [])];

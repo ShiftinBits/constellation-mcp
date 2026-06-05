@@ -47,6 +47,15 @@ export interface TimeoutBreakdown {
 	parallelismFactor: number;
 	/** Raw estimate from the weighted sum, BEFORE clamping or override. */
 	estimatedMs: number;
+	/**
+	 * Cold-start grace requested for the auto-estimate (0 when warm or when an
+	 * explicit override bypassed it). Surfaced so calling agents can see why the
+	 * first call's budget is larger than the weighted estimate. Note the grace
+	 * is added *before* the `maxMs` clamp, so it may be partially or fully
+	 * absorbed by the ceiling — i.e. `appliedMs` is not always
+	 * `estimatedMs + coldStartGraceMs` when the sum exceeds the ceiling.
+	 */
+	coldStartGraceMs: number;
 	/** Value actually used (after explicit override + clamp). */
 	appliedMs: number;
 	warnings: string[];
@@ -62,6 +71,13 @@ export interface EstimatorOptions {
 	minMs?: number;
 	/** Defaults to {@link MAX_EXECUTION_TIMEOUT_MS}. */
 	maxMs?: number;
+	/**
+	 * One-time additive grace (ms) added to the auto-estimate while the process
+	 * is cold. Defaults to 0. Ignored when {@link explicitTimeoutMs} is set — an
+	 * explicit user timeout owns its own budget. The result is still clamped to
+	 * `[minMs, maxMs]`, so grace cannot exceed the hard ceiling.
+	 */
+	coldStartGraceMs?: number;
 }
 
 interface PositionedNode {
@@ -235,7 +251,18 @@ export function estimateTimeoutMs(
 		TIMEOUT_ESTIMATOR_BASE_MS +
 			totalWeight * TIMEOUT_ESTIMATOR_UNIT_MS * parallelismFactor,
 	);
-	const desired = opts.explicitTimeoutMs ?? estimatedMs;
+	// Cold-start grace lifts only the auto-estimate; an explicit override owns
+	// its own budget and bypasses grace entirely.
+	const usingExplicit = opts.explicitTimeoutMs !== undefined;
+	const coldStartGraceMs = usingExplicit ? 0 : (opts.coldStartGraceMs ?? 0);
+	if (coldStartGraceMs > 0) {
+		warnings.push(
+			`Cold-start grace +${coldStartGraceMs}ms applied to the first call's ` +
+				'timeout budget (absorbs connection + upstream warm-up). Subsequent ' +
+				'calls use the normal estimate.',
+		);
+	}
+	const desired = opts.explicitTimeoutMs ?? estimatedMs + coldStartGraceMs;
 	const appliedMs = clamp(desired, minMs, maxMs);
 
 	return {
@@ -243,6 +270,7 @@ export function estimateTimeoutMs(
 		calls,
 		parallelismFactor,
 		estimatedMs,
+		coldStartGraceMs,
 		appliedMs,
 		warnings,
 	};

@@ -49,6 +49,13 @@ describe('CodeModeRuntime', () => {
 	let mockSandbox: jest.Mocked<CodeModeSandbox>;
 	let mockConfigContext: ConfigContext;
 
+	const parseAst = (code: string) =>
+		parse(code, {
+			ecmaVersion: 'latest',
+			allowAwaitOutsideFunction: true,
+			allowReturnOutsideFunction: true,
+		});
+
 	beforeEach(() => {
 		jest.clearAllMocks();
 
@@ -64,10 +71,14 @@ describe('CodeModeRuntime', () => {
 		// Mock the sandbox constructor to return our mock instance
 		MockedCodeModeSandbox.mockImplementation(() => mockSandbox);
 
+		// Default to a warm tracker so the existing timeout expectations below
+		// reflect the steady-state (non-cold-start) budget. The cold-start grace
+		// behavior is exercised in its own describe block with an injected tracker.
 		runtime = new CodeModeRuntime({
 			timeout: 5000,
 			allowConsole: true,
 			configContext: mockConfigContext,
+			coldStartTracker: { isColdStart: () => false, markWarm: jest.fn() },
 		});
 	});
 
@@ -890,13 +901,6 @@ describe('CodeModeRuntime', () => {
 	});
 
 	describe('dynamic timeout estimation', () => {
-		const parseAst = (code: string) =>
-			parse(code, {
-				ecmaVersion: 'latest',
-				allowAwaitOutsideFunction: true,
-				allowReturnOutsideFunction: true,
-			});
-
 		it('should pass the estimator-derived appliedMs as timeoutMs to sandbox.execute', async () => {
 			const code = `await api.findOrphanedCode({ limit: 5 });`;
 			mockSandbox.validateCode.mockReturnValue({
@@ -955,6 +959,7 @@ describe('CodeModeRuntime', () => {
 				calls: [{ method: 'ping', weight: 1 }],
 				parallelismFactor: 1,
 				estimatedMs: 7000,
+				coldStartGraceMs: 0,
 				appliedMs: 7000,
 				warnings: ['echoed-from-sandbox'],
 			};
@@ -1018,6 +1023,170 @@ describe('CodeModeRuntime', () => {
 			expect(DEFAULT_EXECUTION_TIMEOUT_MS).toBeLessThanOrEqual(
 				MAX_EXECUTION_TIMEOUT_MS,
 			);
+		});
+	});
+
+	describe('cold-start grace', () => {
+		const makeRuntime = (tracker: {
+			isColdStart: () => boolean;
+			markWarm: () => void;
+		}) =>
+			new CodeModeRuntime({
+				timeout: 5000,
+				allowConsole: true,
+				configContext: mockConfigContext,
+				coldStartTracker: tracker,
+			});
+
+		it('adds the cold-start grace to the budget while cold', async () => {
+			const tracker = { isColdStart: () => true, markWarm: jest.fn() };
+			const coldRuntime = makeRuntime(tracker);
+			const code = `await api.ping();`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+				invocations: ['ping'],
+			});
+
+			const response = await coldRuntime.execute({ code });
+
+			// 5000 + 1*2000 = 7000, plus 10000 cold-start grace = 17000.
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				code,
+				expect.objectContaining({
+					timeoutMs: 17000,
+					timeoutBreakdown: expect.objectContaining({
+						estimatedMs: 7000,
+						coldStartGraceMs: 10000,
+						appliedMs: 17000,
+					}),
+				}),
+			);
+			expect(response.timeoutBreakdown?.coldStartGraceMs).toBe(10000);
+		});
+
+		it('marks the process warm after a successful API round-trip', async () => {
+			const markWarm = jest.fn();
+			const tracker = { isColdStart: () => true, markWarm };
+			const coldRuntime = makeRuntime(tracker);
+			const code = `await api.ping();`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+				invocations: ['ping'],
+			});
+
+			await coldRuntime.execute({ code });
+
+			expect(markWarm).toHaveBeenCalledTimes(1);
+		});
+
+		it('does NOT mark warm when the script made no API round-trip', async () => {
+			const markWarm = jest.fn();
+			const tracker = { isColdStart: () => true, markWarm };
+			const coldRuntime = makeRuntime(tracker);
+			const code = `return 1 + 1;`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 2,
+				logs: [],
+				executionTime: 1,
+				invocations: [],
+			});
+
+			await coldRuntime.execute({ code });
+
+			expect(markWarm).not.toHaveBeenCalled();
+		});
+
+		it('does NOT mark warm when the execution failed', async () => {
+			const markWarm = jest.fn();
+			const tracker = { isColdStart: () => true, markWarm };
+			const coldRuntime = makeRuntime(tracker);
+			const code = `await api.ping();`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: false,
+				error: 'boom',
+				logs: [],
+				executionTime: 1,
+				invocations: ['ping'],
+			});
+
+			await coldRuntime.execute({ code });
+
+			expect(markWarm).not.toHaveBeenCalled();
+		});
+
+		it('adds no grace once warm', async () => {
+			const tracker = { isColdStart: () => false, markWarm: jest.fn() };
+			const warmRuntime = makeRuntime(tracker);
+			const code = `await api.ping();`;
+			mockSandbox.validateCode.mockReturnValue({
+				valid: true,
+				ast: parseAst(code),
+			});
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 'pong',
+				logs: [],
+				executionTime: 1,
+				invocations: ['ping'],
+			});
+
+			await warmRuntime.execute({ code });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				code,
+				expect.objectContaining({
+					timeoutMs: 7000,
+					timeoutBreakdown: expect.objectContaining({ coldStartGraceMs: 0 }),
+				}),
+			);
+		});
+
+		it('suppresses grace on the parse-failure path even while cold', async () => {
+			// No AST (parse failed) + no explicit timeout: the budget falls back to
+			// DEFAULT_EXECUTION_TIMEOUT_MS with no grace, since grace only lifts the
+			// AST-derived estimate. markWarm must not fire (no API round-trip).
+			const markWarm = jest.fn();
+			const tracker = { isColdStart: () => true, markWarm };
+			const coldRuntime = makeRuntime(tracker);
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				logs: [],
+				executionTime: 1,
+				invocations: [],
+			});
+
+			await coldRuntime.execute({ code: 'const x = (' });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				'const x = (',
+				expect.objectContaining({ timeoutMs: DEFAULT_EXECUTION_TIMEOUT_MS }),
+			);
+			expect(markWarm).not.toHaveBeenCalled();
 		});
 	});
 });
