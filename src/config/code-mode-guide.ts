@@ -195,7 +195,7 @@ function getGuideRecoverySection(): string {
 - **Missing \`await\`**: All api.* methods are async. Use \`await\` or the result will be a Promise object, not data.
 - **High \`depth\` on getDependencies/getDependents**: Grows exponentially. Start with \`depth: 1\`, increase only if needed.
 - **Using \`symbolName + filePath\` instead of \`symbolId\`**: Less precise. Get \`symbolId\` from \`searchSymbols()\` first, then pass it to follow-up methods.
-- **Overly specific query**: \`searchSymbols({query: "UserAuthenticationService"})\` may miss. Use \`"UserAuth"\` or \`"Auth"\` — query is substring match.
+- **Overly specific query**: \`searchSymbols({query: "UserAuthenticationService"})\` may miss. Use \`"UserAuth"\` or \`"Auth"\` — query is a case-insensitive substring match.
 - **Forgetting \`limit\`**: Default is 50. For exploratory searches, use \`limit: 10\` to reduce response size.
 
 ## Empty Results?
