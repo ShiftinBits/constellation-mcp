@@ -13,6 +13,14 @@
  * details, response shapes, or composition recipes.
  */
 
+import {
+	DEFAULT_MAX_API_CALLS,
+	DEFAULT_MEMORY_LIMIT_MB,
+	MAX_CODE_SIZE,
+	MAX_EXECUTION_TIMEOUT_MS,
+	MIN_EXECUTION_TIMEOUT_MS,
+} from '../constants/index.js';
+
 /**
  * Available guide sections for sub-resource access.
  */
@@ -196,7 +204,21 @@ function getGuideRecoverySection(): string {
 - **High \`depth\` on getDependencies/getDependents**: Grows exponentially. Start with \`depth: 1\`, increase only if needed.
 - **Using \`symbolName + filePath\` instead of \`symbolId\`**: Less precise. Get \`symbolId\` from \`searchSymbols()\` first, then pass it to follow-up methods.
 - **Overly specific query**: \`searchSymbols({query: "UserAuthenticationService"})\` may miss. Use \`"UserAuth"\` or \`"Auth"\` — query is a case-insensitive substring match.
-- **Forgetting \`limit\`**: Default is 50. For exploratory searches, use \`limit: 10\` to reduce response size.
+- **Forgetting \`limit\`**: Defaults vary by method (20-50). For exploratory searches, use \`limit: 10\` to reduce response size.
+
+## Sandbox Limits
+- **${DEFAULT_MAX_API_CALLS} api.* calls per execution** — exceeding it throws "API call limit exceeded". Replace per-item loops with fewer consolidated calls: a larger \`limit\`, or one aggregate method (\`traceSymbolUsage\`, \`impactAnalysis\`, \`getArchitectureOverview\`).
+- **${DEFAULT_MEMORY_LIMIT_MB} MB memory** — exceeding it ends the run with \`MEMORY_EXCEEDED\`. Don't accumulate full result sets across many calls; keep \`limit\` moderate and extract only the fields you need.
+- **${MAX_CODE_SIZE / 1024} KB max code size** per execution.
+- **Timeout** — ${MIN_EXECUTION_TIMEOUT_MS}-${MAX_EXECUTION_TIMEOUT_MS} ms, auto-derived from code complexity (\`Promise.all\` fan-out gets a higher time budget); pass an explicit \`timeout\` to override (still clamped to this range).
+- **\`limit\` max 100** — applies to every method with a \`limit\` param (defaults vary by method, 20-50); values above 100 are a \`VALIDATION_ERROR\`.
+
+## Code Restrictions
+The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution (error messages include "Dangerous pattern detected", "not allowed (dangerous global)", "Dynamic import() is not allowed", or "Potential infinite loop detected"):
+- No module or system access: \`require()\`, \`import\` (static or dynamic), \`fs\`, \`net\`, \`http\`, \`child_process\`, \`process\`, \`global\`, \`module\`, \`exports\`, \`__dirname\`, \`__filename\`
+- No escape vectors: \`eval\`, \`Function\` constructor, \`globalThis\`, \`Reflect\`, \`new Proxy\`, \`Buffer\`, \`Atomics\`, \`SharedArrayBuffer\`, \`WebAssembly\`, \`.constructor\` chains, \`__proto__\`
+- No unbounded loops: \`while(true)\`, \`for(;;)\`
+File reading and text search happen outside the sandbox — use Grep/Glob/Read for those.
 
 ## Empty Results?
 1. Check \`resultContext.reason\` — "no_matches" vs "branch_not_indexed"
@@ -211,5 +233,10 @@ Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alte
 - **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
 - **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
 
-Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term`;
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep
+
+\`EXECUTION_TIMEOUT\` recovery:
+- Heavy whole-project methods (\`findCircularDependencies\`, \`findOrphanedCode\`, \`impactAnalysis\`, \`getArchitectureOverview\`) cost the most — reduce scope first (smaller \`limit\`, lower \`depth\`); if already near the ceiling, try sequential calls instead of \`Promise.all\`
+- Pass an explicit \`timeout\` (1000-60000 ms) to raise the auto-derived budget
+- Avoid deep \`offset\` paging — large offsets re-scan earlier rows and get progressively slower until they time out. For \`searchSymbols\`, narrow with \`filterByKind\`, \`isExported\`, or a more specific \`query\`; for graph methods, reduce \`depth\` instead of paginating deeper`;
 }

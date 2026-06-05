@@ -78,6 +78,11 @@ describe('method-summaries', () => {
 		});
 	});
 
+	it('searchSymbols summary should document the limit default and max', () => {
+		const summary = METHOD_SUMMARIES.searchSymbols;
+		expect(summary).toContain('default 50, max 100');
+	});
+
 	it('findOrphanedCode summary should document pagination and summary fields', () => {
 		const summary = METHOD_SUMMARIES.findOrphanedCode;
 		expect(summary).toContain('pagination?');

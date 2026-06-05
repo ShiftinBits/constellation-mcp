@@ -124,6 +124,29 @@ describe('code-mode-guide', () => {
 			expect(guide).toContain('EXECUTION_TIMEOUT');
 		});
 
+		it('should include Sandbox Limits section with runtime caps', () => {
+			const guide = getCodeModeGuide();
+			expect(guide).toContain('## Sandbox Limits');
+			expect(guide).toContain('50 api.* calls per execution');
+			expect(guide).toContain('128 MB memory');
+			expect(guide).toContain('100 KB max code size');
+		});
+
+		it('should include Code Restrictions section with banned patterns', () => {
+			const guide = getCodeModeGuide();
+			expect(guide).toContain('## Code Restrictions');
+			expect(guide).toContain('Dangerous pattern detected');
+			expect(guide).toContain('require()');
+			expect(guide).toContain('globalThis');
+		});
+
+		it('should include EXECUTION_TIMEOUT recovery covering heavy methods, explicit timeout, and deep-offset paging', () => {
+			const guide = getCodeModeGuide();
+			expect(guide).toContain('findCircularDependencies');
+			expect(guide).toContain('explicit `timeout`');
+			expect(guide).toContain('deep `offset`');
+		});
+
 		it('should reference api.listMethods() and type resources', () => {
 			const guide = getCodeModeGuide();
 			expect(guide).toContain('api.listMethods()');
@@ -147,12 +170,15 @@ describe('code-mode-guide', () => {
 			// Sections are grouped by sub-resource:
 			// Methods: Which Method? → Method Reference
 			// Recipes: Response Contract → Recipes
-			// Recovery: Common Mistakes → Empty Results? → Recovery Patterns
+			// Recovery: Common Mistakes → Sandbox Limits → Code Restrictions →
+			//           Empty Results? → Recovery Patterns
 			const whichMethodIdx = guide.indexOf('## Which Method?');
 			const methodRefIdx = guide.indexOf('## Method Reference');
 			const responseContractIdx = guide.indexOf('## Response Contract');
 			const recipesIdx = guide.indexOf('## Recipes');
 			const commonMistakesIdx = guide.indexOf('## Common Mistakes');
+			const sandboxLimitsIdx = guide.indexOf('## Sandbox Limits');
+			const codeRestrictionsIdx = guide.indexOf('## Code Restrictions');
 			const emptyResultsIdx = guide.indexOf('## Empty Results?');
 			const recoveryIdx = guide.indexOf('## Recovery Patterns');
 
@@ -163,7 +189,9 @@ describe('code-mode-guide', () => {
 			expect(responseContractIdx).toBeLessThan(recipesIdx);
 			// Recovery section comes last
 			expect(recipesIdx).toBeLessThan(commonMistakesIdx);
-			expect(commonMistakesIdx).toBeLessThan(emptyResultsIdx);
+			expect(commonMistakesIdx).toBeLessThan(sandboxLimitsIdx);
+			expect(sandboxLimitsIdx).toBeLessThan(codeRestrictionsIdx);
+			expect(codeRestrictionsIdx).toBeLessThan(emptyResultsIdx);
 			expect(emptyResultsIdx).toBeLessThan(recoveryIdx);
 		});
 

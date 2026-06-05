@@ -141,6 +141,14 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(quickStartIndex).toBeGreaterThan(decisionRuleIndex);
 		});
 
+		it('should include sandbox limits in tool description', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+			expect(config.description).toContain('Sandbox limits:');
+			expect(config.description).toContain('50 api.* calls per execution');
+			expect(config.description).toContain('128 MB memory');
+		});
+
 		it('should include availability guidance in tool description', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
