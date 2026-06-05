@@ -5,7 +5,7 @@
  * grace. Deterministic, no I/O.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import {
 	ProcessColdStartTracker,
 	coldStartTracker,
@@ -32,9 +32,23 @@ describe('ProcessColdStartTracker', () => {
 });
 
 describe('coldStartTracker singleton', () => {
-	it('starts cold so the first call after process launch gets grace', () => {
-		// No other test mutates the shared singleton (the runtime tests inject
-		// their own trackers), so its initial state is observable here.
-		expect(coldStartTracker.isColdStart()).toBe(true);
+	it('is a ProcessColdStartTracker so it inherits the start-cold contract', () => {
+		// Order-independent: the class tests above prove ProcessColdStartTracker
+		// starts cold; this proves the exported singleton IS that class.
+		expect(coldStartTracker).toBeInstanceOf(ProcessColdStartTracker);
+	});
+
+	it('starts cold on a fresh module load so the first call gets grace', () => {
+		// Re-import in isolation so the assertion holds regardless of whether any
+		// other test in this worker has touched the live singleton.
+		let fresh: { isColdStart(): boolean } | undefined;
+		jest.isolateModules(() => {
+			fresh = (
+				require('../../../src/code-mode/cold-start-tracker.js') as {
+					coldStartTracker: { isColdStart(): boolean };
+				}
+			).coldStartTracker;
+		});
+		expect(fresh?.isColdStart()).toBe(true);
 	});
 });

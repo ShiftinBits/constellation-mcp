@@ -8,6 +8,12 @@
  * the execution an additive timeout grace (see `COLD_START_GRACE_MS`) to absorb
  * connection establishment + upstream warm-up that the static estimator does
  * not model.
+ *
+ * The flag is a monotonic write-once boolean, so no lock is needed: if two
+ * first-ever executions overlap they may both read `isColdStart() === true` and
+ * each receive the grace. That is benign (grace only enlarges the timeout
+ * ceiling, it never shortens a successful call) and intentionally not guarded —
+ * do not add a lock here.
  */
 
 export interface ColdStartTracker {

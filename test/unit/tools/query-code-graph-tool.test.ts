@@ -208,6 +208,18 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.outputSchema.time).toBeDefined();
 			expect(config.outputSchema.asOfCommit).toBeDefined();
 			expect(config.outputSchema.error).toBeDefined();
+			expect(config.outputSchema.timeoutBreakdown).toBeDefined();
+		});
+
+		it('should declare coldStartGraceMs in the timeoutBreakdown output schema', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+
+			// Guards the SB-933 fix: the field must be in the Zod outputSchema or
+			// strict MCP clients strip it from structuredContent.
+			const breakdownShape =
+				config.outputSchema.timeoutBreakdown.unwrap().shape;
+			expect(breakdownShape.coldStartGraceMs).toBeDefined();
 		});
 	});
 
@@ -412,6 +424,37 @@ describe('registerQueryCodeGraphTool', () => {
 			});
 
 			expect(result.structuredContent.asOfCommit).toBe(commitHash);
+		});
+
+		it('should preserve timeoutBreakdown.coldStartGraceMs in structuredContent', async () => {
+			// Guards the SB-933 fix end-to-end: the cold-start grace must reach the
+			// agent via structuredContent, not be dropped by toSchemaCompliantOutput.
+			const mockResponse = {
+				success: true,
+				result: { symbols: [] },
+				executionTime: 50,
+				timeoutBreakdown: {
+					baseMs: 5000,
+					calls: [{ method: 'ping', weight: 1 }],
+					parallelismFactor: 1,
+					estimatedMs: 7000,
+					coldStartGraceMs: 10000,
+					appliedMs: 17000,
+					warnings: ['Cold-start grace +10000ms applied'],
+				},
+			};
+
+			mockRuntime.execute.mockResolvedValue(mockResponse);
+			mockRuntime.formatResult.mockReturnValue(JSON.stringify(mockResponse));
+
+			const result = await registeredHandler({
+				code: 'return await api.ping();',
+			});
+
+			expect(result.structuredContent.timeoutBreakdown.coldStartGraceMs).toBe(
+				10000,
+			);
+			expect(result.structuredContent.timeoutBreakdown.appliedMs).toBe(17000);
 		});
 
 		it('should include lastIndexedAt in structuredContent when present', async () => {

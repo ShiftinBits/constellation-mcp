@@ -283,7 +283,7 @@ describe('estimateTimeoutMs', () => {
 					COLD_START_GRACE_MS,
 			);
 			expect(result.warnings).toEqual([
-				expect.stringContaining('Cold-start grace'),
+				expect.stringContaining(`Cold-start grace +${COLD_START_GRACE_MS}ms`),
 			]);
 		});
 
@@ -294,6 +294,26 @@ describe('estimateTimeoutMs', () => {
 				ast('await api.getArchitectureOverview();'),
 				{ coldStartGraceMs: COLD_START_GRACE_MS },
 			);
+			expect(result.coldStartGraceMs).toBe(COLD_START_GRACE_MS);
+			expect(result.appliedMs).toBe(MAX_EXECUTION_TIMEOUT_MS);
+		});
+
+		it('absorbs grace into the ceiling when grace is the breaching factor', () => {
+			// 3 sequential impactAnalysis (weight 8 each) = 24 → 5000 + 24*2000 =
+			// 53000ms, which is UNDER the 60000ms ceiling. Adding 10000ms grace
+			// would reach 63000ms, so the clamp caps appliedMs at MAX — grace is
+			// only partially realized. (The other ceiling test starts already
+			// over MAX; this one proves grace itself triggers the clamp.)
+			const code = `
+				await api.impactAnalysis({ symbolId: 'a' });
+				await api.impactAnalysis({ symbolId: 'b' });
+				await api.impactAnalysis({ symbolId: 'c' });
+			`;
+			const result = estimateTimeoutMs(ast(code), {
+				coldStartGraceMs: COLD_START_GRACE_MS,
+			});
+			expect(result.estimatedMs).toBe(53_000);
+			expect(result.estimatedMs).toBeLessThan(MAX_EXECUTION_TIMEOUT_MS);
 			expect(result.coldStartGraceMs).toBe(COLD_START_GRACE_MS);
 			expect(result.appliedMs).toBe(MAX_EXECUTION_TIMEOUT_MS);
 		});
