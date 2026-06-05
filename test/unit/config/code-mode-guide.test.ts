@@ -171,12 +171,15 @@ describe('code-mode-guide', () => {
 			// Sections are grouped by sub-resource:
 			// Methods: Which Method? → Method Reference
 			// Recipes: Response Contract → Recipes
-			// Recovery: Common Mistakes → Empty Results? → Recovery Patterns
+			// Recovery: Common Mistakes → Sandbox Limits → Code Restrictions →
+			//           Empty Results? → Recovery Patterns
 			const whichMethodIdx = guide.indexOf('## Which Method?');
 			const methodRefIdx = guide.indexOf('## Method Reference');
 			const responseContractIdx = guide.indexOf('## Response Contract');
 			const recipesIdx = guide.indexOf('## Recipes');
 			const commonMistakesIdx = guide.indexOf('## Common Mistakes');
+			const sandboxLimitsIdx = guide.indexOf('## Sandbox Limits');
+			const codeRestrictionsIdx = guide.indexOf('## Code Restrictions');
 			const emptyResultsIdx = guide.indexOf('## Empty Results?');
 			const recoveryIdx = guide.indexOf('## Recovery Patterns');
 
@@ -187,7 +190,9 @@ describe('code-mode-guide', () => {
 			expect(responseContractIdx).toBeLessThan(recipesIdx);
 			// Recovery section comes last
 			expect(recipesIdx).toBeLessThan(commonMistakesIdx);
-			expect(commonMistakesIdx).toBeLessThan(emptyResultsIdx);
+			expect(commonMistakesIdx).toBeLessThan(sandboxLimitsIdx);
+			expect(sandboxLimitsIdx).toBeLessThan(codeRestrictionsIdx);
+			expect(codeRestrictionsIdx).toBeLessThan(emptyResultsIdx);
 			expect(emptyResultsIdx).toBeLessThan(recoveryIdx);
 		});
 

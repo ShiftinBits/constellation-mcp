@@ -206,7 +206,7 @@ function getGuideRecoverySection(): string {
 - **\`limit\` max 100** on paged methods (default varies per method; values above 100 are a VALIDATION_ERROR).
 
 ## Code Restrictions
-The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution with "Dangerous pattern detected" / "not allowed (dangerous global)":
+The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution (error messages include "Dangerous pattern detected", "not allowed (dangerous global)", or "Dynamic import() is not allowed"):
 - No module or system access: \`require()\`, \`import\` (static or dynamic), \`fs\`, \`net\`, \`http\`, \`child_process\`, \`process\`
 - No escape vectors: \`eval\`, \`Function\` constructor, \`globalThis\`, \`Reflect\`, \`new Proxy\`, \`.constructor\` chains, \`__proto__\`
 - No unbounded loops: \`while(true)\`, \`for(;;)\`
