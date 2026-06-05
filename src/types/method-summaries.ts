@@ -20,7 +20,7 @@ interface SearchSymbolsParams {
   query: string;                        // Name or pattern to search
   filterByKind?: SymbolKindCategory[];  // e.g., ['function', 'class', 'interface', 'variable']
   isExported?: boolean;                 // Only exported symbols
-  limit?: number;                       // Max results (default 50, max 100)
+  limit?: number;                       // Max rows per page (default 50, max 100)
   offset?: number;                      // Pagination offset
   includeUsageCount?: boolean;          // Include usage count per symbol
 }
