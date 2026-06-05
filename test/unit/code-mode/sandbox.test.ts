@@ -629,6 +629,14 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('child_process');
 		});
 
+		it('should reject require("child_process") string-literal form', () => {
+			const code = 'const cp = require("child_process");';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(false);
+			expect(result.errors!.join(' ')).toContain('child_process');
+		});
+
 		it('should reject code with fs module access', () => {
 			const code = 'fs.readFile("file.txt");';
 			const result = sandbox.validateCode(code);
@@ -653,7 +661,7 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('http');
 		});
 
-		describe('false-positive regression (SB-930)', () => {
+		describe('false-positive regression', () => {
 			it('should NOT reject identifier "offs" containing "fs."', () => {
 				const code = 'const offs = [1]; return offs.map((x) => x);';
 
