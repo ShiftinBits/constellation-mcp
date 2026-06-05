@@ -180,6 +180,10 @@ describe('isRecoverableError', () => {
 		it('should return true for MEMORY_EXCEEDED', () => {
 			expect(isRecoverableError(ErrorCode.MEMORY_EXCEEDED)).toBe(true);
 		});
+
+		it('should return true for API_CALL_LIMIT_EXCEEDED', () => {
+			expect(isRecoverableError(ErrorCode.API_CALL_LIMIT_EXCEEDED)).toBe(true);
+		});
 	});
 
 	describe('non-recoverable error codes', () => {
