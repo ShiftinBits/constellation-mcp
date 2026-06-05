@@ -32,8 +32,9 @@ describe('ProcessColdStartTracker', () => {
 });
 
 describe('coldStartTracker singleton', () => {
-	it('exposes the ColdStartTracker contract', () => {
-		expect(typeof coldStartTracker.isColdStart).toBe('function');
-		expect(typeof coldStartTracker.markWarm).toBe('function');
+	it('starts cold so the first call after process launch gets grace', () => {
+		// No other test mutates the shared singleton (the runtime tests inject
+		// their own trackers), so its initial state is observable here.
+		expect(coldStartTracker.isColdStart()).toBe(true);
 	});
 });

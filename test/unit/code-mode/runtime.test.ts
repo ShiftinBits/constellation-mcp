@@ -49,6 +49,13 @@ describe('CodeModeRuntime', () => {
 	let mockSandbox: jest.Mocked<CodeModeSandbox>;
 	let mockConfigContext: ConfigContext;
 
+	const parseAst = (code: string) =>
+		parse(code, {
+			ecmaVersion: 'latest',
+			allowAwaitOutsideFunction: true,
+			allowReturnOutsideFunction: true,
+		});
+
 	beforeEach(() => {
 		jest.clearAllMocks();
 
@@ -894,13 +901,6 @@ describe('CodeModeRuntime', () => {
 	});
 
 	describe('dynamic timeout estimation', () => {
-		const parseAst = (code: string) =>
-			parse(code, {
-				ecmaVersion: 'latest',
-				allowAwaitOutsideFunction: true,
-				allowReturnOutsideFunction: true,
-			});
-
 		it('should pass the estimator-derived appliedMs as timeoutMs to sandbox.execute', async () => {
 			const code = `await api.findOrphanedCode({ limit: 5 });`;
 			mockSandbox.validateCode.mockReturnValue({
@@ -1026,14 +1026,7 @@ describe('CodeModeRuntime', () => {
 		});
 	});
 
-	describe('cold-start grace (SB-933)', () => {
-		const parseAst = (code: string) =>
-			parse(code, {
-				ecmaVersion: 'latest',
-				allowAwaitOutsideFunction: true,
-				allowReturnOutsideFunction: true,
-			});
-
+	describe('cold-start grace', () => {
 		const makeRuntime = (tracker: {
 			isColdStart: () => boolean;
 			markWarm: () => void;
@@ -1169,6 +1162,31 @@ describe('CodeModeRuntime', () => {
 					timeoutBreakdown: expect.objectContaining({ coldStartGraceMs: 0 }),
 				}),
 			);
+		});
+
+		it('suppresses grace on the parse-failure path even while cold', async () => {
+			// No AST (parse failed) + no explicit timeout: the budget falls back to
+			// DEFAULT_EXECUTION_TIMEOUT_MS with no grace, since grace only lifts the
+			// AST-derived estimate. markWarm must not fire (no API round-trip).
+			const markWarm = jest.fn();
+			const tracker = { isColdStart: () => true, markWarm };
+			const coldRuntime = makeRuntime(tracker);
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				logs: [],
+				executionTime: 1,
+				invocations: [],
+			});
+
+			await coldRuntime.execute({ code: 'const x = (' });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				'const x = (',
+				expect.objectContaining({ timeoutMs: DEFAULT_EXECUTION_TIMEOUT_MS }),
+			);
+			expect(markWarm).not.toHaveBeenCalled();
 		});
 	});
 });

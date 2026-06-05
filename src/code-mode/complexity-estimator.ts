@@ -48,9 +48,12 @@ export interface TimeoutBreakdown {
 	/** Raw estimate from the weighted sum, BEFORE clamping or override. */
 	estimatedMs: number;
 	/**
-	 * Cold-start grace actually folded into {@link appliedMs} (0 when warm or
-	 * when an explicit override bypassed it). Surfaced so calling agents can see
-	 * why the first call's budget is larger than the weighted estimate.
+	 * Cold-start grace requested for the auto-estimate (0 when warm or when an
+	 * explicit override bypassed it). Surfaced so calling agents can see why the
+	 * first call's budget is larger than the weighted estimate. Note the grace
+	 * is added *before* the `maxMs` clamp, so it may be partially or fully
+	 * absorbed by the ceiling — i.e. `appliedMs` is not always
+	 * `estimatedMs + coldStartGraceMs` when the sum exceeds the ceiling.
 	 */
 	coldStartGraceMs: number;
 	/** Value actually used (after explicit override + clamp). */

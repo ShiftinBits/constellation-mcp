@@ -65,6 +65,7 @@ interface SchemaCompliantOutput {
 		calls: Array<{ method: string; weight: number; computed?: true }>;
 		parallelismFactor: number;
 		estimatedMs: number;
+		coldStartGraceMs: number;
 		appliedMs: number;
 		warnings: string[];
 	};
@@ -251,6 +252,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 						),
 						parallelismFactor: z.number(),
 						estimatedMs: z.number(),
+						coldStartGraceMs: z.number(),
 						appliedMs: z.number(),
 						warnings: z.array(z.string()),
 					})
