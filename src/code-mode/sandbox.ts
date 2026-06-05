@@ -1346,8 +1346,8 @@ ${transformed}
 		const dangerousPatterns = [
 			/require\s*\(/, // No require() calls
 			/import\s+/, // No import statements
-			/eval\s*\(/, // No eval()
-			/Function\s*\(/, // No Function constructor
+			/\beval\s*\(/, // No eval()
+			/\bFunction\s*\(/, // No Function constructor
 			/__proto__/, // No prototype pollution
 			/\bprocess\./, // No process access
 			/\bchild_process\b/, // No child processes

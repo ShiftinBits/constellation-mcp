@@ -629,8 +629,8 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('child_process');
 		});
 
-		it('should reject require("child_process") string-literal form', () => {
-			const code = 'const cp = require("child_process");';
+		it('should reject "child_process" inside a string literal (quotes are word boundaries)', () => {
+			const code = 'const name = "child_process"; return name;';
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(false);
@@ -662,6 +662,10 @@ describe('CodeModeSandbox', () => {
 		});
 
 		describe('false-positive regression', () => {
+			// The substring trigger is the identifier tail plus the
+			// member-access dot (e.g. `offs.` contains `fs.`), so every
+			// input below must keep the member access (or trailing word
+			// character) to remain non-vacuous against unanchored patterns.
 			it('should NOT reject identifier "offs" containing "fs."', () => {
 				const code = 'const offs = [1]; return offs.map((x) => x);';
 
@@ -702,6 +706,25 @@ describe('CodeModeSandbox', () => {
 
 			it('should NOT reject identifier "child_processor" containing "child_process"', () => {
 				const code = 'const child_processor = 1; return child_processor;';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "retrieval" called as a function (contains "eval(")', () => {
+				const code = 'const retrieval = (x) => x; return retrieval(1);';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject identifier "processFunction" called as a function (contains "Function(")', () => {
+				const code =
+					'const processFunction = (x) => x; return processFunction(1);';
 
 				const result = sandbox.validateCode(code);
 
