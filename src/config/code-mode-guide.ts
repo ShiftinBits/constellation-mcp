@@ -13,6 +13,14 @@
  * details, response shapes, or composition recipes.
  */
 
+import {
+	DEFAULT_MAX_API_CALLS,
+	DEFAULT_MEMORY_LIMIT_MB,
+	MAX_CODE_SIZE,
+	MAX_EXECUTION_TIMEOUT_MS,
+	MIN_EXECUTION_TIMEOUT_MS,
+} from '../constants/index.js';
+
 /**
  * Available guide sections for sub-resource access.
  */
@@ -196,19 +204,19 @@ function getGuideRecoverySection(): string {
 - **High \`depth\` on getDependencies/getDependents**: Grows exponentially. Start with \`depth: 1\`, increase only if needed.
 - **Using \`symbolName + filePath\` instead of \`symbolId\`**: Less precise. Get \`symbolId\` from \`searchSymbols()\` first, then pass it to follow-up methods.
 - **Overly specific query**: \`searchSymbols({query: "UserAuthenticationService"})\` may miss. Use \`"UserAuth"\` or \`"Auth"\` — query is a case-insensitive substring match.
-- **Forgetting \`limit\`**: Default is 50. For exploratory searches, use \`limit: 10\` to reduce response size.
+- **Forgetting \`limit\`**: Defaults vary by method (20-50). For exploratory searches, use \`limit: 10\` to reduce response size.
 
 ## Sandbox Limits
-- **50 api.* calls per execution** — exceeding it throws "API call limit exceeded". Batch with \`Promise.all\` and tighter filters instead of looping per item.
-- **128 MB memory** — exceeding it ends the run with MEMORY_EXCEEDED. Keep \`limit\` small; don't accumulate full result sets across many calls.
-- **100 KB max code size** per execution.
-- **Timeout 1000-60000 ms** — auto-derived from code complexity; pass an explicit \`timeout\` to override (still clamped).
-- **\`limit\` max 100** on paged methods (default varies per method; values above 100 are a VALIDATION_ERROR).
+- **${DEFAULT_MAX_API_CALLS} api.* calls per execution** — exceeding it throws "API call limit exceeded". Use fewer, broader queries (tighter filters, larger \`limit\`) instead of looping per item.
+- **${DEFAULT_MEMORY_LIMIT_MB} MB memory** — exceeding it ends the run with MEMORY_EXCEEDED. Keep \`limit\` small; don't accumulate full result sets across many calls.
+- **${MAX_CODE_SIZE / 1024} KB max code size** per execution.
+- **Timeout**: ${MIN_EXECUTION_TIMEOUT_MS}-${MAX_EXECUTION_TIMEOUT_MS} ms — auto-derived from code complexity (\`Promise.all\` fan-out raises the budget); pass an explicit \`timeout\` to override (still clamped to this range).
+- **\`limit\` max 100** on paged methods (defaults vary by method, 20-50; values above 100 are a VALIDATION_ERROR).
 
 ## Code Restrictions
-The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution (error messages include "Dangerous pattern detected", "not allowed (dangerous global)", or "Dynamic import() is not allowed"):
-- No module or system access: \`require()\`, \`import\` (static or dynamic), \`fs\`, \`net\`, \`http\`, \`child_process\`, \`process\`
-- No escape vectors: \`eval\`, \`Function\` constructor, \`globalThis\`, \`Reflect\`, \`new Proxy\`, \`.constructor\` chains, \`__proto__\`
+The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution (error messages include "Dangerous pattern detected", "not allowed (dangerous global)", "Dynamic import() is not allowed", or "Potential infinite loop detected"):
+- No module or system access: \`require()\`, \`import\` (static or dynamic), \`fs\`, \`net\`, \`http\`, \`child_process\`, \`process\`, \`global\`, \`module\`, \`exports\`, \`__dirname\`, \`__filename\`
+- No escape vectors: \`eval\`, \`Function\` constructor, \`globalThis\`, \`Reflect\`, \`new Proxy\`, \`Buffer\`, \`Atomics\`, \`SharedArrayBuffer\`, \`WebAssembly\`, \`.constructor\` chains, \`__proto__\`
 - No unbounded loops: \`while(true)\`, \`for(;;)\`
 Use standard JS built-ins (JSON, Math, Array, etc.) and return data — file reading and text search happen outside the sandbox.
 

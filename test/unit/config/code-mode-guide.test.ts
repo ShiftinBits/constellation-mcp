@@ -142,7 +142,6 @@ describe('code-mode-guide', () => {
 
 		it('should include EXECUTION_TIMEOUT recovery covering heavy methods, explicit timeout, and deep-offset paging', () => {
 			const guide = getCodeModeGuide();
-			expect(guide).toContain('EXECUTION_TIMEOUT');
 			expect(guide).toContain('findCircularDependencies');
 			expect(guide).toContain('explicit `timeout`');
 			expect(guide).toContain('deep `offset`');

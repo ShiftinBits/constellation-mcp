@@ -331,6 +331,7 @@ if (!caps.isIndexed) {
 				'Break down the request into smaller parts',
 				'Check network connectivity',
 				"Timeouts are auto-derived from your code's complexity — heavy whole-project methods (findCircularDependencies, findOrphanedCode, impactAnalysis, getArchitectureOverview) cost the most. Reduce scope (smaller limits, sequential calls instead of Promise.all), or pass an explicit `timeout` (1000-60000 ms) to override.",
+				'Avoid deep `offset` paging — deep pages get slower until they time out. Narrow with filters (filterByKind, isExported) or a more specific query instead of paginating deeply.',
 			],
 			context: baseContext,
 		};
