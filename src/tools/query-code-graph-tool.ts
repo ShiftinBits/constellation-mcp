@@ -23,6 +23,8 @@ import {
 } from '../config/config-cache.js';
 import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
+	DEFAULT_MAX_API_CALLS,
+	DEFAULT_MEMORY_LIMIT_MB,
 	MAX_CODE_SIZE,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
@@ -194,6 +196,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				"File-path-scoped methods (getDependencies, getDependents, getCallGraph, traceSymbolUsage, impactAnalysis) reject calls whose `filePath` extension is not in the project's configured languages with `UNSUPPORTED_LANGUAGE` — check api.getCapabilities() first.\n\n" +
 				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
 				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
+				`Sandbox limits: ${DEFAULT_MAX_API_CALLS} api.* calls per execution, ${DEFAULT_MEMORY_LIMIT_MB} MB memory, ${MAX_CODE_SIZE / 1024} KB code, \`limit\` max 100 on paged methods. Pure JS only — no require/import/fs/net/process (see constellation://docs/guide for full restrictions).\n\n` +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
 			inputSchema: {
 				code: z

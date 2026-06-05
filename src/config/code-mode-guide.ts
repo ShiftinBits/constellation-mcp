@@ -198,6 +198,20 @@ function getGuideRecoverySection(): string {
 - **Overly specific query**: \`searchSymbols({query: "UserAuthenticationService"})\` may miss. Use \`"UserAuth"\` or \`"Auth"\` — query is a case-insensitive substring match.
 - **Forgetting \`limit\`**: Default is 50. For exploratory searches, use \`limit: 10\` to reduce response size.
 
+## Sandbox Limits
+- **50 api.* calls per execution** — exceeding it throws "API call limit exceeded". Batch with \`Promise.all\` and tighter filters instead of looping per item.
+- **128 MB memory** — exceeding it ends the run with MEMORY_EXCEEDED. Keep \`limit\` small; don't accumulate full result sets across many calls.
+- **100 KB max code size** per execution.
+- **Timeout 1000-60000 ms** — auto-derived from code complexity; pass an explicit \`timeout\` to override (still clamped).
+- **\`limit\` max 100** on paged methods (default varies per method; values above 100 are a VALIDATION_ERROR).
+
+## Code Restrictions
+The sandbox runs pure JavaScript against \`api.*\` only. Violations are rejected before execution with "Dangerous pattern detected" / "not allowed (dangerous global)":
+- No module or system access: \`require()\`, \`import\` (static or dynamic), \`fs\`, \`net\`, \`http\`, \`child_process\`, \`process\`
+- No escape vectors: \`eval\`, \`Function\` constructor, \`globalThis\`, \`Reflect\`, \`new Proxy\`, \`.constructor\` chains, \`__proto__\`
+- No unbounded loops: \`while(true)\`, \`for(;;)\`
+Use standard JS built-ins (JSON, Math, Array, etc.) and return data — file reading and text search happen outside the sandbox.
+
 ## Empty Results?
 1. Check \`resultContext.reason\` — "no_matches" vs "branch_not_indexed"
 2. If no_matches: broaden query (e.g., "Auth" instead of "AuthService")
@@ -211,5 +225,10 @@ Error shape: \`{success, error: {code, message, guidance[], suggestedCode?, alte
 - **Check \`alternativeApproach\`** — suggests Grep/Glob when they fit better
 - **\`recoverable: true\`** means user action can fix it; \`false\` means fall back to Grep/Glob
 
-Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep | \`EXECUTION_TIMEOUT\` → query too broad (add \`limit\`), reduce \`depth\`, or use more specific search term`;
+Common codes: \`AUTH_ERROR\` → run \`constellation auth\` | \`PROJECT_NOT_INDEXED\` → run \`constellation index\` | \`SYMBOL_NOT_FOUND\` → try broader search or Grep
+
+\`EXECUTION_TIMEOUT\` recovery:
+- Heavy whole-project methods (\`findCircularDependencies\`, \`findOrphanedCode\`, \`impactAnalysis\`, \`getArchitectureOverview\`) cost the most — reduce scope first (smaller \`limit\`, lower \`depth\`, sequential calls instead of \`Promise.all\`)
+- Pass an explicit \`timeout\` (1000-60000 ms) to raise the auto-derived budget
+- Avoid deep \`offset\` paging — deep pages get slower until they time out. Narrow with \`filterByKind\`, \`isExported\`, or a more specific \`query\` instead of paginating deeply`;
 }
