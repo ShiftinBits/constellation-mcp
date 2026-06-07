@@ -100,11 +100,39 @@ describe('ConstellationClient', () => {
 			).rejects.toThrow(AuthorizationError);
 		});
 
-		it('should throw ToolNotFoundError on 404', async () => {
+		it('should throw ToolNotFoundError on a bodyless 404 (route/prefix mismatch)', async () => {
 			mockFetch.mockResolvedValue(createMockResponse(404, false));
 
 			await expect(
 				client.executeMcpTool('nonexistent_tool', {}, mockContext),
+			).rejects.toThrow(ToolNotFoundError);
+		});
+
+		it('should throw NotFoundError when a 404 carries a domain body (project not registered/indexed)', async () => {
+			mockFetch.mockResolvedValue(
+				createMockResponse(404, false, {
+					message: 'Project must be registered before indexing.',
+				}),
+			);
+
+			// The request reached a Core handler that 404'd on the project — this is
+			// NOT a missing tool, so it must surface as NotFoundError, not
+			// ToolNotFoundError with a misleading route-mismatch message.
+			await expect(
+				client.executeMcpTool('search_symbols', {}, mockContext),
+			).rejects.toThrow(NotFoundError);
+		});
+
+		it('should throw ToolNotFoundError when the Core reports MCP_TOOL_NOT_FOUND', async () => {
+			mockFetch.mockResolvedValue(
+				createMockResponse(404, false, {
+					code: 'MCP_TOOL_NOT_FOUND',
+					message: 'Tool "search_symbols" is not registered.',
+				}),
+			);
+
+			await expect(
+				client.executeMcpTool('search_symbols', {}, mockContext),
 			).rejects.toThrow(ToolNotFoundError);
 		});
 

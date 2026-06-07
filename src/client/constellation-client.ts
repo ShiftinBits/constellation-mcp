@@ -76,19 +76,31 @@ export class ConstellationClient {
 				}
 
 				if (errorBody?.code === 'MCP_TOOL_NOT_FOUND') {
-					// Core explicitly reports tool not registered
+					// Core explicitly reports the tool isn't registered.
 					throw new ToolNotFoundError(
 						errorBody.message ||
 							`Tool "${toolName}" not found. Check API catalog for available tools.`,
 					);
 				}
 
-				// NestJS generic 404 or non-Core response — route/prefix mismatch
-				const hint = errorBody?.message || 'No response body';
+				// A JSON 404 body means the request reached a Core handler that
+				// returned a domain 404 — almost always the project/branch isn't
+				// registered or indexed on the Core this client targets (e.g. the
+				// client points at a different Core than where the project was
+				// indexed). Surface that real cause instead of guessing the tool or
+				// route is missing.
+				if (errorBody) {
+					throw new NotFoundError(
+						errorBody.message ||
+							`Project "${context.projectId}" (branch "${context.branchName}") was not found on the Constellation API.`,
+					);
+				}
+
+				// No response body at all — the route itself is missing, which does
+				// point to a client/Core version or route-prefix mismatch.
 				throw new ToolNotFoundError(
-					`Tool "${toolName}" not found (HTTP 404). ` +
-						`This may indicate a route prefix mismatch between MCP client (/${this.apiVersion}/) and the Core API. ` +
-						`Server response: ${hint}`,
+					`Tool "${toolName}" not found (HTTP 404, no response body). ` +
+						`This likely indicates a route prefix mismatch between the MCP client (/${this.apiVersion}/) and the Core API.`,
 				);
 			}
 
