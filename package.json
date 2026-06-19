@@ -45,6 +45,9 @@
 		"acorn": "^8.15.0",
 		"zod": "^3.23.8"
 	},
+	"overrides": {
+		"js-yaml": "^4.2.0"
+	},
 	"devDependencies": {
 		"@eslint/compat": "^1",
 		"@jest/globals": "^30.2.0",
