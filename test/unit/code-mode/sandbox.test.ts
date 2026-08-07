@@ -647,12 +647,26 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('child_process');
 		});
 
-		it('should reject "child_process" inside a string literal (quotes are word boundaries)', () => {
+		it('should NOT reject "child_process" appearing inside a string literal', () => {
 			const code = 'const name = "child_process"; return name;';
 			const result = sandbox.validateCode(code);
 
+			expect(result.valid).toBe(true);
+			expect(result.errors).toBeUndefined();
+		});
+
+		it('should still reject dangerous code interpolated into a template literal', () => {
+			const code = 'return `mem: ${process.memoryUsage()}`;';
+			const result = sandbox.validateCode(code);
+
 			expect(result.valid).toBe(false);
-			expect(result.errors!.join(' ')).toContain('child_process');
+		});
+
+		it('should still reject dangerous code following a string with an escaped quote', () => {
+			const code = "const s = 'it\\'s fine'; process.exit(1);";
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(false);
 		});
 
 		it('should reject code with fs module access', () => {
@@ -743,6 +757,20 @@ describe('CodeModeSandbox', () => {
 			it('should NOT reject identifier "processFunction" called as a function (contains "Function(")', () => {
 				const code =
 					'const processFunction = (x) => x; return processFunction(1);';
+
+				const result = sandbox.validateCode(code);
+
+				expect(result.valid).toBe(true);
+				expect(result.errors).toBeUndefined();
+			});
+
+			it('should NOT reject an object property value containing "process.memoryUsage()" as text (SB-1100)', () => {
+				// Reproduces the exact false-positive payload from
+				// TC-ERR-007 (E2E-TEST-PROCEDURE.md): a plain string describing
+				// enforcement behavior, not an actual call to process.memoryUsage().
+				const code = `return {
+					enforcement: 'Best-effort periodic heap checking via process.memoryUsage()',
+				};`;
 
 				const result = sandbox.validateCode(code);
 

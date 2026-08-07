@@ -814,19 +814,20 @@ return {
 
 ```cypher
 MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(direct:File)
-OPTIONAL MATCH (f)-[:IMPORTS*2]->(transitive:File)
-WHERE transitive <> f
+OPTIONAL MATCH (f)-[:IMPORTS]->(direct)
+WHERE direct:File OR direct:Package
+OPTIONAL MATCH (f)-[:IMPORTS*2]->(transitive)
+WHERE (transitive:File OR transitive:Package) AND transitive <> f
 RETURN count(DISTINCT direct) as directCount,
        count(DISTINCT transitive) as transitiveCount
 ```
 
 **Cross-Validation:**
 
-- API `directDependencyCount` should match Neo4j `directCount`
+- API `directDependencyCount` should match Neo4j `directCount` (includes both `File` and `Package` targets — a label-filtered `(direct:File)` pattern undercounts)
 - API `transitiveDependencyCount` should be close to Neo4j `transitiveCount`
 
-**Validates:** `depth` parameter, transitive dependencies, Neo4j path traversal
+**Validates:** `depth` parameter, transitive dependencies, Neo4j path traversal (File + Package targets)
 
 ---
 
@@ -989,16 +990,17 @@ return {
 
 ```cypher
 MATCH (f:File {path: 'src/types/mcp-errors.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (direct:File)-[:IMPORTS]->(f)
-OPTIONAL MATCH (transitive:File)-[:IMPORTS*2]->(f)
-WHERE transitive <> f
+OPTIONAL MATCH (direct)-[:IMPORTS]->(f)
+WHERE direct:File OR direct:Package
+OPTIONAL MATCH (transitive)-[:IMPORTS*2]->(f)
+WHERE (transitive:File OR transitive:Package) AND transitive <> f
 RETURN count(DISTINCT direct) as directCount,
        count(DISTINCT transitive) as transitiveCount
 ```
 
 **Cross-Validation:**
 
-- API `directDependentCount` should match Neo4j `directCount`
+- API `directDependentCount` should match Neo4j `directCount` (label-agnostic match on the source node — a `(direct:File)`-only pattern is the same defect class as the `getDependencies` depth queries, even though in practice only `File` nodes originate `IMPORTS` edges)
 - API `transitiveDependentCount` should be close to Neo4j `transitiveCount`
 
 **Validates:** `depth` parameter for reverse dependencies, Neo4j reverse path traversal
@@ -1033,13 +1035,13 @@ return {
 MATCH (f:File {path: 'src/config/config-cache.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
 RETURN f.path as file,
-       count(dependent) as dependentCount,
-       collect(dependent.path) as dependents
+       count(DISTINCT dependent) as dependentCount,
+       collect(DISTINCT dependent.path) as dependents
 ```
 
 **Cross-Validation:**
 
-- API `directDependentCount` should match Neo4j `dependentCount`
+- API `directDependentCount` should match Neo4j `dependentCount` (must use `count(DISTINCT dependent)` — a bare `count(dependent)` inflates the total when a single file imports the target via more than one `IMPORTS` edge)
 - Metric calculation is API-layer enrichment, not directly in Neo4j
 
 **Validates:** `includeImpactMetrics` option, Neo4j dependent count accuracy
@@ -1070,17 +1072,22 @@ return {
 
 ```cypher
 MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..10]->(f)
-WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
-RETURN count(DISTINCT cyclePaths) as cycleCount,
-       collect(DISTINCT cyclePaths)[0..3] as sampleCycles
+WITH [n IN nodes(path)[0..-1] | n.path] as cycleNodes
+UNWIND cycleNodes as node
+WITH cycleNodes, node
+ORDER BY node
+WITH cycleNodes, collect(node) as sortedCycle
+RETURN count(DISTINCT sortedCycle) as cycleCount,
+       collect(DISTINCT sortedCycle)[0..3] as sampleCycles
 ```
 
 **Cross-Validation:**
 
 - API `cycleCount` should match Neo4j `cycleCount`
 - Both systems should detect the same circular dependency patterns
+- Note: a cycle `A -> B -> A` is found once per member file it is traversed from (`MATCH ... -[:IMPORTS*2..10]->(f)` starting at `A` and starting at `B` are two separate paths for the same cycle). The query strips the closing duplicate node and sorts each cycle's node set into a rotation-independent key before deduping with `count(DISTINCT sortedCycle)`; a naive `count(DISTINCT cyclePaths)` on the raw path node list counts each rotation separately and overcounts by the cycle length
 
-**Validates:** Circular dependency detection, Neo4j cycle detection query
+**Validates:** Circular dependency detection, Neo4j cycle detection query (rotation-independent deduplication)
 
 ---
 
@@ -1638,20 +1645,28 @@ MATCH (s:Symbol)
 WHERE s.name = 'ConstellationClient'
   AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
   AND s.branch = 'main'
-OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WITH s, collect(DISTINCT ref.filePath) as refFiles
-OPTIONAL MATCH (f:File)-[:CONTAINS]->(ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+CALL {
+  WITH s
+  MATCH (containerFile:File)-[:CONTAINS]->(:Symbol)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+  RETURN containerFile.path as filePath
+  UNION
+  WITH s
+  MATCH (fileRef:File)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
+  RETURN fileRef.path as filePath
+}
+WITH s, collect(DISTINCT filePath) as impactedFiles
 RETURN s.name as symbolName,
-       count(DISTINCT f.path) as impactedFileCount,
-       collect(DISTINCT f.path)[0..5] as sampleFiles
+       size(impactedFiles) as impactedFileCount,
+       impactedFiles[0..5] as sampleFiles
 ```
 
 **Cross-Validation:**
 
-- API `impactedFileCount` should be close to Neo4j impacted file count
+- API `impactedFileCount` should be close to Neo4j `impactedFileCount`
+- Note: `REFERENCES`/`CALLS`/`USES_SYMBOL` edges originate from a `Symbol` node when the reference sits inside an enclosing symbol, but from the `File` node directly when it does not (module-level usage with no containing symbol) — see `relationship-builder.service.ts` in constellation-core. A query that only walks `(f:File)-[:CONTAINS]->(ref)-[:REFERENCES...]->(s)` misses every File-origin edge; the `UNION` above covers both origins
 - Impact analysis includes API-layer risk calculations not stored in Neo4j
 
-**Validates:** Basic impact analysis, Neo4j reference-to-file mapping
+**Validates:** Basic impact analysis, Neo4j reference-to-file mapping (Symbol-origin and File-origin edges)
 
 ---
 
@@ -2018,12 +2033,15 @@ return {
 
 **Expected:**
 
+- The code executes cleanly and returns the documented payload — no validation error
 - Documents MEMORY_EXCEEDED error structure (SB-156)
 - Documents structuredContent behavior for error responses (SB-259)
 - `recoverable: true` — user can retry with smaller dataset
 - Memory limit: 128MB, checked every 50ms (best-effort)
 
-**Validates:** MEMORY_EXCEEDED error code (SB-156), structuredContent in error responses (SB-259)
+**Note:** The string literal `'Best-effort periodic heap checking via process.memoryUsage()'` in this payload was previously a false-positive trigger for the dangerous-pattern regex sweep (`\bprocess\.`), which ran ahead of AST parsing and did not distinguish code from string/comment content — rejecting the whole test with `Code validation failed: Dangerous pattern detected: \bprocess\.`. Now that the sweep masks string, template-literal, and comment spans before matching, this payload executes and returns the documented structure without error.
+
+**Validates:** MEMORY_EXCEEDED error code (SB-156), structuredContent in error responses (SB-259), dangerous-pattern regex sweep does not false-positive on string/comment text
 
 **Note:** Error handling tests (TC-ERR-001 through TC-ERR-007) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying Neo4j data. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
 
@@ -2742,7 +2760,7 @@ return { done: true };
 **Code:**
 
 ```javascript
-// TC-CODE-014: All 12 Registry Methods Listed
+// TC-CODE-014: All 14 Registry Methods Listed
 const info = api.listMethods();
 const methodNames = info.methods.map((m) => m.name);
 const expected = [
@@ -2758,6 +2776,8 @@ const expected = [
 	'getArchitectureOverview',
 	'ping',
 	'getCapabilities',
+	'listMethods',
+	'help',
 ];
 const missing = expected.filter((e) => !methodNames.includes(e));
 return {
@@ -2772,11 +2792,11 @@ return {
 **Expected:**
 
 - `allPresent: true`
-- `methodCount: 12`
+- `methodCount: 14`
 - `hasDecisionGuide: true`
 - `hasReference: true` (v4: bridges Tier 4 → Tier 3)
 
-**Note:** listMethods and help are 2 additional utility methods on the `api` object but not included in the registry output (total API surface: 14 methods). listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+**Note:** `listMethods()` returns all 14 entries on the `api` object, including `listMethods` and `help` themselves — they are not excluded from the registry output. listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
 
 **Validates:** Complete method list and documentation
 
@@ -2837,8 +2857,8 @@ return {
 
 **Expected:**
 
-- `allCount === 12`
-- `filteredCount > 0` and `filteredCount < allCount`
+- `allCount === 14`
+- `filteredCount > 0` and `filteredCount < allCount` (matches `getDependencies`, `getDependents`, `findCircularDependencies`)
 - `filteredNames` includes methods matching 'dep' (e.g., getDependencies, getDependents)
 - `isSubset: true`
 - `hasDecisionGuide: true` (unfiltered response includes decision guide)
@@ -2935,7 +2955,7 @@ This category contains dedicated tests for validating data consistency between t
 
 **Purpose:** Verify API symbol count matches Neo4j total count
 
-**Note:** This test uses a common character query since the API requires at least 1 character. The Core executor uses `s.name CONTAINS $query` which is **case-sensitive** in Neo4j — the query `'e'` matches only symbols with lowercase 'e' in their name.
+**Note:** This test uses a common character query since the API requires at least 1 character. The Core `searchSymbols` executor matches with `toLower(s.name) CONTAINS toLower($query)`, which is **case-insensitive** — the query `'e'` matches symbols containing either 'e' or 'E'. The Neo4j validation query below must wrap both sides in `toLower()` to reproduce the same matching.
 
 **Code:**
 
@@ -2951,14 +2971,14 @@ return {
 
 ```cypher
 MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-WHERE s.name CONTAINS 'e'
+WHERE toLower(s.name) CONTAINS toLower('e')
 RETURN count(s) as neo4jCount
 ```
 
 **Cross-Validation:**
 
 - `apiCount` should equal `neo4jCount` (exact match expected)
-- Note: Neo4j `CONTAINS` is case-sensitive — `'e'` only matches lowercase
+- Note: the Core executor's `CONTAINS` match is case-insensitive — the validation query must use `toLower()` on both sides, not raw `CONTAINS`, or it will undercount
 - Discrepancy indicates indexing issue or stale data
 
 **Validates:** Total symbol count consistency
@@ -3122,15 +3142,15 @@ return {
 ```cypher
 MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
 WHERE s.isExported = true
-  AND s.name CONTAINS 'e'
+  AND toLower(s.name) CONTAINS toLower('e')
 RETURN count(s) as neo4jExportedCount,
        collect(s.name)[0..5] as sampleNames
 ```
 
 **Cross-Validation:**
 
-- `exportedCount` should equal `neo4jExportedCount` (both filtered by case-sensitive `CONTAINS 'e'`)
-- Note: Neo4j `CONTAINS` is case-sensitive — total exported count (100) will be higher than the 'e'-filtered count
+- `exportedCount` should equal `neo4jExportedCount` (both filtered by case-insensitive `toLower(s.name) CONTAINS toLower('e')`, matching the Core executor)
+- Note: the Core executor's `CONTAINS` match is case-insensitive; raw `CONTAINS 'e'` undercounts relative to the API
 - Sample symbols should exist in Neo4j exported symbols
 
 **Validates:** isExported flag consistency
@@ -3227,17 +3247,22 @@ return {
 
 ```cypher
 MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..5]->(f)
-WITH DISTINCT [n IN nodes(path) | n.path] as cyclePath
-RETURN count(cyclePath) as neo4jCycleCount,
-       collect(cyclePath)[0] as sampleCycle
+WITH [n IN nodes(path)[0..-1] | n.path] as cycleNodes
+UNWIND cycleNodes as node
+WITH cycleNodes, node
+ORDER BY node
+WITH cycleNodes, collect(node) as sortedCycle
+RETURN count(DISTINCT sortedCycle) as neo4jCycleCount,
+       collect(DISTINCT sortedCycle)[0] as sampleCycle
 ```
 
 **Cross-Validation:**
 
 - API `cycleCount` should equal Neo4j `neo4jCycleCount`
 - Same files should appear in detected cycles
+- Note: for a two-file cycle `A -> B -> A`, `IMPORTS*2..5` starting from `A` and starting from `B` produce two distinct raw paths for the same cycle. The query normalizes each cycle to a sorted, rotation-independent node set before deduping with `count(DISTINCT sortedCycle)`; a raw `count(DISTINCT [n IN nodes(path) | n.path])` counts each rotation separately (e.g. 2 instead of 1), which is the discrepancy the API's own deduplication correctly avoids
 
-**Validates:** Circular dependency detection accuracy
+**Validates:** Circular dependency detection accuracy (rotation-independent deduplication)
 
 ---
 
@@ -3378,13 +3403,13 @@ None.
 - **TC-IMPACT-006**: `impactAnalysis` returns `breakingChangeRisk`, not `metrics` field
 - **TC-DISC-011/012**: `ping` and `getCapabilities` are utility methods for connectivity/status checks
 - **TC-CODE-006**: Now returns `2` due to auto-return (SB-151) — previously returned `undefined`
-- **TC-CODE-014**: `listMethods()` returns 12 registry entries; `listMethods` and `help` are 2 additional utility methods (total API surface: 14 methods)
+- **TC-CODE-014**: `listMethods()` returns all 14 entries on the `api` object; `listMethods` and `help` are included in their own registry output alongside the 12 executor-backed methods (total API surface: 14 methods)
 - **Process-level isolation**: `CONSTELLATION_SANDBOX_ISOLATION=hardened` enables child-process isolation with hard memory limits and SIGKILL timeout. This is an env var setting, not testable via the `code_intel` tool
 - **MEMORY_EXCEEDED**: New error code (SB-156) for sandbox heap limit enforcement. 128MB limit checked every 50ms (best-effort)
 
 #### Neo4j Query Behavior Notes
 
-- **Case sensitivity**: Neo4j `CONTAINS` is case-sensitive. `s.name CONTAINS 'e'` does NOT match 'E'. Validation queries must match the Core executor's case-sensitive behavior — do not use `toLower()` for comparison.
+- **Case sensitivity**: The Core `searchSymbols` executor matches with `toLower(s.name) CONTAINS toLower($query)` — case-insensitive. `s.name CONTAINS 'e'` alone (raw Cypher) is case-sensitive and undercounts; validation queries must wrap both sides in `toLower()` to match the Core executor's behavior.
 - **IMPORTS targets**: `IMPORTS` relationships connect files to both `File` and `Package` nodes. Validation queries must use `(f)-[:IMPORTS]->(dep)` without label filtering to count all targets.
 - **filterByUsageType vs filterByRelationshipType**: `filterByUsageType` filters by `usage.kind` (symbol kind of the using node). `filterByRelationshipType` filters by `type(r)` (Neo4j relationship type). These are distinct parameters with different semantics.
 - **visibility vs isExported**: The TS extractor sets `visibility` (`public`/`private`) only on class members with explicit access modifiers. `isExported` is set on module-level exports. These properties apply to different symbol categories and never co-exist as `visibility='public'` + `isExported=true`.
