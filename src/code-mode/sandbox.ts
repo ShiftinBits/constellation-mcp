@@ -44,7 +44,7 @@ import {
 } from './capabilities.js';
 import { addAutoReturn } from './auto-return.js';
 import type { TimeoutBreakdown } from './complexity-estimator.js';
-import { validateAst } from './validators/index.js';
+import { maskNonExecutableSpans, validateAst } from './validators/index.js';
 import type { Node as AcornNode } from 'acorn';
 import { METHOD_WEIGHTS } from '../constants/sandbox-limits.js';
 import {
@@ -1381,8 +1381,17 @@ ${transformed}
 			/\bnew\s+Proxy\s*\(/, // Block direct Proxy construction
 		];
 
+		// SB-1100: Blank out string/template-literal bodies and comments before
+		// sweeping, so the regex checks below only match identifiers/keywords
+		// that are actually executed rather than text that merely appears
+		// inside a string literal or comment (e.g. an object property value of
+		// "process.memoryUsage()"). Falls back to the raw code when parsing
+		// fails, matching validateAst()'s own fallback (VM catches syntax
+		// errors at execution time).
+		const codeForRegexSweep = maskNonExecutableSpans(code);
+
 		for (const pattern of dangerousPatterns) {
-			if (pattern.test(code)) {
+			if (pattern.test(codeForRegexSweep)) {
 				errors.push(`Dangerous pattern detected: ${pattern.source}`);
 			}
 		}

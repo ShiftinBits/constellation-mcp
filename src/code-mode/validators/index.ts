@@ -26,3 +26,5 @@ export {
 	type WalkOptions,
 	type NodeVisitor,
 } from './ast-walker.js';
+
+export { maskNonExecutableSpans } from './code-masker.js';
