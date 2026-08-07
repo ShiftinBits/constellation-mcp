@@ -647,12 +647,26 @@ describe('CodeModeSandbox', () => {
 			expect(result.errors![0]).toContain('child_process');
 		});
 
-		it('should NOT reject "child_process" appearing inside a string literal (SB-1100)', () => {
+		it('should NOT reject "child_process" appearing inside a string literal', () => {
 			const code = 'const name = "child_process"; return name;';
 			const result = sandbox.validateCode(code);
 
 			expect(result.valid).toBe(true);
 			expect(result.errors).toBeUndefined();
+		});
+
+		it('should still reject dangerous code interpolated into a template literal', () => {
+			const code = 'return `mem: ${process.memoryUsage()}`;';
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(false);
+		});
+
+		it('should still reject dangerous code following a string with an escaped quote', () => {
+			const code = "const s = 'it\\'s fine'; process.exit(1);";
+			const result = sandbox.validateCode(code);
+
+			expect(result.valid).toBe(false);
 		});
 
 		it('should reject code with fs module access', () => {

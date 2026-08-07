@@ -182,7 +182,7 @@ interface TraceSymbolUsageParams {
   symbolId?: string;                    // Unique symbol ID (preferred)
   symbolName?: string;                  // Symbol name (use with filePath)
   filePath?: string;                    // File path (use with symbolName)
-  filterByUsageType?: string[];         // e.g., ['import', 'call', 'reference']
+  filterByUsageType?: string[];         // Kind of the referencing symbol, e.g., ['function', 'method', 'module']
   includeTransitive?: boolean;          // Include indirect usages
   excludeTests?: boolean;              // Exclude test files
   limit?: number;                       // Max rows per page (default 50, max 100)
