@@ -83,6 +83,17 @@ describe('method-summaries', () => {
 		expect(summary).toContain('default 50, max 100');
 	});
 
+	it('getSymbolDetails summary should document the enriched SymbolDetail fields', () => {
+		const summary = METHOD_SUMMARIES.getSymbolDetails;
+		expect(summary).toContain('documentation');
+		expect(summary).toContain('typeInfo');
+		expect(summary).toContain('members');
+		expect(summary).toContain('parent');
+		expect(summary).toContain('decorators');
+		expect(summary).toContain('OMITTED');
+		expect(summary).toContain('TypeScript-only for now');
+	});
+
 	it('findOrphanedCode summary should document pagination and summary fields', () => {
 		const summary = METHOD_SUMMARIES.findOrphanedCode;
 		expect(summary).toContain('pagination?');

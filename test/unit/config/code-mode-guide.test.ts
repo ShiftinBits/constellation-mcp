@@ -104,6 +104,14 @@ describe('code-mode-guide', () => {
 			expect(guide).toContain('orphanedSymbols');
 		});
 
+		it('should document the getSymbolDetails enriched Returns shape', () => {
+			const guide = getCodeModeGuide();
+			expect(guide).toContain(
+				'{symbol: {id, name, signature?, documentation?, typeInfo?, members?, parent?, decorators?, modifiers}, relationships}',
+			);
+			expect(guide).toContain('TypeScript-only for now');
+		});
+
 		it('should include Recipes section with named workflows', () => {
 			const guide = getCodeModeGuide();
 			expect(guide).toContain('## Recipes');
