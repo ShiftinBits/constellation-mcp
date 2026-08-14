@@ -73,11 +73,17 @@ interface GetSymbolDetailsResult {
 
 // SymbolDetail - key fields:
 //   .id, .name, .qualifiedName, .kind, .filePath, .line
-//   .signature  - Function/method signature
-//   .modifiers  - e.g., ['async', 'static']
-//   .decorators - e.g., ['@Injectable']
+//   .signature    - Function/method signature
+//   .documentation - Docstring/doc comment (TypeScript-only for now)
+//   .modifiers    - e.g., ['async', 'static']
+//   .typeInfo     - Resolved type information, shape varies by kind (TypeScript-only for now)
+//   .decorators   - e.g., ['@Injectable'] (TypeScript-only for now)
+//   .members[]    - Methods/properties for class/interface symbols: { name, kind, signature?, visibility? } (TypeScript-only for now)
+//   .parent       - { extends?: string[], implements?: string[] } for class/interface symbols (TypeScript-only for now)
 //   .isDeprecated - Whether marked as deprecated
-//   .complexity - { cyclomaticComplexity: number, complexityRisk: 'low'|'moderate'|'high'|'very_high' } (functions/methods only)
+//   .complexity   - { cyclomaticComplexity: number, complexityRisk: 'low'|'moderate'|'high'|'very_high' } (functions/methods only)
+// Note: signature, documentation, typeInfo, decorators, members, and parent are OMITTED
+// (not present, not null) when unavailable for the symbol's kind or language.
 
 // SymbolReference:
 //   .filePath, .line, .usageType, .context, .aliasName
