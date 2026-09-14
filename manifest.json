@@ -2,7 +2,7 @@
 	"manifest_version": "0.2",
 	"name": "constellation",
 	"display_name": "Constellation",
-	"version": "1.2.8",
+	"version": "1.2.9",
 	"description": "Code Intelligence Tools for AI Coding Agents",
 	"author": {
 		"name": "ShiftinBits Inc",
@@ -18,7 +18,9 @@
 		"entry_point": "dist/index.js",
 		"mcp_config": {
 			"command": "node",
-			"args": ["${__dirname}/dist/index.js"],
+			"args": [
+				"${__dirname}/dist/index.js"
+			],
 			"env": {}
 		}
 	},
