@@ -2,7 +2,7 @@
 	"manifest_version": "0.2",
 	"name": "constellation",
 	"display_name": "Constellation",
-	"version": "1.2.9",
+	"version": "1.2.10",
 	"description": "Code Intelligence Tools for AI Coding Agents",
 	"author": {
 		"name": "ShiftinBits Inc",
