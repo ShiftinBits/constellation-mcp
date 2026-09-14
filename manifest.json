@@ -2,7 +2,7 @@
 	"manifest_version": "0.2",
 	"name": "constellation",
 	"display_name": "Constellation",
-	"version": "1.0.0",
+	"version": "1.2.8",
 	"description": "Code Intelligence Tools for AI Coding Agents",
 	"author": {
 		"name": "ShiftinBits Inc",
@@ -25,7 +25,7 @@
 	"tools": [
 		{
 			"name": "code_intel",
-			"description": "Code intelligence tool"
+			"description": "Query codebase structure, dependencies, and impact via a code-intelligence graph. Executes JavaScript against a read-only api object (searchSymbols, getDependencies, getDependents, impactAnalysis, getCallGraph, traceSymbolUsage, findOrphanedCode, getArchitectureOverview, and more). Read-only; no source code is transmitted."
 		}
 	],
 	"user_config": {
