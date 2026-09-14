@@ -86,7 +86,7 @@ Find the full and comprehensive documentation at **[docs.constellationdev.io/mcp
 - **Access control** - API keys required for all requests
 - **Branch isolation** - Each git branch maintains discrete code intelligence
 
-For comprehensive information regarding privacy and security, see the [official Privacy & Security documentation](https://docs.constellationdev.io/privacy).
+For comprehensive information regarding privacy and security, see the [official Privacy & Security documentation](https://docs.constellationdev.io/privacy-security) and the [Privacy Policy](https://constellationdev.io/privacy).
 
 ## Support
 
