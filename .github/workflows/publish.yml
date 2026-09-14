@@ -41,6 +41,19 @@ jobs:
         run: npm run build
       - name: Publish
         run: npm publish --provenance --registry https://registry.npmjs.org
+      - name: Wait for npm propagation
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          for i in $(seq 1 40); do
+            if npm view "@constellationdev/mcp@$VERSION" version --registry https://registry.npmjs.org >/dev/null 2>&1; then
+              echo "npm is serving $VERSION"
+              exit 0
+            fi
+            echo "waiting for npm to serve $VERSION (attempt $i)..."
+            sleep 15
+          done
+          echo "::error::npm did not serve $VERSION within 10 minutes"
+          exit 1
       - name: Install mcp-publisher
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
