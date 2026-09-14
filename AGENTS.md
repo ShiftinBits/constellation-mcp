@@ -19,7 +19,7 @@ MCP server bridging AI assistants to constellation-core for code intelligence. S
 ## Architecture
 
 ```
-AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient → Core:3000 → Neo4j
+AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient → Core intel-api (`/intel/v1`; locally via nginx :4080) → ArcadeDB
 ```
 
 **Layer stack** (file = primary owner of that concern):
@@ -71,6 +71,8 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 | `CONSTELLATION_USAGE_METRICS`     | `false`/`0` disables per-call telemetry POST (narrow contract — `no`/`off` do **not** disable) |
 | `USAGE_ENDPOINT_URL`              | Override usage receiver (default `${CONSTELLATION_API_URL}/intel/v1/usage`)                    |
 | `DEBUG`                           | Verbose logging                                                                                |
+
+**Testing against local Core**: the workspace `.mcp.json` registers `local-constellation` — `node constellation-mcp/dist/index.js` (this repo's build, so `npm run build` and restart Claude Code after MCP changes), env from `LOCAL_CONSTELLATION_*`, nginx `:4080` — for validating Core and MCP changes; the plugin `constellation` server stays on the hosted API. Outside Claude Code: `CONSTELLATION_API_URL=$LOCAL_CONSTELLATION_API_URL CONSTELLATION_ACCESS_KEY=$LOCAL_CONSTELLATION_ACCESS_KEY npm run inspector`. Env override only swaps the API URL; `projectId` still comes from each repo's `constellation.json`, and the local graph is indexed for core only.
 
 Legacy `USAGE_TRACKING_ENABLED=false` is honored transitionally as an opt-out (to be removed). **Multi-project**: `ConfigCache` resolves config per git root via the `cwd` parameter, LRU-cached with no file watch — restart after `constellation.json` changes.
 
