@@ -21,6 +21,7 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 	ConstellationClient,
+	ConstellationClientError,
 	NotFoundError,
 	TimeoutError,
 	ToolNotFoundError,
@@ -1989,6 +1990,27 @@ describe('CodeModeSandbox', () => {
 				expect(result.error).not.toContain('API call failed:');
 			},
 		);
+
+		it('should preserve any ConstellationClientError subclass without an allowlist entry', async () => {
+			// A hypothetical future typed client error must propagate through the
+			// executor's re-throw guard (not be wrapped as "API call failed").
+			class HypotheticalClientError extends ConstellationClientError {
+				constructor(message: string) {
+					super(message);
+					this.name = 'HypotheticalClientError';
+				}
+			}
+			mockClient.executeMcpTool.mockRejectedValue(
+				new HypotheticalClientError('new typed failure'),
+			);
+
+			const code = 'return await api.searchSymbols({ query: "test" });';
+			const result = await sandbox.execute(code);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('new typed failure');
+			expect(result.error).not.toContain('API call failed:');
+		});
 
 		it('should surface API_CALL_LIMIT_EXCEEDED when the api.* call cap is exceeded', async () => {
 			// Arrange: a sandbox capped at a single api.* call, with the client
