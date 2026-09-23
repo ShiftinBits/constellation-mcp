@@ -21,13 +21,8 @@
 
 import vm from 'vm';
 import {
-	AuthenticationError,
-	AuthorizationError,
 	ConstellationClient,
-	NotFoundError,
-	TimeoutError,
-	ToolNotFoundError,
-	UnsupportedLanguageError,
+	ConstellationClientError,
 } from '../client/constellation-client.js';
 import {
 	GUARDED_METHODS,
@@ -864,20 +859,19 @@ export class CodeModeSandbox {
 				// Wrapping in a generic Error here would erase the type and force
 				// the response to fall through to EXECUTION_ERROR.
 				//
-				// UnsupportedLanguageError and ApiCallLimitError are included as
-				// defense-in-depth: today both are thrown *before* this inner try
-				// runs (the language guard before executor(), the call-cap check
-				// before the invocation), so this catch is unreachable for those
-				// subtypes. Keeping the entries preserves the invariant if the cap
-				// check or guard is ever moved inside the try, or a future caller
-				// invokes executor() directly without going through the api Proxy.
+				// All typed client errors share the ConstellationClientError base,
+				// so new subclasses propagate without touching this guard.
+				//
+				// UnsupportedLanguageError (a ConstellationClientError) and
+				// ApiCallLimitError are covered as defense-in-depth: today both are
+				// thrown *before* this inner try runs (the language guard before
+				// executor(), the call-cap check before the invocation), so this
+				// catch is unreachable for those subtypes. Keeping them covered
+				// preserves the invariant if the cap check or guard is ever moved
+				// inside the try, or a future caller invokes executor() directly
+				// without going through the api Proxy.
 				if (
-					error instanceof AuthenticationError ||
-					error instanceof AuthorizationError ||
-					error instanceof NotFoundError ||
-					error instanceof ToolNotFoundError ||
-					error instanceof TimeoutError ||
-					error instanceof UnsupportedLanguageError ||
+					error instanceof ConstellationClientError ||
 					error instanceof ApiCallLimitError
 				) {
 					throw error;

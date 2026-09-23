@@ -14,7 +14,9 @@ import {
 	RetryableError,
 	ToolNotFoundError,
 	ConfigurationError,
+	ConstellationClientError,
 	TimeoutError,
+	UnsupportedLanguageError,
 } from '../../../src/client/constellation-client.js';
 import { createMockResponse } from '../../helpers/test-utils.js';
 
@@ -415,6 +417,67 @@ describe('ConstellationClient', () => {
 			expect(error).toBeInstanceOf(Error);
 			expect(error.name).toBe('TimeoutError');
 			expect(error.message).toBe('Operation timed out after 30s');
+		});
+
+		it.each([
+			['AuthenticationError', () => new AuthenticationError('x')],
+			['AuthorizationError', () => new AuthorizationError('x')],
+			['NotFoundError', () => new NotFoundError('x')],
+			['ToolNotFoundError', () => new ToolNotFoundError('x')],
+			['TimeoutError', () => new TimeoutError('x')],
+			['ConfigurationError', () => new ConfigurationError('x')],
+			[
+				'UnsupportedLanguageError',
+				() => new UnsupportedLanguageError('a.rb', '.rb', ['.ts']),
+			],
+		])('should make %s a ConstellationClientError', (name, factory) => {
+			const error = factory();
+			expect(error).toBeInstanceOf(ConstellationClientError);
+			expect(error).toBeInstanceOf(Error);
+			expect(error.name).toBe(name);
+		});
+
+		it('should keep RetryableError outside the ConstellationClientError hierarchy', () => {
+			// RetryableError is an internal retry signal, not part of the
+			// structured error surface, so re-throw guards must not preserve it.
+			expect(new RetryableError('x')).not.toBeInstanceOf(
+				ConstellationClientError,
+			);
+		});
+	});
+
+	describe('executeMcpTool typed error propagation', () => {
+		const mockContext = { projectId: 'proj', branchName: 'main' };
+
+		it('should re-throw any ConstellationClientError subclass unwrapped', async () => {
+			// A hypothetical future typed error: it must propagate through the
+			// re-throw guard without being added to an allowlist.
+			class HypotheticalClientError extends ConstellationClientError {
+				constructor(message: string) {
+					super(message);
+					this.name = 'HypotheticalClientError';
+				}
+			}
+			const thrown = new HypotheticalClientError('new typed failure');
+			jest.spyOn(client as any, 'sendRequest').mockRejectedValue(thrown);
+
+			await expect(
+				client.executeMcpTool('search_symbols', {}, mockContext),
+			).rejects.toBe(thrown);
+		});
+
+		it('should wrap non-ConstellationClientError errors', async () => {
+			jest
+				.spyOn(client as any, 'sendRequest')
+				.mockRejectedValue(new RetryableError('Bad Gateway (502)'));
+
+			const error: any = await client
+				.executeMcpTool('search_symbols', {}, mockContext)
+				.catch((e) => e);
+
+			expect(error).not.toBeInstanceOf(RetryableError);
+			expect(error.message).toContain('Failed to execute MCP tool');
+			expect(error.cause).toBeInstanceOf(RetryableError);
 		});
 	});
 

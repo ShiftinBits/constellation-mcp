@@ -115,13 +115,8 @@ export class ConstellationClient {
 			const result = (await response.json()) as McpToolResult<TResult>;
 			return result;
 		} catch (error: any) {
-			// Re-throw known errors
-			if (
-				error instanceof ToolNotFoundError ||
-				error instanceof AuthenticationError ||
-				error instanceof AuthorizationError ||
-				error instanceof NotFoundError
-			) {
+			// Re-throw typed client errors so error-factory can map them
+			if (error instanceof ConstellationClientError) {
 				throw error;
 			}
 
@@ -319,6 +314,19 @@ export class ConstellationClient {
 }
 
 /**
+ * Base class for the typed errors that make up the client's structured error
+ * surface. `error-factory.ts` maps each concrete subclass to its own
+ * `ErrorCode`, so re-throw guards (e.g. `executeMcpTool`, the sandbox API
+ * executor) check `instanceof ConstellationClientError` to preserve the type
+ * instead of wrapping it in a generic Error. New typed client errors should
+ * extend this class so they propagate automatically.
+ *
+ * `RetryableError` intentionally does NOT extend this: it is an internal
+ * retry signal, not part of the public error surface.
+ */
+export abstract class ConstellationClientError extends Error {}
+
+/**
  * Error thrown for server issues that can be retried (5xx status codes).
  */
 export class RetryableError extends Error {
@@ -331,7 +339,7 @@ export class RetryableError extends Error {
 /**
  * Error thrown when authentication fails (401 status code).
  */
-export class AuthenticationError extends Error {
+export class AuthenticationError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'AuthenticationError';
@@ -342,7 +350,7 @@ export class AuthenticationError extends Error {
  * Error thrown when resource is not found (404 status code).
  * Indicates that the project has not been indexed yet or tool doesn't exist.
  */
-export class NotFoundError extends Error {
+export class NotFoundError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'NotFoundError';
@@ -352,7 +360,7 @@ export class NotFoundError extends Error {
 /**
  * Error thrown when a tool is not found.
  */
-export class ToolNotFoundError extends Error {
+export class ToolNotFoundError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'ToolNotFoundError';
@@ -363,7 +371,7 @@ export class ToolNotFoundError extends Error {
  * Error thrown when authorization fails (403 status code).
  * Indicates valid credentials but insufficient permissions.
  */
-export class AuthorizationError extends Error {
+export class AuthorizationError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'AuthorizationError';
@@ -373,7 +381,7 @@ export class AuthorizationError extends Error {
 /**
  * Error thrown when configuration is missing or invalid.
  */
-export class ConfigurationError extends Error {
+export class ConfigurationError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'ConfigurationError';
@@ -383,7 +391,7 @@ export class ConfigurationError extends Error {
 /**
  * Error thrown when a timeout occurs.
  */
-export class TimeoutError extends Error {
+export class TimeoutError extends ConstellationClientError {
 	constructor(message: string) {
 		super(message);
 		this.name = 'TimeoutError';
@@ -398,7 +406,7 @@ export class TimeoutError extends Error {
  * Members carry the rejection context so the structured response can
  * surface actionable guidance to the LLM.
  */
-export class UnsupportedLanguageError extends Error {
+export class UnsupportedLanguageError extends ConstellationClientError {
 	readonly code = 'UNSUPPORTED_LANGUAGE';
 	readonly configuredExtensions: ReadonlyArray<string>;
 
