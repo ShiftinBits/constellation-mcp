@@ -92,10 +92,13 @@ jobs:
             echo "constellation-claude already pins $VERSION, nothing to do."
             exit 0
           fi
+          # Installed users only update when the plugin version changes
+          PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json | awk -F. -v OFS=. '{$3++; print}')
+          jq --tab --arg v "$PLUGIN_VERSION" '.version = $v' .claude-plugin/plugin.json > plugin.tmp && mv plugin.tmp .claude-plugin/plugin.json
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "chore: pin @constellationdev/mcp to $VERSION"
+          git commit -am "chore: pin @constellationdev/mcp to $VERSION, bump plugin to $PLUGIN_VERSION"
           git push origin "$BRANCH"
           gh pr create --draft --base main --head "$BRANCH" \
             --title "Pin @constellationdev/mcp to $VERSION" \
-            --body "Pins the Constellation MCP server to \`$VERSION\` following its [release]($RELEASE_URL)."
+            --body "Pins the Constellation MCP server to \`$VERSION\` following its [release]($RELEASE_URL) and bumps the plugin version to \`$PLUGIN_VERSION\` so installed users receive it."
