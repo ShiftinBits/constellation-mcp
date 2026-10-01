@@ -82,6 +82,10 @@ jobs:
             exit 1
           fi
           BRANCH="feat/pin-mcp-$VERSION"
+          if [ -n "$(gh pr list -R ShiftinBits/constellation-claude --head "$BRANCH" --state open --json number -q '.[].number')" ]; then
+            echo "A pin PR for $VERSION is already open in constellation-claude, nothing to do."
+            exit 0
+          fi
           gh auth setup-git
           gh repo clone ShiftinBits/constellation-claude plugin -- --depth 1
           cd plugin
@@ -98,7 +102,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -am "chore: pin @constellationdev/mcp to $VERSION, bump plugin to $PLUGIN_VERSION"
-          git push origin "$BRANCH"
+          # The branch belongs to this job; force replaces a leftover from a run whose PR step failed
+          git push --force origin "$BRANCH"
           gh pr create --draft --base main --head "$BRANCH" \
             --title "Pin @constellationdev/mcp to $VERSION" \
             --body "Pins the Constellation MCP server to \`$VERSION\` following its [release]($RELEASE_URL) and bumps the plugin version to \`$PLUGIN_VERSION\` so installed users receive it."
