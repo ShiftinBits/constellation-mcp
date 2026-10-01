@@ -63,3 +63,42 @@ jobs:
         run: ./mcp-publisher login dns --domain shiftinbits.com --private-key "$MCP_PRIVATE_KEY"
       - name: Publish server to MCP Registry
         run: ./mcp-publisher publish
+  pin-claude-plugin:
+    needs: publish
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Open draft PR pinning the new version in constellation-claude
+        env:
+          GH_TOKEN: ${{ secrets.CONSTELLATION_CLAUDE_TOKEN }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Unexpected release tag '$TAG_NAME'"
+            exit 1
+          fi
+          BRANCH="feat/pin-mcp-$VERSION"
+          gh auth setup-git
+          gh repo clone ShiftinBits/constellation-claude plugin -- --depth 1
+          cd plugin
+          git checkout -b "$BRANCH"
+          sed -i -E "s#@constellationdev/mcp@[0-9]+\.[0-9]+\.[0-9]+#@constellationdev/mcp@$VERSION#g" \
+            .mcp.json skills/constellation-troubleshooting/SKILL.md commands/diagnose.md
+          if git diff --quiet; then
+            echo "constellation-claude already pins $VERSION, nothing to do."
+            exit 0
+          fi
+          # Installed users only update when the plugin version changes
+          PLUGIN_VERSION=$(jq -r '.version' .claude-plugin/plugin.json | awk -F. -v OFS=. '{$3++; print}')
+          jq --tab --arg v "$PLUGIN_VERSION" '.version = $v' .claude-plugin/plugin.json > plugin.tmp && mv plugin.tmp .claude-plugin/plugin.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: pin @constellationdev/mcp to $VERSION, bump plugin to $PLUGIN_VERSION"
+          git push origin "$BRANCH"
+          gh pr create --draft --base main --head "$BRANCH" \
+            --title "Pin @constellationdev/mcp to $VERSION" \
+            --body "Pins the Constellation MCP server to \`$VERSION\` following its [release]($RELEASE_URL) and bumps the plugin version to \`$PLUGIN_VERSION\` so installed users receive it."
