@@ -117,3 +117,7 @@ Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `co
 ## Extended Docs
 
 `../AGENTS.md` (workspace, shared types) · `../TROUBLESHOOTING.md` (error codes, debug) · `../COMMANDS.md` (commands) · `../ADR.md` (decisions).
+
+## Worktrees
+
+Create git worktrees only under this repo's `.claude/worktrees/<branch-slug>` (already gitignored), e.g. `git worktree add .claude/worktrees/feat-x -b feat/x origin/main`. Never create them outside the repo (e.g. sibling `../constellation-<name>-<branch>` folders) or in a `.worktrees/` directory.
