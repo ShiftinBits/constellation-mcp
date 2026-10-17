@@ -102,7 +102,7 @@ describe('capabilities', () => {
 					success: true,
 					data: {
 						metadata: { languages: [] },
-						structure: { symbols: { total: 0 }, files: { total: 0 } },
+						structure: { symbols: { total: 0 }, files: { total: 3 } },
 					},
 					metadata: {
 						toolName: 'get_architecture_overview',
@@ -135,7 +135,7 @@ describe('capabilities', () => {
 
 				const result = await getProjectCapabilities(mockClient, mockContext);
 
-				expect(result.isIndexed).toBe(true);
+				expect(result.isIndexed).toBe(false);
 				expect(result.supportedLanguages).toEqual([]);
 				expect(result.symbolCount).toBe(0);
 				expect(result.fileCount).toBe(0);
@@ -159,13 +159,43 @@ describe('capabilities', () => {
 
 				const result = await getProjectCapabilities(mockClient, mockContext);
 
-				expect(result.supportedLanguages).toEqual(['python']);
+				// No file count means nothing indexed, regardless of reported languages
+				expect(result.isIndexed).toBe(false);
+				expect(result.supportedLanguages).toEqual([]);
 				expect(result.symbolCount).toBe(0);
 				expect(result.fileCount).toBe(0);
 			});
 		});
 
 		describe('not indexed responses', () => {
+			it('should return not-indexed capabilities when a successful overview reports 0 files', async () => {
+				mockClient.executeMcpTool.mockResolvedValueOnce({
+					success: true,
+					data: {
+						metadata: { languages: [] },
+						structure: { symbols: { total: 0 }, files: { total: 0 } },
+					},
+					metadata: {
+						toolName: 'get_architecture_overview',
+						executionTime: 50,
+						cached: false,
+						timestamp: new Date().toISOString(),
+					},
+				});
+
+				const result = await getProjectCapabilities(mockClient, mockContext);
+
+				expect(result.isIndexed).toBe(false);
+				expect(result.fileCount).toBe(0);
+				expect(result.indexedBranch).toBeUndefined();
+				expect(Object.values(result.availableFeatures)).toEqual(
+					Array(6).fill(false),
+				);
+				expect(result.limitations).toEqual([
+					'Project not indexed - run: constellation index',
+				]);
+			});
+
 			it('should return not-indexed capabilities when success is false', async () => {
 				mockClient.executeMcpTool.mockResolvedValueOnce({
 					success: false,

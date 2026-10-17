@@ -91,6 +91,14 @@ export async function getProjectCapabilities(
 		const symbolCount = data.structure?.symbols?.total || 0;
 		const fileCount = data.structure?.files?.total || 0;
 
+		// Core answers the overview successfully for a registered but never-indexed
+		// branch, with zeroed counts. Match Core's rule (fileCount === 0 means not indexed).
+		if (fileCount === 0) {
+			return createNotIndexedCapabilities(
+				'Project not indexed - run: constellation index',
+			);
+		}
+
 		return {
 			isIndexed: true,
 			indexedBranch: context.branchName,
