@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `api.getCapabilities()` no longer reports `isIndexed: true` (with every feature enabled) for a
   registered but never-indexed branch. A successful architecture overview with 0 files now returns
-  `isIndexed: false` and the `constellation index` guidance, matching Core's definition (SB-1248).
+  `isIndexed: false` and the `constellation index` guidance, matching Core's definition.
+- `api.getCapabilities()` now returns `lastIndexedAt` for indexed projects. It was read from the
+  overview payload, where Core never sets it, instead of the response metadata.
 
 ### Deprecated
 
