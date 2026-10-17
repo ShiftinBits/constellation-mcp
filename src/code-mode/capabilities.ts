@@ -8,6 +8,8 @@
 import { ConstellationClient } from '../client/constellation-client.js';
 import { MAX_EXECUTION_TIMEOUT_MS } from '../constants/sandbox-limits.js';
 
+const NOT_INDEXED_LIMITATION = 'Project not indexed - run: constellation index';
+
 /**
  * Project capabilities returned by api.getCapabilities()
  */
@@ -65,15 +67,13 @@ export async function getProjectCapabilities(
 		);
 
 		if (!overview.success || !overview.data) {
-			return createNotIndexedCapabilities(
-				'Project not indexed - run: constellation index',
-			);
+			return createNotIndexedCapabilities(NOT_INDEXED_LIMITATION);
 		}
 
 		const data = overview.data as {
 			metadata?: {
 				languages?: Array<{ language: string; fileCount: number }>;
-				lastIndexedAt?: string;
+				totalFiles?: number;
 			};
 			structure?: {
 				symbols?: { total: number };
@@ -89,15 +89,22 @@ export async function getProjectCapabilities(
 
 		// Extract counts
 		const symbolCount = data.structure?.symbols?.total || 0;
-		const fileCount = data.structure?.files?.total || 0;
+		const fileCount = data.structure?.files?.total ?? data.metadata?.totalFiles;
+
+		// Core answers the overview successfully for a registered but never-indexed
+		// branch, with zeroed counts. Match Core's rule (fileCount === 0 means not
+		// indexed). A missing count is an unknown shape, not proof of zero files.
+		if (fileCount === 0) {
+			return createNotIndexedCapabilities(NOT_INDEXED_LIMITATION);
+		}
 
 		return {
 			isIndexed: true,
 			indexedBranch: context.branchName,
-			lastIndexedAt: data.metadata?.lastIndexedAt,
+			lastIndexedAt: overview.metadata?.lastIndexedAt,
 			supportedLanguages,
 			symbolCount,
-			fileCount,
+			fileCount: fileCount ?? 0,
 			availableFeatures: {
 				searchSymbols: true,
 				impactAnalysis: true,
@@ -122,9 +129,7 @@ export async function getProjectCapabilities(
 			message.includes('not indexed') ||
 			message.includes('404')
 		) {
-			return createNotIndexedCapabilities(
-				'Project not indexed - run: constellation index',
-			);
+			return createNotIndexedCapabilities(NOT_INDEXED_LIMITATION);
 		}
 
 		if (

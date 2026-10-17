@@ -42,7 +42,6 @@ describe('capabilities', () => {
 								{ language: 'typescript', fileCount: 100 },
 								{ language: 'javascript', fileCount: 50 },
 							],
-							lastIndexedAt: '2024-01-15T10:00:00Z',
 						},
 						structure: {
 							symbols: { total: 500 },
@@ -54,6 +53,7 @@ describe('capabilities', () => {
 						executionTime: 100,
 						cached: false,
 						timestamp: new Date().toISOString(),
+						lastIndexedAt: '2024-01-15T10:00:00Z',
 					},
 				});
 
@@ -102,7 +102,7 @@ describe('capabilities', () => {
 					success: true,
 					data: {
 						metadata: { languages: [] },
-						structure: { symbols: { total: 0 }, files: { total: 0 } },
+						structure: { symbols: { total: 0 }, files: { total: 3 } },
 					},
 					metadata: {
 						toolName: 'get_architecture_overview',
@@ -159,6 +159,7 @@ describe('capabilities', () => {
 
 				const result = await getProjectCapabilities(mockClient, mockContext);
 
+				expect(result.isIndexed).toBe(true);
 				expect(result.supportedLanguages).toEqual(['python']);
 				expect(result.symbolCount).toBe(0);
 				expect(result.fileCount).toBe(0);
@@ -166,6 +167,54 @@ describe('capabilities', () => {
 		});
 
 		describe('not indexed responses', () => {
+			it('should return not-indexed capabilities when a successful overview reports 0 files', async () => {
+				mockClient.executeMcpTool.mockResolvedValueOnce({
+					success: true,
+					data: {
+						metadata: { languages: [] },
+						structure: { symbols: { total: 0 }, files: { total: 0 } },
+					},
+					metadata: {
+						toolName: 'get_architecture_overview',
+						executionTime: 50,
+						cached: false,
+						timestamp: new Date().toISOString(),
+					},
+				});
+
+				const result = await getProjectCapabilities(mockClient, mockContext);
+
+				expect(result.isIndexed).toBe(false);
+				expect(result.fileCount).toBe(0);
+				expect(result.indexedBranch).toBeUndefined();
+				expect(
+					Object.values(result.availableFeatures).every((v) => v === false),
+				).toBe(true);
+				expect(result.limitations).toEqual([
+					'Project not indexed - run: constellation index',
+				]);
+			});
+
+			it('should fall back to metadata.totalFiles when structure.files is missing', async () => {
+				mockClient.executeMcpTool.mockResolvedValueOnce({
+					success: true,
+					data: {
+						metadata: { languages: [], totalFiles: 0 },
+						structure: { symbols: { total: 0 } },
+					},
+					metadata: {
+						toolName: 'get_architecture_overview',
+						executionTime: 50,
+						cached: false,
+						timestamp: new Date().toISOString(),
+					},
+				});
+
+				const result = await getProjectCapabilities(mockClient, mockContext);
+
+				expect(result.isIndexed).toBe(false);
+			});
+
 			it('should return not-indexed capabilities when success is false', async () => {
 				mockClient.executeMcpTool.mockResolvedValueOnce({
 					success: false,
@@ -440,7 +489,6 @@ describe('capabilities', () => {
 				data: {
 					metadata: {
 						languages: [{ language: 'go', fileCount: 30 }],
-						lastIndexedAt: '2024-06-01T12:00:00Z',
 					},
 					structure: {
 						symbols: { total: 250 },
@@ -452,6 +500,7 @@ describe('capabilities', () => {
 					executionTime: 75,
 					cached: false,
 					timestamp: new Date().toISOString(),
+					lastIndexedAt: '2024-06-01T12:00:00Z',
 				},
 			});
 
