@@ -16,6 +16,8 @@ import {
 import { EventEmitter } from 'events';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
+import type { SandboxHookContext } from '../../../src/code-mode/sandbox-hook.js';
+import type { WorkerRequest } from '../../../src/code-mode/sandbox-worker.js';
 
 // Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
 jest.mock('../../../src/code-mode/worker-path.js', () => ({
@@ -298,6 +300,57 @@ describe('IsolatedSandbox', () => {
 			const result = await executePromise;
 			expect(result.executionTime).toBeGreaterThanOrEqual(0);
 			jest.useFakeTimers(); // Restore for afterEach
+		});
+	});
+
+	describe('hook mode', () => {
+		const hook: SandboxHookContext = {
+			event: 'PostToolUse',
+			input: { tool_name: 'Edit', tool_input: { file_path: 'src/a.ts' } },
+			sessionId: 'session-1',
+			settings: { CONSTELLATION_HOOK_MODE: 'quiet' },
+			claimed: ['seen'],
+		};
+
+		it('should send the hook context to the worker over IPC', async () => {
+			const executePromise = sandbox.execute('return 1;', { hook });
+			mockChild.emit('message', {
+				type: 'result',
+				result: { success: true, result: 1, executionTime: 1 },
+			});
+			await executePromise;
+
+			const sent = mockChild.send.mock.calls[0][0] as WorkerRequest;
+			expect(JSON.parse(JSON.stringify(sent.hook))).toEqual(hook);
+		});
+
+		it('should not send a hook key to the worker in normal mode', async () => {
+			const executePromise = sandbox.execute('return 1;');
+			mockChild.emit('message', {
+				type: 'result',
+				result: { success: true, result: 1, executionTime: 1 },
+			});
+			await executePromise;
+
+			const sent = mockChild.send.mock.calls[0][0] as WorkerRequest;
+			expect('hook' in sent).toBe(false);
+		});
+
+		it('should return the worker claimedKeys in the result', async () => {
+			const executePromise = sandbox.execute('return 1;', { hook });
+			mockChild.emit('message', {
+				type: 'result',
+				result: {
+					success: true,
+					result: 1,
+					executionTime: 1,
+					claimedKeys: ['notice'],
+				},
+			});
+
+			const result = await executePromise;
+
+			expect(result.claimedKeys).toEqual(['notice']);
 		});
 	});
 

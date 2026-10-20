@@ -3,6 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { HookOutputSchema } from '../../../src/code-mode/hook-mode.js';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
@@ -196,19 +197,29 @@ describe('registerQueryCodeGraphTool', () => {
 			expect(config.inputSchema.shape.code).toBeDefined();
 			expect(config.inputSchema.shape.timeout).toBeDefined();
 			expect(config.inputSchema.shape.cwd).toBeDefined();
+			expect(config.inputSchema.shape.hook).toBeDefined();
 		});
 
 		it('should register with correct output schema', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
+			const envelopeShape = config.outputSchema.options[0].shape;
 
-			expect(config.outputSchema.shape.success).toBeDefined();
-			expect(config.outputSchema.shape.result).toBeDefined();
-			expect(config.outputSchema.shape.logs).toBeDefined();
-			expect(config.outputSchema.shape.time).toBeDefined();
-			expect(config.outputSchema.shape.asOfCommit).toBeDefined();
-			expect(config.outputSchema.shape.error).toBeDefined();
-			expect(config.outputSchema.shape.timeoutBreakdown).toBeDefined();
+			expect(envelopeShape.success).toBeDefined();
+			expect(envelopeShape.result).toBeDefined();
+			expect(envelopeShape.logs).toBeDefined();
+			expect(envelopeShape.time).toBeDefined();
+			expect(envelopeShape.asOfCommit).toBeDefined();
+			expect(envelopeShape.error).toBeDefined();
+			expect(envelopeShape.timeoutBreakdown).toBeDefined();
+		});
+
+		it('should accept the hook output as the second output schema member', () => {
+			const call = mockServer.registerTool.mock.calls[0];
+			const config = call[1];
+
+			expect(config.outputSchema.options).toHaveLength(2);
+			expect(config.outputSchema.options[1]).toBe(HookOutputSchema);
 		});
 
 		it('should declare coldStartGraceMs in the timeoutBreakdown output schema', () => {
@@ -218,7 +229,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Guards the SB-933 fix: the field must be in the Zod outputSchema or
 			// strict MCP clients strip it from structuredContent.
 			const breakdownShape =
-				config.outputSchema.shape.timeoutBreakdown.unwrap().shape;
+				config.outputSchema.options[0].shape.timeoutBreakdown.unwrap().shape;
 			expect(breakdownShape.coldStartGraceMs).toBeDefined();
 		});
 	});

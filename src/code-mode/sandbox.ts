@@ -58,6 +58,7 @@ import {
 } from '../utils/usage-tracker.js';
 import { METHOD_SUMMARIES } from '../types/method-summaries.js';
 import { enrichWithSourceSnippets } from './source-enrichment.js';
+import { installSandboxHook, type SandboxHookContext } from './sandbox-hook.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -221,7 +222,6 @@ type _AssertMethodWeightsCoverApi = {
 		? true
 		: never;
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _methodWeightsCoverApi: _AssertMethodWeightsCoverApi = {
 	searchSymbols: true,
 	getSymbolDetails: true,
@@ -360,6 +360,11 @@ export interface SandboxResult {
 	 * agents can self-correct.
 	 */
 	timeoutBreakdown?: TimeoutBreakdown;
+	/**
+	 * Keys newly claimed through `hook.once(key)` during this run. Present
+	 * only for hook-mode executions; the parent decides whether to commit them.
+	 */
+	claimedKeys?: string[];
 }
 
 /**
@@ -372,6 +377,8 @@ export interface SandboxExecutionOptions {
 	timeoutMs?: number;
 	/** Estimator breakdown to surface in the result. */
 	timeoutBreakdown?: TimeoutBreakdown;
+	/** Hook context; when set, the program sees a frozen `hook` global. */
+	hook?: SandboxHookContext;
 }
 
 /**
@@ -494,6 +501,8 @@ export class CodeModeSandbox {
 			 */
 			invocationActualTokens: [] as number[],
 		};
+		// Hook mode only: reads the keys newly claimed through `hook.once(key)`.
+		let readClaimedKeys: (() => string[]) | undefined;
 
 		try {
 			// Create sandbox context with API bindings
@@ -515,6 +524,12 @@ export class CodeModeSandbox {
 
 			// Freeze prototypes in the sandbox to prevent prototype pollution attacks (SB-102)
 			this.freezeSandboxPrototypes(context);
+
+			// Hook mode only: define the deep-frozen `hook` global, built inside
+			// the context realm. Normal mode leaves `hook` undeclared.
+			if (execOpts?.hook) {
+				readClaimedKeys = installSandboxHook(context, execOpts.hook);
+			}
 
 			// FIX SB-85: VM timeout only applies to synchronous execution.
 			// Async code (including our async IIFE wrapper) returns a Promise immediately,
@@ -577,6 +592,7 @@ export class CodeModeSandbox {
 				invocations: [...executionState.invocations],
 				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
+				...(execOpts?.hook ? { claimedKeys: readClaimedKeys?.() ?? [] } : {}),
 			};
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -615,6 +631,7 @@ export class CodeModeSandbox {
 				invocations: [...executionState.invocations],
 				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
+				...(execOpts?.hook ? { claimedKeys: readClaimedKeys?.() ?? [] } : {}),
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing

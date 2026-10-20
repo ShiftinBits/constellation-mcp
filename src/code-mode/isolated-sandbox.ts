@@ -189,6 +189,7 @@ export class IsolatedSandbox {
 					allowTimers: this.options.allowTimers,
 					maxApiCalls: this.options.maxApiCalls,
 				},
+				...(execOpts?.hook ? { hook: execOpts.hook } : {}),
 			};
 
 			child.send(request);

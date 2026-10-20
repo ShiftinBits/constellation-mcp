@@ -21,6 +21,7 @@ import {
 	coldStartTracker as defaultColdStartTracker,
 	type ColdStartTracker,
 } from './cold-start-tracker.js';
+import type { SandboxHookContext } from './sandbox-hook.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { McpErrorResponse } from '../types/mcp-errors.js';
 import {
@@ -82,6 +83,8 @@ interface CodeModeRequest {
 		projectId: string;
 		branchName: string;
 	};
+	/** Hook context for hook-mode executions; absent in normal mode. */
+	hook?: SandboxHookContext;
 }
 
 /**
@@ -127,6 +130,11 @@ export interface CodeModeResponse {
 	 * the weight table from real telemetry.
 	 */
 	timeoutBreakdown?: TimeoutBreakdown;
+	/**
+	 * Keys newly claimed through `hook.once(key)` (hook mode only). Never
+	 * part of the formatted or schema-compliant tool output.
+	 */
+	claimedKeys?: string[];
 	[x: string]: unknown; // Index signature for MCP SDK compatibility
 }
 
@@ -332,6 +340,7 @@ export class CodeModeRuntime {
 		const result = await this.sandbox.execute(request.code, {
 			timeoutMs: effectiveTimeoutMs,
 			timeoutBreakdown,
+			...(request.hook ? { hook: request.hook } : {}),
 		});
 
 		// Flip warm once a real API round-trip has completed successfully — the
@@ -392,6 +401,7 @@ export class CodeModeRuntime {
 			invocations: result.invocations,
 			invocationActualTokens: result.invocationActualTokens,
 			timeoutBreakdown: result.timeoutBreakdown ?? timeoutBreakdown,
+			...(result.claimedKeys ? { claimedKeys: result.claimedKeys } : {}),
 			metadata: {
 				language: 'javascript',
 				sandboxed: true,

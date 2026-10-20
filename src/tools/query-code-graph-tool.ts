@@ -15,6 +15,14 @@ import {
 	createStructuredError,
 	ValidationError,
 } from '../client/error-factory.js';
+import {
+	buildHookOutput,
+	hookOnceStore,
+	type HookOutput,
+	HookOutputSchema,
+	parseHookRequest,
+	type RawHookRequest,
+} from '../code-mode/hook-mode.js';
 import { CodeModeResponse, CodeModeRuntime } from '../code-mode/runtime.js';
 import {
 	configCache,
@@ -25,6 +33,7 @@ import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	DEFAULT_MAX_API_CALLS,
 	DEFAULT_MEMORY_LIMIT_MB,
+	HOOK_DEFAULT_TIMEOUT_MS,
 	MAX_CODE_SIZE,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
@@ -170,6 +179,118 @@ async function resolveConfigContext(cwd?: string): Promise<ConfigContext> {
 }
 
 /**
+ * Hook-mode tool result: the text item is the serialized structuredContent.
+ * Index signature required for MCP SDK compatibility.
+ */
+interface HookModeResult {
+	content: Array<{ type: 'text'; text: string }>;
+	structuredContent: HookOutput;
+	[x: string]: unknown;
+}
+
+function hookModeResult(output: HookOutput): HookModeResult {
+	return {
+		content: [{ type: 'text', text: JSON.stringify(output) }],
+		structuredContent: output,
+	};
+}
+
+/** Log why hook mode emits nothing, then return the no-op `{}` output. */
+function quiet(reason: string): HookModeResult {
+	console.error(`[code_intel] hook: ${reason}`);
+	return hookModeResult({});
+}
+
+/** Error label for the stderr log: a config error code or the error name. */
+function describeError(error: unknown): string {
+	if (error instanceof ConfigCacheError) return error.code;
+	return error instanceof Error ? error.name : typeof error;
+}
+
+/**
+ * Run `code` for an agent-plugin hook and map its result onto an
+ * advisory-only HookOutput. Every failure is quiet (the no-op `{}`, never
+ * `isError`) so the hook never shows as failed, and no usage event is sent.
+ * `once` keys are committed only when the output is non-empty, so a failed
+ * or empty run can show its notice again next time.
+ */
+async function runHookMode({
+	code,
+	timeout,
+	cwd,
+	hook,
+}: {
+	code: string;
+	timeout?: number;
+	cwd?: string;
+	hook: RawHookRequest;
+}): Promise<HookModeResult> {
+	try {
+		const parsed = parseHookRequest(hook);
+		if (!parsed.ok) return quiet(parsed.reason);
+		const { event, input, sessionId, settings } = parsed.request;
+
+		let configContext: ConfigContext;
+		try {
+			configContext = await resolveConfigContext(cwd);
+		} catch (error) {
+			return quiet(`config resolution failed (${describeError(error)})`);
+		}
+		if (configContext.initializationError) {
+			return quiet('configuration error');
+		}
+		if (!configContext.apiKey) return quiet('no access key configured');
+		if (code.length > MAX_CODE_SIZE) {
+			return quiet(`code is ${code.length} bytes (max ${MAX_CODE_SIZE})`);
+		}
+		if (BINARY_CHAR_PATTERN.test(code)) {
+			return quiet('code contains binary or control characters');
+		}
+
+		const runtime = new CodeModeRuntime({
+			timeout: timeout ?? HOOK_DEFAULT_TIMEOUT_MS,
+			allowConsole: true,
+			allowTimers: false,
+			configContext,
+		});
+		const response = await runtime.execute({
+			code,
+			timeout: timeout ?? HOOK_DEFAULT_TIMEOUT_MS,
+			hook: {
+				event,
+				input,
+				sessionId,
+				settings,
+				claimed: sessionId ? [...hookOnceStore.claimed(sessionId)] : [],
+			},
+		});
+
+		if (response.structuredError) {
+			return quiet(`execution error ${response.structuredError.error.code}`);
+		}
+		if (!response.success) return quiet('execution failed');
+		if (response.resultContext?.branchIndexed === false) {
+			return quiet('branch not indexed');
+		}
+
+		const output = buildHookOutput(event, response.result);
+		if (Object.keys(output).length === 0) {
+			return quiet('program produced no output');
+		}
+		if (sessionId && response.claimedKeys?.length) {
+			// The claimed snapshot predates execution, so two concurrent calls for
+			// one session can both claim a key and show its notice twice. That is
+			// accepted: the program's always-on context cannot be told apart from
+			// once-gated content, and dropping it would lose more than a duplicate.
+			hookOnceStore.commit(sessionId, response.claimedKeys);
+		}
+		return hookModeResult(output);
+	} catch (error) {
+		return quiet(`unexpected error (${describeError(error)})`);
+	}
+}
+
+/**
  * Register the code_intel tool with the MCP server
  *
  * @param server - The McpServer instance to register the tool with
@@ -206,7 +327,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				"WRONG TOOL SIGNAL: If you've run 3+ Grep calls for structure (callers, dependencies, impact), STOP and use code_intel instead.\n" +
 				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
 				`Sandbox limits: ${DEFAULT_MAX_API_CALLS} api.* calls per execution, ${DEFAULT_MEMORY_LIMIT_MB} MB memory, ${MAX_CODE_SIZE / 1024} KB max code size, \`limit\` max 100 on any method with a \`limit\` param. Pure JS only — no require/import/fs/net/process (see constellation://docs/guide for full restrictions).\n\n` +
-				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
+				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.\n\n' +
+				'The optional `hook` input is for agent-plugin hooks; agents omit it.',
 			inputSchema: z
 				.object({
 					code: z
@@ -234,42 +356,67 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 								'Used to locate the correct constellation.json by finding the git repository root. ' +
 								'Set this to the root of the repository or workspace folder you are working in.',
 						),
+					hook: z
+						.object({
+							event: z
+								.unknown()
+								.describe(
+									'Hook event name (string), e.g. PreToolUse or SessionStart.',
+								),
+							input: z.unknown().optional().describe('Hook payload (JSON).'),
+							sessionId: z
+								.unknown()
+								.optional()
+								.describe('Hook session id (string).'),
+							settings: z
+								.unknown()
+								.optional()
+								.describe('CONSTELLATION_* env names to expose (string[]).'),
+						})
+						.optional()
+						.describe(
+							'For agent-plugin hooks; agents omit it. Runs `code` with a read-only `hook` global ' +
+								'and returns an advisory hook output instead of the result envelope.',
+						),
 				})
 				.meta(NO_SCHEMA_DIALECT),
 			outputSchema: z
-				.object({
-					success: z.boolean(),
-					result: z.any().optional(),
-					logs: z.array(z.string()).optional(),
-					time: z.number().optional(),
-					asOfCommit: z.string().optional(),
-					lastIndexedAt: z.string().optional(),
-					resultContext: z
-						.object({
-							reason: z.string(),
-							branchIndexed: z.boolean(),
-							indexedFileCount: z.number(),
-						})
-						.optional(),
-					timeoutBreakdown: z
-						.object({
-							baseMs: z.number(),
-							calls: z.array(
-								z.object({
-									method: z.string(),
-									weight: z.number(),
-									computed: z.literal(true).optional(),
-								}),
-							),
-							parallelismFactor: z.number(),
-							estimatedMs: z.number(),
-							coldStartGraceMs: z.number(),
-							appliedMs: z.number(),
-							warnings: z.array(z.string()),
-						})
-						.optional(),
-					error: z.string().optional(),
-				})
+				.union([
+					z.object({
+						success: z.boolean(),
+						result: z.any().optional(),
+						logs: z.array(z.string()).optional(),
+						time: z.number().optional(),
+						asOfCommit: z.string().optional(),
+						lastIndexedAt: z.string().optional(),
+						resultContext: z
+							.object({
+								reason: z.string(),
+								branchIndexed: z.boolean(),
+								indexedFileCount: z.number(),
+							})
+							.optional(),
+						timeoutBreakdown: z
+							.object({
+								baseMs: z.number(),
+								calls: z.array(
+									z.object({
+										method: z.string(),
+										weight: z.number(),
+										computed: z.literal(true).optional(),
+									}),
+								),
+								parallelismFactor: z.number(),
+								estimatedMs: z.number(),
+								coldStartGraceMs: z.number(),
+								appliedMs: z.number(),
+								warnings: z.array(z.string()),
+							})
+							.optional(),
+						error: z.string().optional(),
+					}),
+					HookOutputSchema,
+				])
 				.meta(NO_SCHEMA_DIALECT),
 			annotations: {
 				readOnlyHint: true,
@@ -278,7 +425,9 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				openWorldHint: false,
 			},
 		},
-		async ({ code, timeout, cwd }) => {
+		async ({ code, timeout, cwd, hook }) => {
+			if (hook) return runHookMode({ code, timeout, cwd, hook });
+
 			console.error('[code_intel] Executing code mode script');
 			if (cwd) {
 				console.error(`[code_intel] Using cwd: ${cwd}`);
