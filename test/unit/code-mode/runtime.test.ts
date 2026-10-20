@@ -7,6 +7,7 @@ import { parse } from 'acorn';
 import { IsolatedSandbox } from '../../../src/code-mode/isolated-sandbox.js';
 import { CodeModeRuntime } from '../../../src/code-mode/runtime.js';
 import { CodeModeSandbox } from '../../../src/code-mode/sandbox.js';
+import type { SandboxHookContext } from '../../../src/code-mode/sandbox-hook.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import {
@@ -1187,6 +1188,88 @@ describe('CodeModeRuntime', () => {
 				expect.objectContaining({ timeoutMs: DEFAULT_EXECUTION_TIMEOUT_MS }),
 			);
 			expect(markWarm).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('hook passthrough', () => {
+		const hook: SandboxHookContext = {
+			event: 'PostToolUse',
+			input: { tool_name: 'Edit' },
+			sessionId: 'session-1',
+			settings: { CONSTELLATION_HOOK_MODE: 'quiet' },
+			claimed: ['seen'],
+		};
+
+		beforeEach(() => {
+			mockSandbox.validateCode.mockReturnValue({ valid: true });
+		});
+
+		it('should forward the hook context to sandbox.execute', async () => {
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				executionTime: 1,
+				claimedKeys: [],
+			});
+
+			await runtime.execute({ code: 'return 1;', hook });
+
+			expect(mockSandbox.execute).toHaveBeenCalledWith(
+				'return 1;',
+				expect.objectContaining({ hook }),
+			);
+		});
+
+		it('should not pass a hook key to sandbox.execute in normal mode', async () => {
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: null,
+				executionTime: 1,
+			});
+
+			await runtime.execute({ code: 'return 1;' });
+
+			const execOpts = mockSandbox.execute.mock.calls[0][1];
+			expect(execOpts && 'hook' in execOpts).toBe(false);
+		});
+
+		it('should surface claimedKeys from the sandbox result', async () => {
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: { context: 'x' },
+				executionTime: 1,
+				claimedKeys: ['notice'],
+			});
+
+			const response = await runtime.execute({ code: 'return 1;', hook });
+
+			expect(response.claimedKeys).toEqual(['notice']);
+		});
+
+		it('should omit claimedKeys from the response and formatted output in normal mode', async () => {
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 1,
+				executionTime: 1,
+			});
+
+			const response = await runtime.execute({ code: 'return 1;' });
+
+			expect('claimedKeys' in response).toBe(false);
+			expect(runtime.formatResult(response)).not.toContain('claimedKeys');
+		});
+
+		it('should keep claimedKeys out of the formatted output in hook mode', async () => {
+			mockSandbox.execute.mockResolvedValue({
+				success: true,
+				result: 1,
+				executionTime: 1,
+				claimedKeys: ['notice'],
+			});
+
+			const response = await runtime.execute({ code: 'return 1;', hook });
+
+			expect(runtime.formatResult(response)).not.toContain('claimedKeys');
 		});
 	});
 });

@@ -58,6 +58,10 @@ import {
 } from '../utils/usage-tracker.js';
 import { METHOD_SUMMARIES } from '../types/method-summaries.js';
 import { enrichWithSourceSnippets } from './source-enrichment.js';
+import {
+	createSandboxHookGlobal,
+	type SandboxHookContext,
+} from './sandbox-hook.js';
 
 // Import API types from shared package - single source of truth
 import type {
@@ -360,6 +364,11 @@ export interface SandboxResult {
 	 * agents can self-correct.
 	 */
 	timeoutBreakdown?: TimeoutBreakdown;
+	/**
+	 * Keys newly claimed through `hook.once(key)` during this run. Present
+	 * only for hook-mode executions; the parent decides whether to commit them.
+	 */
+	claimedKeys?: string[];
 }
 
 /**
@@ -372,6 +381,8 @@ export interface SandboxExecutionOptions {
 	timeoutMs?: number;
 	/** Estimator breakdown to surface in the result. */
 	timeoutBreakdown?: TimeoutBreakdown;
+	/** Hook context; when set, the program sees a frozen `hook` global. */
+	hook?: SandboxHookContext;
 }
 
 /**
@@ -493,6 +504,8 @@ export class CodeModeSandbox {
 			 * `invocations` because both are guarded by the same cap.
 			 */
 			invocationActualTokens: [] as number[],
+			/** Keys newly claimed through `hook.once(key)` (hook mode only). */
+			claimedKeys: new Set<string>(),
 		};
 
 		try {
@@ -501,6 +514,7 @@ export class CodeModeSandbox {
 				logs,
 				executionState,
 				timeoutMs,
+				execOpts?.hook,
 			);
 
 			// Wrap code in async IIFE if not already
@@ -577,6 +591,9 @@ export class CodeModeSandbox {
 				invocations: [...executionState.invocations],
 				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
+				...(execOpts?.hook
+					? { claimedKeys: [...executionState.claimedKeys] }
+					: {}),
 			};
 		} catch (error) {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -615,6 +632,9 @@ export class CodeModeSandbox {
 				invocations: [...executionState.invocations],
 				invocationActualTokens: [...executionState.invocationActualTokens],
 				timeoutBreakdown: execOpts?.timeoutBreakdown,
+				...(execOpts?.hook
+					? { claimedKeys: [...executionState.claimedKeys] }
+					: {}),
 			};
 		} finally {
 			// Mark as handled to prevent any pending timeout/memory callbacks from firing
@@ -709,8 +729,10 @@ export class CodeModeSandbox {
 			timerCleanup: (() => void) | null;
 			invocations: string[];
 			invocationActualTokens: number[];
+			claimedKeys: Set<string>;
 		},
 		timeoutMs: number,
+		hook?: SandboxHookContext,
 	): any {
 		// Helper to convert snake_case to camelCase for display
 		const snakeToCamel = (str: string): string => {
@@ -1290,6 +1312,12 @@ return { symbol, usageCount: usage.directUsages?.length, risk: impact.breakingCh
 				activeTimers.clear();
 				activeIntervals.clear();
 			};
+		}
+
+		// Hook mode only: a deep-frozen, read-only view of the hook request.
+		// Normal mode leaves `hook` undefined.
+		if (hook) {
+			sandbox.hook = createSandboxHookGlobal(hook, executionState.claimedKeys);
 		}
 
 		// Freeze the sandbox object to prevent adding/removing properties (SB-102)

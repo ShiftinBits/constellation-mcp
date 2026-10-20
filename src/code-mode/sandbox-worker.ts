@@ -14,6 +14,7 @@ import { CodeModeSandbox } from './sandbox.js';
 import { ConstellationConfig } from '../config/config.js';
 import type { ConfigContext } from '../config/config-cache.js';
 import type { SandboxOptions, SandboxResult } from './sandbox.js';
+import type { SandboxHookContext } from './sandbox-hook.js';
 
 /**
  * IPC message from parent to worker
@@ -36,6 +37,11 @@ export interface WorkerRequest {
 		allowTimers?: boolean;
 		maxApiCalls?: number;
 	};
+	/**
+	 * Hook context for hook-mode executions, with settings already resolved
+	 * by the parent (the worker never reads env for them).
+	 */
+	hook?: SandboxHookContext;
 }
 
 /**
@@ -73,7 +79,7 @@ function handleMessage(message: WorkerRequest): void {
  * Execute code in a CodeModeSandbox within this child process
  */
 async function executeCode(request: WorkerRequest): Promise<SandboxResult> {
-	const { code, config, options } = request;
+	const { code, config, options, hook } = request;
 
 	// Reconstruct ConfigContext from serialized config
 	const configContext: ConfigContext = {
@@ -104,7 +110,7 @@ async function executeCode(request: WorkerRequest): Promise<SandboxResult> {
 	};
 
 	const sandbox = new CodeModeSandbox(sandboxOptions);
-	return sandbox.execute(code);
+	return sandbox.execute(code, { hook });
 }
 
 /**

@@ -29,6 +29,7 @@ import {
 import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
+import type { SandboxHookContext } from '../../../src/code-mode/sandbox-hook.js';
 
 // Mock dependencies. Preserve real error classes so `instanceof` checks
 // downstream (error-factory branch matching, sandbox executor allowlist) and
@@ -2625,6 +2626,142 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.success).toBe(false);
 			expect(result.timeoutBreakdown).toEqual(breakdown);
+		});
+	});
+
+	describe('hook global', () => {
+		const hookContext = (
+			overrides: Partial<SandboxHookContext> = {},
+		): SandboxHookContext => ({
+			event: 'PostToolUse',
+			input: { tool_name: 'Edit', tool_input: { file_path: 'src/a.ts' } },
+			sessionId: 'session-1',
+			settings: {
+				CONSTELLATION_HOOK_MODE: 'quiet',
+				CONSTELLATION_UNSET: undefined,
+			},
+			claimed: [],
+			...overrides,
+		});
+
+		it('should leave hook undefined when no hook option is passed', async () => {
+			const result = await sandbox.execute('return typeof hook;');
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('undefined');
+			expect('claimedKeys' in result).toBe(false);
+		});
+
+		it('should expose event, input, sessionId and settings to the program', async () => {
+			const result = await sandbox.execute(
+				'return { event: hook.event, input: hook.input, sessionId: hook.sessionId, settings: hook.settings, unset: "CONSTELLATION_UNSET" in hook.settings };',
+				{ hook: hookContext() },
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.result).toEqual({
+				event: 'PostToolUse',
+				input: { tool_name: 'Edit', tool_input: { file_path: 'src/a.ts' } },
+				sessionId: 'session-1',
+				settings: { CONSTELLATION_HOOK_MODE: 'quiet' },
+				unset: true,
+			});
+		});
+
+		it('should not expose the claimed snapshot on the hook global', async () => {
+			const result = await sandbox.execute('return Object.keys(hook).sort();', {
+				hook: hookContext({ claimed: ['seen'] }),
+			});
+
+			expect(result.result).toEqual([
+				'event',
+				'input',
+				'once',
+				'sessionId',
+				'settings',
+			]);
+		});
+
+		it.each([
+			['a top-level field', 'hook.event = "Stop";'],
+			['a new top-level field', 'hook.extra = 1;'],
+			['a nested input field', 'hook.input.tool_input.file_path = "x";'],
+			['a setting', 'hook.settings.CONSTELLATION_HOOK_MODE = "loud";'],
+			['the once function', 'hook.once = () => true;'],
+		])('should throw when the program assigns %s', async (_label, code) => {
+			const result = await sandbox.execute(code, { hook: hookContext() });
+
+			expect(result.success).toBe(false);
+			expect(result.error).toMatch(/read only|not extensible/);
+		});
+
+		it('should not let the program mutate the caller-provided context', async () => {
+			const context = hookContext();
+
+			await sandbox.execute('return hook.input;', { hook: context });
+
+			expect(Object.isFrozen(context.input)).toBe(false);
+		});
+
+		it('should return true then false from once for the same key in one run', async () => {
+			const result = await sandbox.execute(
+				'return [hook.once("notice"), hook.once("notice")];',
+				{ hook: hookContext() },
+			);
+
+			expect(result.result).toEqual([true, false]);
+			expect(result.claimedKeys).toEqual(['notice']);
+		});
+
+		it('should return false from once for a key in the claimed snapshot', async () => {
+			const result = await sandbox.execute('return hook.once("notice");', {
+				hook: hookContext({ claimed: ['notice'] }),
+			});
+
+			expect(result.result).toBe(false);
+			expect(result.claimedKeys).toEqual([]);
+		});
+
+		it('should always return true from once without a sessionId', async () => {
+			const result = await sandbox.execute(
+				'return [hook.once("notice"), hook.once("notice")];',
+				{ hook: hookContext({ sessionId: undefined, claimed: ['notice'] }) },
+			);
+
+			expect(result.result).toEqual([true, true]);
+			expect(result.claimedKeys).toEqual([]);
+		});
+
+		it('should start each execution with a fresh newly-claimed set', async () => {
+			const context = hookContext();
+
+			const first = await sandbox.execute('return hook.once("notice");', {
+				hook: context,
+			});
+			const second = await sandbox.execute('return hook.once("notice");', {
+				hook: context,
+			});
+
+			expect([first.result, second.result]).toEqual([true, true]);
+		});
+
+		it('should reject a non-string once key', async () => {
+			const result = await sandbox.execute('return hook.once(42);', {
+				hook: hookContext(),
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('non-empty string key');
+		});
+
+		it('should return keys claimed before a throw on the error path', async () => {
+			const result = await sandbox.execute(
+				'hook.once("notice"); throw new Error("boom");',
+				{ hook: hookContext() },
+			);
+
+			expect(result.success).toBe(false);
+			expect(result.claimedKeys).toEqual(['notice']);
 		});
 	});
 });

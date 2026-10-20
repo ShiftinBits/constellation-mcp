@@ -109,7 +109,9 @@ describe('sandbox-worker', () => {
 		// Wait for async execution to complete
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
-		expect(mockExecute).toHaveBeenCalledWith(request.code);
+		expect(mockExecute).toHaveBeenCalledWith(request.code, {
+			hook: undefined,
+		});
 		expect(process.send).toHaveBeenCalled();
 		expect(sentMessages.length).toBe(1);
 		expect(sentMessages[0]).toEqual({
@@ -231,5 +233,44 @@ describe('sandbox-worker', () => {
 				},
 			}),
 		);
+	});
+
+	it('should pass the hook context to the sandbox and return claimedKeys', async () => {
+		const hook = {
+			event: 'PostToolUse' as const,
+			input: { tool_name: 'Edit' },
+			sessionId: 'session-1',
+			settings: { CONSTELLATION_HOOK_MODE: 'quiet' },
+			claimed: ['seen'],
+		};
+		const expectedResult = {
+			success: true,
+			result: { context: 'x' },
+			executionTime: 3,
+			claimedKeys: ['notice'],
+		};
+		mockExecute.mockResolvedValueOnce(expectedResult);
+
+		const request: WorkerRequest = {
+			type: 'execute',
+			code: 'return hook.once("notice");',
+			config: {
+				apiUrl: 'https://api.constellationdev.io',
+				apiKey: 'test-key',
+				projectId: 'test-project',
+				branchName: 'main',
+				languages: { typescript: { fileExtensions: ['.ts'] } },
+				gitRoot: '/test/project',
+			},
+			options: {},
+			hook,
+		};
+
+		messageHandler!(request);
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		expect(mockExecute).toHaveBeenCalledWith(request.code, { hook });
+		expect(sentMessages[0]).toEqual({ type: 'result', result: expectedResult });
 	});
 });

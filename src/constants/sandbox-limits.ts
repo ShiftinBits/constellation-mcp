@@ -75,3 +75,10 @@ export const TIMEOUT_PARALLELISM_FACTOR = 1.25;
 // Computed dispatch (api[fn](...)) can't be statically weighted — fall back
 // to medium weight and surface a warning in the timeout breakdown.
 export const COMPUTED_API_FALLBACK_WEIGHT = 3;
+
+// Hook mode (agent-plugin hooks calling code_intel)
+export const MAX_HOOK_INPUT_BYTES = 256 * 1024; // 256KB of serialized hook input
+export const MAX_HOOK_CONTEXT_CHARS = 8000;
+export const MAX_HOOK_MESSAGE_CHARS = 300;
+export const HOOK_ONCE_MAX_SESSIONS = 64;
+export const HOOK_ONCE_MAX_KEYS = 256;
