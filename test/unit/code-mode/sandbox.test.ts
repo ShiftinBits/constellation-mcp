@@ -2681,9 +2681,32 @@ describe('CodeModeSandbox', () => {
 				'event',
 				'input',
 				'once',
+				'projectRoot',
 				'sessionId',
 				'settings',
 			]);
+		});
+
+		it('should expose the config git root as hook.projectRoot', async () => {
+			const result = await sandbox.execute('return hook.projectRoot;', {
+				hook: hookContext(),
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.result).toBe('/test/project');
+		});
+
+		it('should expose a Windows git root with forward slashes', async () => {
+			const windowsSandbox = new CodeModeSandbox({
+				timeout: 5000,
+				configContext: { ...mockConfigContext, gitRoot: 'C:\\work\\repo' },
+			});
+
+			const result = await windowsSandbox.execute('return hook.projectRoot;', {
+				hook: hookContext(),
+			});
+
+			expect(result.result).toBe('C:/work/repo');
 		});
 
 		it.each([
@@ -2692,6 +2715,7 @@ describe('CodeModeSandbox', () => {
 			['a nested input field', 'hook.input.tool_input.file_path = "x";'],
 			['a setting', 'hook.settings.CONSTELLATION_HOOK_MODE = "loud";'],
 			['the once function', 'hook.once = () => true;'],
+			['the project root', 'hook.projectRoot = "/elsewhere";'],
 		])('should throw when the program assigns %s', async (_label, code) => {
 			const result = await sandbox.execute(code, { hook: hookContext() });
 

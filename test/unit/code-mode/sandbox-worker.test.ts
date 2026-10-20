@@ -277,6 +277,12 @@ describe('sandbox-worker', () => {
 		await sent;
 
 		expect(mockExecute).toHaveBeenCalledWith(request.code, { hook });
+		// The sandbox reads hook.projectRoot from this gitRoot.
+		expect(mockCodeModeSandboxConstructor).toHaveBeenCalledWith(
+			expect.objectContaining({
+				configContext: expect.objectContaining({ gitRoot: '/test/project' }),
+			}),
+		);
 		expect(sentMessages[0]).toEqual({ type: 'result', result: expectedResult });
 	});
 });

@@ -59,6 +59,7 @@ const HOOK_BUILDER_SOURCE = `(function (json) {
 		input: data.input,
 		sessionId,
 		settings: data.settings,
+		projectRoot: data.projectRoot,
 		once(key) {
 			if (typeof key !== "string" || key.length === 0) {
 				throw new TypeError("hook.once(key) requires a non-empty string key");
@@ -91,10 +92,14 @@ const HOOK_BUILDER_SOURCE = `(function (json) {
  * Define the deep-frozen `hook` global in `context`. Must run after the
  * context's built-in prototypes are frozen and before the program. Returns a
  * reader for the keys newly claimed through `hook.once(key)`.
+ *
+ * `projectRoot` is the absolute directory holding `constellation.json`
+ * (graph file paths are relative to it), with forward slashes.
  */
 export function installSandboxHook(
 	context: vm.Context,
 	hook: SandboxHookContext,
+	projectRoot: string,
 ): () => string[] {
 	const build = vm.runInContext(HOOK_BUILDER_SOURCE, context) as (
 		json: string,
@@ -105,6 +110,7 @@ export function installSandboxHook(
 			input: hook.input,
 			sessionId: hook.sessionId,
 			settings: hook.settings,
+			projectRoot,
 			claimed: hook.claimed,
 		}),
 	);
