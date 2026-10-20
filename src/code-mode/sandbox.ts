@@ -222,7 +222,6 @@ type _AssertMethodWeightsCoverApi = {
 		? true
 		: never;
 };
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _methodWeightsCoverApi: _AssertMethodWeightsCoverApi = {
 	searchSymbols: true,
 	getSymbolDetails: true,
