@@ -139,6 +139,7 @@ describe('IsolatedSandbox', () => {
 						apiKey: 'test-api-key',
 						projectId: 'test-project',
 						branchName: 'test-branch',
+						gitRoot: '/test/project',
 					}),
 					options: expect.objectContaining({
 						timeout: 5000,
