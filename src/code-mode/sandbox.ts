@@ -528,7 +528,11 @@ export class CodeModeSandbox {
 			// Hook mode only: define the deep-frozen `hook` global, built inside
 			// the context realm. Normal mode leaves `hook` undeclared.
 			if (execOpts?.hook) {
-				readClaimedKeys = installSandboxHook(context, execOpts.hook);
+				readClaimedKeys = installSandboxHook(
+					context,
+					execOpts.hook,
+					this.configContext.gitRoot.replace(/\\/g, '/'),
+				);
 			}
 
 			// FIX SB-85: VM timeout only applies to synchronous execution.
