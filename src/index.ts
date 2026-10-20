@@ -57,16 +57,22 @@ async function startServer() {
 			'api-types.d.ts',
 		);
 
+		const serverOptions = { version: packageJson.version, apiTypesPath };
+
+		// Build once up front so a registration error fails fast with the banner
+		// below; serveStdio would otherwise only hit it on the first client message
+		buildServer(serverOptions);
+
 		// serveStdio picks the protocol era from the client's opening message
 		// (2026-07-28 or a legacy initialize) and builds one server per connection
-		serveStdio(() =>
-			buildServer({ version: packageJson.version, apiTypesPath }),
-		);
+		serveStdio(() => buildServer(serverOptions), {
+			onerror: (error) => console.error('[CONSTELLATION] stdio error:', error),
+		});
 
 		console.error(
 			'[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations',
 		);
-		console.error('[CONSTELLATION] Server ready on stdio');
+		console.error('[CONSTELLATION] Listening on stdio');
 	} catch (error) {
 		console.error(
 			'\n==========================================================',

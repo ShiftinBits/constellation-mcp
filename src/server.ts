@@ -31,7 +31,9 @@ export interface BuildServerOptions {
 /**
  * Creates and configures the Constellation MCP server: the `code_intel` tool
  * plus the type, guide and metrics resources. Used as the `serveStdio`
- * factory, so it must not depend on process-level state.
+ * factory, which may call it more than once per connection (a discarded
+ * modern probe followed by a legacy instance), so registration must stay
+ * cheap and idempotent; shared state lives in the configCache/Metrics singletons.
  */
 export function buildServer({
 	version,
