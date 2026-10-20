@@ -1,8 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createRequire } from 'module';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
 import { buildServer } from './server.js';
 
@@ -51,14 +49,7 @@ async function startServer() {
 			);
 		}
 
-		const __filename = fileURLToPath(import.meta.url);
-		const apiTypesPath = path.join(
-			path.dirname(__filename),
-			'types',
-			'api-types.d.ts',
-		);
-
-		const serverOptions = { version: packageJson.version, apiTypesPath };
+		const serverOptions = { version: packageJson.version };
 
 		// Build once up front so a registration error fails fast with the banner
 		// below; serveStdio would otherwise only hit it on the first client message

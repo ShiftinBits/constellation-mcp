@@ -3,7 +3,8 @@
  *
  * Each summary is a compact TypeScript interface (~30-50 lines) that describes
  * the parameters and result types for a single API method. These are served
- * via the constellation://types/api/{methodName} resource.
+ * via the constellation://types/api/{methodName} resource, and all of them
+ * together via constellation://types/api.
  *
  * Authoritative source: query-code-graph.definition.ts apiReference pseudocode shapes.
  */

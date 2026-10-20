@@ -4,7 +4,6 @@ import {
 	ResourceNotFoundError,
 	ResourceTemplate,
 } from '@modelcontextprotocol/server';
-import { readFileSync } from 'fs';
 import { getCodeModeGuide, GUIDE_SECTIONS } from './config/code-mode-guide.js';
 import { getServerInstructions } from './config/server-instructions.js';
 import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
@@ -22,11 +21,12 @@ import { Metrics } from './utils/metrics.js';
  */
 const STATIC_CACHE_HINT: CacheHint = { ttlMs: 3_600_000, cacheScope: 'public' };
 
+/** Every per-method type summary, served together at constellation://types/api. */
+const API_TYPES = Object.values(METHOD_SUMMARIES).join('\n\n');
+
 export interface BuildServerOptions {
 	/** Server version reported to clients. */
 	version: string;
-	/** Path to the bundled `api-types.d.ts` served at constellation://types/api. */
-	apiTypesPath: string;
 }
 
 /**
@@ -36,10 +36,7 @@ export interface BuildServerOptions {
  * modern probe followed by a legacy instance), so registration must stay
  * cheap and idempotent; shared state lives in the configCache/Metrics singletons.
  */
-export function buildServer({
-	version,
-	apiTypesPath,
-}: BuildServerOptions): McpServer {
+export function buildServer({ version }: BuildServerOptions): McpServer {
 	// Instructions are returned via server/discover (2026-07-28) or initialize (legacy)
 	// This provides AI guidance without exposing user-facing prompts
 	const server = new McpServer(
@@ -61,15 +58,15 @@ export function buildServer({
 	registerQueryCodeGraphTool(server);
 
 	// Register API types resource for AI assistants
-	// Provides full TypeScript interfaces on-demand via constellation://types/api
+	// Serves every per-method summary in one document via constellation://types/api
 	server.registerResource(
 		'api-types',
 		'constellation://types/api',
 		{
 			description:
 				'Prefer constellation://types/api/{methodName} for individual methods. ' +
-				'This resource is ~147KB and may consume excessive context. ' +
-				'Full TypeScript type definitions for all Code Mode API methods.',
+				`This resource is ~${Math.round(API_TYPES.length / 1024)}KB and may consume excessive context. ` +
+				'TypeScript type definitions for all Code Mode API methods.',
 			mimeType: 'text/typescript',
 			cacheHint: STATIC_CACHE_HINT,
 		},
@@ -78,7 +75,7 @@ export function buildServer({
 				{
 					uri: 'constellation://types/api',
 					mimeType: 'text/typescript',
-					text: readFileSync(apiTypesPath, 'utf-8'),
+					text: API_TYPES,
 				},
 			],
 		}),
