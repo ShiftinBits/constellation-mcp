@@ -8,7 +8,7 @@
  * Supports multi-project workspaces via optional `cwd` parameter for dynamic config resolution.
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 import { ConfigurationError } from '../client/constellation-client.js';
 import {
@@ -108,8 +108,9 @@ function toSchemaCompliantOutput(
  * Transform an McpErrorResponse to SchemaCompliantOutput for error structuredContent.
  * Allows LLMs to access error state without parsing JSON from text content.
  *
- * Note: MCP SDK skips outputSchema validation when isError is true,
- * so this content passes through without validation. We conform to
+ * Note: the MCP SDK (v2) only validates structuredContent against
+ * outputSchema on success results; when isError is true it skips
+ * validation, so this content passes through unchecked. We conform to
  * SchemaCompliantOutput for consistency and forward compatibility.
  *
  * `timeoutBreakdown` is included when available: on the most
@@ -199,7 +200,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
 				`Sandbox limits: ${DEFAULT_MAX_API_CALLS} api.* calls per execution, ${DEFAULT_MEMORY_LIMIT_MB} MB memory, ${MAX_CODE_SIZE / 1024} KB max code size, \`limit\` max 100 on any method with a \`limit\` param. Pure JS only — no require/import/fs/net/process (see constellation://docs/guide for full restrictions).\n\n` +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
-			inputSchema: {
+			inputSchema: z.object({
 				code: z
 					.string()
 					.min(1)
@@ -225,8 +226,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 							'Used to locate the correct constellation.json by finding the git repository root. ' +
 							'Set this to the root of the repository or workspace folder you are working in.',
 					),
-			},
-			outputSchema: {
+			}),
+			outputSchema: z.object({
 				success: z.boolean(),
 				result: z.any().optional(),
 				logs: z.array(z.string()).optional(),
@@ -258,7 +259,7 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 					})
 					.optional(),
 				error: z.string().optional(),
-			},
+			}),
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,

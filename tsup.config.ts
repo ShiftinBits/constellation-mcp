@@ -11,7 +11,7 @@ export default defineConfig([
 		clean: true,
 		minify: true,
 		splitting: false,
-		external: ['@modelcontextprotocol/sdk'],
+		external: ['@modelcontextprotocol/server'],
 		treeshake: true,
 		bundle: true,
 		outDir: 'dist',
@@ -36,7 +36,7 @@ export default defineConfig([
 		clean: false, // Don't wipe dist (index.js already built above)
 		minify: true,
 		splitting: false,
-		external: ['@modelcontextprotocol/sdk'],
+		external: ['@modelcontextprotocol/server'],
 		treeshake: true,
 		bundle: true,
 		outDir: 'dist',

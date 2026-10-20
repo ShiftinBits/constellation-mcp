@@ -22,6 +22,8 @@ MCP server bridging AI assistants to constellation-core for code intelligence. S
 AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient → Core intel-api (`/intel/v1`; locally via nginx :4080) → ArcadeDB
 ```
 
+**Transport**: MCP TypeScript SDK v2 (`@modelcontextprotocol/server`). `index.ts` runs startup config, then `serveStdio(() => buildServer(...))`; `server.ts` `buildServer()` registers the tool and resources and sets cache hints. `serveStdio` serves protocol 2026-07-28 (`server/discover`) and legacy 2025-era clients (`initialize`) from the same factory. Unknown resource-template URIs throw `ResourceNotFoundError` (`-32602`).
+
 **Layer stack** (file = primary owner of that concern):
 
 | Layer   | File                             | Responsibility                                        |
@@ -49,7 +51,7 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 
 ## MCP Resources
 
-5 registered in `index.ts`. **Prefer per-method types** over the ~147KB full set to avoid context bloat.
+5 registered in `server.ts`. **Prefer per-method types** over the ~147KB full set to avoid context bloat.
 
 | URI                                      | Content                                   |
 | ---------------------------------------- | ----------------------------------------- |
@@ -102,7 +104,7 @@ Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `co
 
 ## Testing
 
-`test/unit/{module}/` mirrors `src/`; helpers and mocks in `test/helpers/` + `test/__mocks__/`; smoke test in `test/smoke/`. Coverage excludes `index.ts`, `worker-path.ts`, `sandbox-worker.ts`, and type defs. `npm run inspector` validates the live MCP protocol.
+`test/unit/{module}/` mirrors `src/`; helpers and mocks in `test/helpers/` + `test/__mocks__/`; smoke test in `test/smoke/`. `test/unit/server.test.ts` drives `buildServer()` with raw JSON-RPC over `InMemoryTransport`. Coverage excludes `index.ts`, `worker-path.ts`, `sandbox-worker.ts`, and type defs. `npm run inspector` validates the live MCP protocol.
 
 ## Gotchas
 

@@ -1,21 +1,9 @@
-import {
-	McpServer,
-	ResourceTemplate,
-} from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { readFileSync } from 'fs';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { configCache } from './config/config-cache.js';
-import { getCodeModeGuide, GUIDE_SECTIONS } from './config/code-mode-guide.js';
-import { getServerInstructions } from './config/server-instructions.js';
-import { registerQueryCodeGraphTool } from './tools/query-code-graph-tool.js';
-import {
-	METHOD_SUMMARIES,
-	resolveMethodName,
-} from './types/method-summaries.js';
-import { Metrics } from './utils/metrics.js';
+import { buildServer } from './server.js';
 
 const require = createRequire(import.meta.url);
 const packageJson = require('../package.json');
@@ -62,191 +50,23 @@ async function startServer() {
 			);
 		}
 
-		// Create and configure MCP server with official SDK
-		// Instructions are passed here and returned during MCP initialization
-		// This provides AI guidance without exposing user-facing prompts
-		const server = new McpServer(
-			{
-				name: '@constellationdev/mcp',
-				version: packageJson.version,
-			},
-			{
-				instructions: getServerInstructions(),
-			},
-		);
-
-		// Register tools manually (no auto-discovery with official SDK)
-		console.error('[CONSTELLATION] Registering tools...');
-		registerQueryCodeGraphTool(server);
-
-		// Register API types resource for AI assistants
-		// Provides full TypeScript interfaces on-demand via constellation://types/api
-		console.error('[CONSTELLATION] Registering resources...');
 		const __filename = fileURLToPath(import.meta.url);
-		const __dirname = path.dirname(__filename);
-		const apiTypesPath = path.join(__dirname, 'types', 'api-types.d.ts');
-
-		server.registerResource(
-			'api-types',
-			'constellation://types/api',
-			{
-				description:
-					'Prefer constellation://types/api/{methodName} for individual methods. ' +
-					'This resource is ~147KB and may consume excessive context. ' +
-					'Full TypeScript type definitions for all Code Mode API methods.',
-				mimeType: 'text/typescript',
-			},
-			async () => ({
-				contents: [
-					{
-						uri: 'constellation://types/api',
-						mimeType: 'text/typescript',
-						text: readFileSync(apiTypesPath, 'utf-8'),
-					},
-				],
-			}),
+		const apiTypesPath = path.join(
+			path.dirname(__filename),
+			'types',
+			'api-types.d.ts',
 		);
 
-		server.registerResource(
-			'api-method-types',
-			new ResourceTemplate('constellation://types/api/{methodName}', {
-				list: async () => ({
-					resources: Object.keys(METHOD_SUMMARIES).map((name) => ({
-						uri: `constellation://types/api/${name}`,
-						name: `${name} types`,
-						description: `Type definitions for api.${name}()`,
-						mimeType: 'text/typescript',
-					})),
-				}),
-			}),
-			{
-				description:
-					'TypeScript type definitions for a specific API method. ' +
-					'Accepts canonical method names (e.g., searchSymbols, getDependencies).',
-				mimeType: 'text/typescript',
-			},
-			async (uri, variables) => {
-				const methodName = variables.methodName as string;
-				const canonical = resolveMethodName(methodName);
-				if (!canonical || !METHOD_SUMMARIES[canonical]) {
-					const available = Object.keys(METHOD_SUMMARIES).join(', ');
-					throw new Error(
-						`Unknown method: "${methodName}". Available: ${available}`,
-					);
-				}
-				return {
-					contents: [
-						{
-							uri: uri.href,
-							mimeType: 'text/typescript',
-							text: METHOD_SUMMARIES[canonical],
-						},
-					],
-				};
-			},
+		// serveStdio picks the protocol era from the client's opening message
+		// (2026-07-28 or a legacy initialize) and builds one server per connection
+		serveStdio(() =>
+			buildServer({ version: packageJson.version, apiTypesPath }),
 		);
 
-		// Register Code Mode usage guide resource
-		// On-demand reference material: method tables, response shapes, recipes, recovery patterns
-		server.registerResource(
-			'code-mode-guide',
-			'constellation://docs/guide',
-			{
-				description:
-					'Full method reference, response shapes, composition recipes, and error recovery patterns. ' +
-					'Read this when writing code_intel queries.',
-				mimeType: 'text/markdown',
-			},
-			async () => ({
-				contents: [
-					{
-						uri: 'constellation://docs/guide',
-						mimeType: 'text/markdown',
-						text: getCodeModeGuide(),
-					},
-				],
-			}),
-		);
-
-		// Register guide sub-resources for granular access
-		// LLMs can read only the section they need (~600-1,200 tokens each vs ~3,500 monolithic)
-		server.registerResource(
-			'code-mode-guide-section',
-			new ResourceTemplate('constellation://docs/guide/{section}', {
-				list: async () => ({
-					resources: Object.entries(GUIDE_SECTIONS).map(([key, section]) => ({
-						uri: `constellation://docs/guide/${key}`,
-						name: section.name,
-						description: section.description,
-						mimeType: 'text/markdown',
-					})),
-				}),
-			}),
-			{
-				description:
-					'Individual guide sections for granular access. ' +
-					'Available: methods, recipes, recovery. ' +
-					'Smaller than the full guide (~600-1,200 tokens each vs ~3,500).',
-				mimeType: 'text/markdown',
-			},
-			async (uri, variables) => {
-				const section = variables.section as string;
-				const sectionDef = GUIDE_SECTIONS[section];
-				if (!sectionDef) {
-					const available = Object.keys(GUIDE_SECTIONS).join(', ');
-					throw new Error(
-						`Unknown guide section: "${section}". Available: ${available}`,
-					);
-				}
-				return {
-					contents: [
-						{
-							uri: uri.href,
-							mimeType: 'text/markdown',
-							text: sectionDef.getter(),
-						},
-					],
-				};
-			},
-		);
-
-		// Register metrics resource for runtime monitoring (SB-258 Step 3.5)
-		server.registerResource(
-			'metrics',
-			'constellation://metrics',
-			{
-				description:
-					'Runtime metrics: execution counts, durations, error rates, and API call patterns.',
-				mimeType: 'application/json',
-			},
-			async () => ({
-				contents: [
-					{
-						uri: 'constellation://metrics',
-						mimeType: 'application/json',
-						text: JSON.stringify(Metrics.get().getSnapshot(), null, 2),
-					},
-				],
-			}),
-		);
-
-		console.error(
-			'[CONSTELLATION] Registered resources: constellation://types/api, constellation://types/api/{methodName}, constellation://docs/guide, constellation://docs/guide/{section}, constellation://metrics',
-		);
-
-		console.error('[CONSTELLATION] Server configured successfully');
 		console.error(
 			'[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations',
 		);
-		console.error(
-			'[CONSTELLATION] Write JavaScript code to access all Constellation API capabilities',
-		);
-
-		// Setup stdio transport and connect
-		const transport = new StdioServerTransport();
-		await server.connect(transport);
-
-		console.error('[CONSTELLATION] Server connected and ready');
+		console.error('[CONSTELLATION] Server ready on stdio');
 	} catch (error) {
 		console.error(
 			'\n==========================================================',
