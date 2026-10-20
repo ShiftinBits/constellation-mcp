@@ -51,11 +51,11 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 
 ## MCP Resources
 
-5 registered in `server.ts`. **Prefer per-method types** over the ~18KB full set to avoid context bloat.
+5 registered in `server.ts`. **Prefer per-method types** over the full set to avoid context bloat.
 
 | URI                                      | Content                                   |
 | ---------------------------------------- | ----------------------------------------- |
-| `constellation://types/api`              | All per-method type excerpts (~18KB)      |
+| `constellation://types/api`              | All per-method type excerpts, joined      |
 | `constellation://types/api/{methodName}` | Per-method type excerpts (~1-2KB)         |
 | `constellation://docs/guide`             | Full Code Mode guide                      |
 | `constellation://docs/guide/{section}`   | Guide sections (methods/recipes/recovery) |

@@ -1,8 +1,104 @@
 import { describe, it, expect } from '@jest/globals';
+import * as wire from '@constellationdev/types';
+import type { ProjectCapabilities } from '../../../src/code-mode/capabilities.js';
 import {
 	METHOD_SUMMARIES,
 	resolveMethodName,
 } from '../../../src/types/method-summaries.js';
+
+/** The parts of a zod schema needed to reach its top-level object shape. */
+interface SchemaLike {
+	shape?: Record<string, unknown>;
+	_def?: { schema?: SchemaLike; innerType?: SchemaLike };
+}
+
+/**
+ * Top-level keys of an object schema, unwrapping refinements and optionals.
+ * Takes `unknown` because the wire schemas are built with the types package's
+ * own zod major, whose generics don't line up with a structural type.
+ */
+function schemaFields(schema: unknown): string[] {
+	for (
+		let s = schema as SchemaLike | undefined;
+		s;
+		s = s._def?.schema ?? s._def?.innerType
+	) {
+		if (s.shape) return Object.keys(s.shape).sort();
+	}
+	throw new Error('schema has no object shape');
+}
+
+/** Top-level field names of `interface <Name><suffix> { ... }` in a summary. */
+function summaryFields(summary: string, suffix: 'Params' | 'Result'): string[] {
+	const match = summary.match(new RegExp(`interface \\w*${suffix} \\{`));
+	if (!match) return [];
+	const fields: string[] = [];
+	let depth = 0;
+	for (const line of summary
+		.slice(match.index! + match[0].length)
+		.split('\n')) {
+		const field = depth === 0 && line.match(/^\s*(\w+)\??\s*:/);
+		if (field) fields.push(field[1]);
+		depth +=
+			(line.match(/\{/g) ?? []).length - (line.match(/\}/g) ?? []).length;
+		if (depth < 0) break;
+	}
+	return fields.sort();
+}
+
+/** Wire schemas each summary documents: [params, result]. */
+const WIRE_CONTRACTS: Record<string, [unknown, unknown]> = {
+	searchSymbols: [
+		wire.searchSymbolsParamsSchema,
+		wire.searchSymbolsResultSchema,
+	],
+	getSymbolDetails: [
+		wire.getSymbolDetailsParamsSchema,
+		wire.symbolDetailsResultSchema,
+	],
+	getDependencies: [
+		wire.getDependenciesParamsSchema,
+		wire.getDependenciesResultSchema,
+	],
+	getDependents: [
+		wire.getDependentsParamsSchema,
+		wire.getDependentsResultSchema,
+	],
+	findCircularDependencies: [
+		wire.findCircularDependenciesParamsSchema,
+		wire.findCircularDependenciesResultSchema,
+	],
+	traceSymbolUsage: [
+		wire.traceSymbolUsageParamsSchema,
+		wire.traceSymbolUsageResultSchema,
+	],
+	getCallGraph: [wire.getCallGraphParamsSchema, wire.getCallGraphResultSchema],
+	impactAnalysis: [
+		wire.impactAnalysisParamsSchema,
+		wire.impactAnalysisResultSchema,
+	],
+	findOrphanedCode: [
+		wire.findOrphanedCodeParamsSchema,
+		wire.findOrphanedCodeResultSchema,
+	],
+	getArchitectureOverview: [
+		wire.getArchitectureOverviewParamsSchema,
+		wire.getArchitectureOverviewResultSchema,
+	],
+	ping: [wire.pingParamsSchema, wire.pingResultSchema],
+};
+
+// Compile-time exhaustive: a missing or extra key fails type-checking
+const CAPABILITY_FIELDS: Record<keyof ProjectCapabilities, true> = {
+	isIndexed: true,
+	indexedBranch: true,
+	lastIndexedAt: true,
+	supportedLanguages: true,
+	symbolCount: true,
+	fileCount: true,
+	availableFeatures: true,
+	limitations: true,
+};
 
 describe('method-summaries', () => {
 	const CANONICAL_METHODS = [
@@ -102,6 +198,35 @@ describe('method-summaries', () => {
 		expect(summary).toContain('totalOrphanedFiles');
 		expect(summary).toContain('hasMore');
 		expect(summary).toContain('resultContext');
+	});
+
+	describe('contract with the wire types', () => {
+		it('should check every summary against a contract', () => {
+			expect(
+				[...Object.keys(WIRE_CONTRACTS), 'getCapabilities'].sort(),
+			).toEqual(Object.keys(METHOD_SUMMARIES).sort());
+		});
+
+		it.each(Object.entries(WIRE_CONTRACTS))(
+			'%s summary should document exactly the wire params and result fields',
+			(method, [paramsSchema, resultSchema]) => {
+				const summary = METHOD_SUMMARIES[method];
+				expect(summaryFields(summary, 'Params')).toEqual(
+					schemaFields(paramsSchema),
+				);
+				expect(summaryFields(summary, 'Result')).toEqual(
+					schemaFields(resultSchema),
+				);
+			},
+		);
+
+		it('getCapabilities summary should document exactly the ProjectCapabilities fields', () => {
+			const summary = METHOD_SUMMARIES.getCapabilities;
+			expect(summaryFields(summary, 'Params')).toEqual([]);
+			expect(summaryFields(summary, 'Result')).toEqual(
+				Object.keys(CAPABILITY_FIELDS).sort(),
+			);
+		});
 	});
 
 	describe('resolveMethodName', () => {

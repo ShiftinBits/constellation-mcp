@@ -64,9 +64,8 @@ export function buildServer({ version }: BuildServerOptions): McpServer {
 		'constellation://types/api',
 		{
 			description:
-				'Prefer constellation://types/api/{methodName} for individual methods. ' +
-				`This resource is ~${Math.round(API_TYPES.length / 1024)}KB and may consume excessive context. ` +
-				'TypeScript type definitions for all Code Mode API methods.',
+				`TypeScript type summaries for every Code Mode API method in one document (~${Math.round(Buffer.byteLength(API_TYPES) / 1024)}KB). ` +
+				'Prefer constellation://types/api/{methodName} when you need only one method.',
 			mimeType: 'text/typescript',
 			cacheHint: STATIC_CACHE_HINT,
 		},

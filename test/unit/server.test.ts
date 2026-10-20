@@ -141,8 +141,8 @@ describe('buildServer', () => {
 				uri: 'constellation://types/api',
 			});
 			const [{ text }] = res.result?.contents as { text: string }[];
-			for (const name of Object.keys(METHOD_SUMMARIES)) {
-				expect(text).toContain(`// === ${name} ===`);
+			for (const summary of Object.values(METHOD_SUMMARIES)) {
+				expect(text).toContain(summary);
 			}
 		});
 
@@ -156,7 +156,7 @@ describe('buildServer', () => {
 			).find((r) => r.uri === 'constellation://types/api');
 			const [{ text }] = read.result?.contents as { text: string }[];
 			expect(resource?.description).toContain(
-				`~${Math.round(text.length / 1024)}KB`,
+				`~${Math.round(Buffer.byteLength(text) / 1024)}KB`,
 			);
 		});
 
