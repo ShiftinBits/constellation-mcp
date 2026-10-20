@@ -239,7 +239,7 @@ describe('code_intel hook mode', () => {
 				const result = await callHook(hook, code);
 
 				// Assert
-				expect(result).toEqual(EMPTY_RESULT);
+				expect(result).toStrictEqual(EMPTY_RESULT);
 				expect(result.isError).toBeUndefined();
 				expect(execute).not.toHaveBeenCalled();
 				expect(hookLogLines()).toHaveLength(1);
@@ -311,7 +311,7 @@ describe('code_intel hook mode', () => {
 			const result = await callHook({ event: 'PostToolUse', input: {} });
 
 			// Assert
-			expect(result).toEqual(EMPTY_RESULT);
+			expect(result).toStrictEqual(EMPTY_RESULT);
 			expect(result.isError).toBeUndefined();
 			expect(hookLogLines()).toHaveLength(1);
 		});
