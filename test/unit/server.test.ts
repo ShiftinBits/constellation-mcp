@@ -19,8 +19,8 @@ import {
 	serveStdio,
 	type StdioServerHandle,
 } from '@modelcontextprotocol/server/stdio';
-import fs from 'fs';
 import { buildServer } from '../../src/server.js';
+import { METHOD_SUMMARIES } from '../../src/types/method-summaries.js';
 
 // Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
 jest.mock('../../src/code-mode/worker-path.js', () => ({
@@ -33,24 +33,7 @@ interface RpcResponse {
 	error?: { code: number; message: string; data?: { uri?: string } };
 }
 
-const API_TYPES_PATH = '/virtual/api-types.d.ts';
-
-const SERVER_OPTIONS = {
-	version: '0.0.0-test',
-	apiTypesPath: API_TYPES_PATH,
-};
-
-// Serve the bundled api-types.d.ts from memory; every other read is untouched
-const realReadFileSync = fs.readFileSync;
-jest
-	.spyOn(fs, 'readFileSync')
-	.mockImplementation(((
-		file: fs.PathOrFileDescriptor,
-		options?: Parameters<typeof fs.readFileSync>[1],
-	) =>
-		file === API_TYPES_PATH
-			? 'export interface ApiResponse {}'
-			: realReadFileSync(file, options)) as typeof fs.readFileSync);
+const SERVER_OPTIONS = { version: '0.0.0-test' };
 
 const MODERN_META = {
 	'io.modelcontextprotocol/protocolVersion': '2026-07-28',
@@ -151,6 +134,30 @@ describe('buildServer', () => {
 			const [content] = res.result?.contents as { uri: string; text: string }[];
 			expect(content.uri).toBe(uri);
 			expect(content.text.length).toBeGreaterThan(0);
+		});
+
+		it('should serve every method summary at constellation://types/api', async () => {
+			const res = await client.request('resources/read', {
+				uri: 'constellation://types/api',
+			});
+			const [{ text }] = res.result?.contents as { text: string }[];
+			for (const summary of Object.values(METHOD_SUMMARIES)) {
+				expect(text).toContain(summary);
+			}
+		});
+
+		it('should state the size of constellation://types/api in its description', async () => {
+			const [list, read] = await Promise.all([
+				client.request('resources/list'),
+				client.request('resources/read', { uri: 'constellation://types/api' }),
+			]);
+			const resource = (
+				list.result?.resources as { uri: string; description: string }[]
+			).find((r) => r.uri === 'constellation://types/api');
+			const [{ text }] = read.result?.contents as { text: string }[];
+			expect(resource?.description).toContain(
+				`~${Math.round(Buffer.byteLength(text) / 1024)}KB`,
+			);
 		});
 
 		it.each([

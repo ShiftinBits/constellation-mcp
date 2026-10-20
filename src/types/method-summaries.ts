@@ -3,7 +3,8 @@
  *
  * Each summary is a compact TypeScript interface (~30-50 lines) that describes
  * the parameters and result types for a single API method. These are served
- * via the constellation://types/api/{methodName} resource.
+ * via the constellation://types/api/{methodName} resource, and all of them
+ * together via constellation://types/api.
  *
  * Authoritative source: query-code-graph.definition.ts apiReference pseudocode shapes.
  */
@@ -20,9 +21,12 @@ interface SearchSymbolsParams {
   query: string;                        // Name or pattern to search
   filterByKind?: SymbolKindCategory[];  // e.g., ['function', 'class', 'interface', 'variable']
   isExported?: boolean;                 // Only exported symbols
+  filterByVisibility?: string[];        // Access modifiers, e.g., ['public', 'protected']
+  filterByFile?: string;                // Only files matching this pattern (glob or regex)
   limit?: number;                       // Max rows per page (default 50, max 100)
   offset?: number;                      // Pagination offset
   includeUsageCount?: boolean;          // Include usage count per symbol
+  includeDocumentation?: boolean;       // Include full documentation
 }
 
 interface SearchSymbolsResult {
@@ -107,6 +111,8 @@ interface GetDependenciesParams {
   depth?: number;                       // Traversal depth (default: 1, grows EXPONENTIALLY)
   includePackages?: boolean;            // Include external package dependencies
   includeSymbols?: boolean;             // Include imported symbol names
+  limit?: number;                       // Max dependencies per page (default 20, max 100)
+  offset?: number;                      // Pagination offset (default 0)
 }
 
 interface GetDependenciesResult {
@@ -139,6 +145,8 @@ interface GetDependentsParams {
   depth?: number;                       // Traversal depth (default: 1, grows EXPONENTIALLY)
   includeSymbols?: boolean;             // Include used symbol names
   includeImpactMetrics?: boolean;       // Include detailed metrics
+  limit?: number;                       // Max dependents per page (default 20, max 100)
+  offset?: number;                      // Pagination offset (default 0)
 }
 
 interface GetDependentsResult {
@@ -168,12 +176,16 @@ interface GetDependentsResult {
 
 interface FindCircularDependenciesParams {
   filePath?: string;                    // Start from specific file (optional)
+  minCycleLength?: number;              // Min cycle length to return (min: 2, max: 10)
   maxCycleLength?: number;              // Max cycle length to detect (min: 2, max: 10)
+  limit?: number;                       // Max cycles per page (default 50, max 100)
+  offset?: number;                      // Pagination offset (default 0)
+  includeImpactScore?: boolean;         // Include impact scoring for each cycle
+  includeConfidence?: boolean;          // Include confidence assessment
 }
 
 interface FindCircularDependenciesResult {
   cycles: DependencyCycle[];
-  totalCycles: number;
 }
 
 // DependencyCycle:
@@ -189,8 +201,13 @@ interface TraceSymbolUsageParams {
   symbolName?: string;                  // Symbol name (use with filePath)
   filePath?: string;                    // File path (use with symbolName)
   filterByUsageType?: string[];         // Kind of the referencing symbol, e.g., ['function', 'method', 'module']
+  // Relationship types to include
+  filterByRelationshipType?: ('REFERENCES' | 'CALLS' | 'IMPORTS' | 'INHERITS')[];
   includeTransitive?: boolean;          // Include indirect usages
+  includeContext?: boolean;             // Include usage context (code snippets)
   excludeTests?: boolean;              // Exclude test files
+  excludeGenerated?: boolean;           // Exclude generated files
+  includeImportanceWeight?: boolean;    // Include importance weighting per usage
   limit?: number;                       // Max rows per page (default 50, max 100)
   offset?: number;                      // Page offset (default 0)
 }
@@ -252,6 +269,10 @@ interface GetCallGraphParams {
   // Deprecated aliases 'callers' / 'callees' still work for one release.
   direction?: 'incoming' | 'outgoing' | 'both';
   depth?: number;                       // Traversal depth
+  excludeExternal?: boolean;            // Exclude external/package calls
+  includeGraph?: boolean;               // Include the graph representation (result.graph)
+  limit?: number;                       // Max call relationships per page (default 25, max 100)
+  offset?: number;                      // Pagination offset (default 0)
 }
 // Note: Provide either symbolId OR (symbolName + filePath)
 // Note: symbolId must resolve to a function or method — passing a class/interface/type returns a VALIDATION_ERROR.
@@ -260,6 +281,7 @@ interface GetCallGraphResult {
   root: CallGraphNode;
   callers?: CallGraphNode[];
   callees?: CallGraphNode[];
+  graph?: GraphRepresentation;          // Only when includeGraph is true
 }
 
 // CallGraphNode:
@@ -270,7 +292,11 @@ interface GetCallGraphResult {
 //   .column    - Column number
 //   .isAsync   - Whether the call is async (callees only)
 //   .depth     - Distance from root
-//   .complexity - { cyclomaticComplexity, complexityRisk } (optional, functions/methods)`,
+//   .complexity - { cyclomaticComplexity, complexityRisk } (optional, functions/methods)
+
+// GraphRepresentation:
+//   .nodes[], .edges[]
+//   .metadata - { nodeCount, edgeCount, ... } (optional)`,
 
 	impactAnalysis: `// === impactAnalysis ===
 // Analyze the impact of changing a symbol (blast radius, breaking change risk)
@@ -278,10 +304,14 @@ interface GetCallGraphResult {
 
 interface ImpactAnalysisParams {
   symbolId?: string;                    // Unique symbol ID (preferred)
+  qualifiedName?: string;               // Qualified name (alternative to symbolId)
   symbolName?: string;                  // Symbol name (use with filePath)
   filePath?: string;                    // File path (use with symbolName)
   depth?: number;                       // Analysis depth
+  includeDirectDependents?: boolean;    // Include direct dependents (default true)
+  includeTransitiveDependents?: boolean; // Include transitive dependents (default true)
   excludeTests?: boolean;              // Exclude test files from analysis
+  excludeGenerated?: boolean;           // Exclude generated files (default true)
   analyzeBreakingChanges?: boolean;     // Include breaking change risk assessment
 }
 // Note: Provide either symbolId OR (symbolName + filePath)
@@ -430,12 +460,20 @@ interface GetCapabilitiesParams {
 
 interface GetCapabilitiesResult {
   isIndexed: boolean;                   // Whether the project has been indexed
-  hasSymbols: boolean;                  // Whether symbols are available
-  hasDependencies: boolean;             // Whether dependency data is available
-  lastIndexed?: string;                 // ISO timestamp of last index
-  symbolCount?: number;                 // Total symbols in the graph
-  fileCount?: number;                   // Total files in the graph
-  languages?: string[];                 // Detected languages
+  indexedBranch?: string;               // Branch that was indexed (if indexed)
+  lastIndexedAt?: string;               // ISO timestamp of last index
+  supportedLanguages: string[];         // Languages detected in the project
+  symbolCount: number;                  // Total symbols in the graph
+  fileCount: number;                    // Total files in the graph
+  availableFeatures: {                  // Which API methods have data to work with
+    searchSymbols: boolean;
+    impactAnalysis: boolean;
+    callGraph: boolean;
+    circularDependencies: boolean;
+    orphanedCode: boolean;
+    architectureOverview: boolean;
+  };
+  limitations: string[];                // Warnings to consider, e.g., not indexed
 }`,
 };
 

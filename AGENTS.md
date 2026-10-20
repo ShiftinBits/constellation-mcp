@@ -43,7 +43,7 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 | Timeout         | VM timeout + `Promise.race`  | SIGKILL (no escape)                   |
 | Crash isolation | None (crashes MCP server)    | Child crash contained                 |
 
-**Shared types**: all wire contracts from `@constellationdev/types`; `src/types/api-types.d.ts` re-exports. Add types in `$TYPES`, not locally.
+**Shared types**: all wire contracts from `@constellationdev/types`. Add types in `$TYPES`, not locally.
 
 ## API Methods (14)
 
@@ -51,11 +51,11 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 
 ## MCP Resources
 
-5 registered in `server.ts`. **Prefer per-method types** over the ~147KB full set to avoid context bloat.
+5 registered in `server.ts`. **Prefer per-method types** over the full set to avoid context bloat.
 
 | URI                                      | Content                                   |
 | ---------------------------------------- | ----------------------------------------- |
-| `constellation://types/api`              | Full API type definitions (~147KB)        |
+| `constellation://types/api`              | All per-method type excerpts, joined      |
 | `constellation://types/api/{methodName}` | Per-method type excerpts (~1-2KB)         |
 | `constellation://docs/guide`             | Full Code Mode guide                      |
 | `constellation://docs/guide/{section}`   | Guide sections (methods/recipes/recovery) |
@@ -100,7 +100,7 @@ Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `co
 
 ## Build
 
-`tsup` (ESM bundle, tree-shake, minify, `keepNames: true`) with two entry points: `src/index.ts` → `dist/index.js` (server) and `src/code-mode/sandbox-worker.ts` → `dist/sandbox-worker.js` (hardened child). Post-build (`utils/postbuild.js`) adds the shebang and copies `@constellationdev/types` defs to `dist/types/` for resource serving.
+`tsup` (ESM bundle, tree-shake, minify, `keepNames: true`) with two entry points: `src/index.ts` → `dist/index.js` (server) and `src/code-mode/sandbox-worker.ts` → `dist/sandbox-worker.js` (hardened child). Post-build (`utils/postbuild.js`) adds the shebang.
 
 ## Testing
 

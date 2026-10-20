@@ -165,7 +165,7 @@ export interface ListMethodsResult {
  * Typed interface for the Constellation API exposed in Code Mode sandbox.
  *
  * This interface ensures type safety between the sandbox implementation
- * and the documented API types in api-types.d.ts.
+ * and the documented API types in src/types/method-summaries.ts.
  */
 export interface ConstellationApi {
 	// Discovery methods
