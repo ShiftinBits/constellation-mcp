@@ -33,6 +33,7 @@ import {
 	DEFAULT_EXECUTION_TIMEOUT_MS,
 	DEFAULT_MAX_API_CALLS,
 	DEFAULT_MEMORY_LIMIT_MB,
+	HOOK_DEFAULT_TIMEOUT_MS,
 	MAX_CODE_SIZE,
 	MAX_EXECUTION_TIMEOUT_MS,
 	MIN_EXECUTION_TIMEOUT_MS,
@@ -247,14 +248,14 @@ async function runHookMode({
 		}
 
 		const runtime = new CodeModeRuntime({
-			timeout: timeout ?? DEFAULT_EXECUTION_TIMEOUT_MS,
+			timeout: timeout ?? HOOK_DEFAULT_TIMEOUT_MS,
 			allowConsole: true,
 			allowTimers: false,
 			configContext,
 		});
 		const response = await runtime.execute({
 			code,
-			timeout: timeout ?? DEFAULT_EXECUTION_TIMEOUT_MS,
+			timeout: timeout ?? HOOK_DEFAULT_TIMEOUT_MS,
 			hook: {
 				event,
 				input,
@@ -277,6 +278,13 @@ async function runHookMode({
 			return quiet('program produced no output');
 		}
 		if (sessionId && response.claimedKeys?.length) {
+			// The claimed snapshot was taken before execution, so a concurrent
+			// call for the same session may have committed one of these keys
+			// meanwhile. Check and commit with no await in between.
+			const committed = hookOnceStore.claimed(sessionId);
+			if (response.claimedKeys.some((key) => committed.has(key))) {
+				return quiet('once key already claimed by a concurrent call');
+			}
 			hookOnceStore.commit(sessionId, response.claimedKeys);
 		}
 		return hookModeResult(output);
@@ -353,10 +361,20 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 						),
 					hook: z
 						.object({
-							event: z.string(),
-							input: z.unknown().optional(),
-							sessionId: z.string().optional(),
-							settings: z.array(z.string()).optional(),
+							event: z
+								.unknown()
+								.describe(
+									'Hook event name (string), e.g. PreToolUse or SessionStart.',
+								),
+							input: z.unknown().optional().describe('Hook payload (JSON).'),
+							sessionId: z
+								.unknown()
+								.optional()
+								.describe('Hook session id (string).'),
+							settings: z
+								.unknown()
+								.optional()
+								.describe('CONSTELLATION_* env names to expose (string[]).'),
 						})
 						.optional()
 						.describe(

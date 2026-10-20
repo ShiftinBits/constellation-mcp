@@ -11,6 +11,7 @@
 
 import { z } from 'zod';
 import {
+	HOOK_MAX_SESSION_ID_CHARS,
 	HOOK_ONCE_MAX_KEYS,
 	HOOK_ONCE_MAX_SESSIONS,
 	MAX_HOOK_CONTEXT_CHARS,
@@ -32,12 +33,16 @@ export type HookEvent = (typeof HOOK_EVENTS)[number];
 /** Requested setting names mapped to their parent-resolved env values. */
 export type HookSettings = Record<string, string | undefined>;
 
-/** Hook input as received from the tool caller, before validation. */
+/**
+ * Hook input as received from the tool caller, before validation. Only the
+ * object shape is enforced by the tool schema; every field is checked here so
+ * a malformed value is quiet instead of a tool error.
+ */
 export interface RawHookRequest {
-	event: string;
+	event?: unknown;
 	input?: unknown;
-	sessionId?: string;
-	settings?: string[];
+	sessionId?: unknown;
+	settings?: unknown;
 }
 
 /** A validated hook request, ready to hand to the runtime. */
@@ -55,25 +60,77 @@ export type ParseHookRequestResult =
 
 const SETTING_NAME_PATTERN = /^CONSTELLATION_[A-Z0-9_]+$/;
 const ACCESS_KEY_SETTING = 'CONSTELLATION_ACCESS_KEY';
+/** Longest caller-controlled value echoed into a stderr log line. */
+const MAX_LOGGED_VALUE_CHARS = 100;
 
-function isHookEvent(value: string): value is HookEvent {
-	return (HOOK_EVENTS as readonly string[]).includes(value);
+function isHookEvent(value: unknown): value is HookEvent {
+	return (HOOK_EVENTS as readonly unknown[]).includes(value);
+}
+
+/** A caller-controlled string, truncated and quoted for a stderr log line. */
+function logValue(value: string): string {
+	return JSON.stringify(
+		value.length > MAX_LOGGED_VALUE_CHARS
+			? `${value.slice(0, MAX_LOGGED_VALUE_CHARS)}...`
+			: value,
+	);
 }
 
 /**
- * Resolve requested setting names against `env`. Names that do not match
- * `CONSTELLATION_*` and the access key are dropped (logged to stderr), so a
- * hook program can never read credentials or unrelated environment.
+ * Keep a non-empty string `sessionId` of at most
+ * {@link HOOK_MAX_SESSION_ID_CHARS}; anything else is treated as absent, and
+ * a non-string or over-long value is logged.
+ */
+function parseSessionId(value: unknown): string | undefined {
+	if (value === undefined || value === '') return undefined;
+	if (typeof value !== 'string') {
+		console.error(
+			`[code_intel] hook: ignored sessionId of type ${typeof value}`,
+		);
+		return undefined;
+	}
+	if (value.length > HOOK_MAX_SESSION_ID_CHARS) {
+		console.error(
+			`[code_intel] hook: ignored sessionId of ${value.length} chars (max ${HOOK_MAX_SESSION_ID_CHARS}) ${logValue(value)}`,
+		);
+		return undefined;
+	}
+	return value;
+}
+
+/** Requested setting names; a non-array value requests none (logged). */
+function parseSettingNames(value: unknown): readonly unknown[] {
+	if (value === undefined) return [];
+	if (!Array.isArray(value)) {
+		console.error(
+			`[code_intel] hook: ignored settings of type ${typeof value}`,
+		);
+		return [];
+	}
+	return value;
+}
+
+/**
+ * Resolve requested setting names against `env`. Non-string names, names
+ * that do not match `CONSTELLATION_*` and the access key are dropped (logged
+ * to stderr), so a hook program can never read credentials or unrelated
+ * environment.
  */
 export function resolveHookSettings(
-	names: readonly string[] = [],
+	names: readonly unknown[] = [],
 	env: NodeJS.ProcessEnv = process.env,
 ): HookSettings {
 	const settings: HookSettings = {};
 	for (const name of names) {
+		if (typeof name !== 'string') {
+			console.error(
+				`[code_intel] hook: dropped setting name of type ${typeof name}`,
+			);
+			continue;
+		}
 		if (!SETTING_NAME_PATTERN.test(name)) {
 			console.error(
-				`[code_intel] hook: dropped malformed setting name ${JSON.stringify(name)}`,
+				`[code_intel] hook: dropped malformed setting name ${logValue(name)}`,
 			);
 			continue;
 		}
@@ -87,20 +144,20 @@ export function resolveHookSettings(
 }
 
 /**
- * Validate a raw hook request. Fails (with a reason for the stderr log) on an
- * unknown event or an input that is not JSON-serializable or exceeds
- * {@link MAX_HOOK_INPUT_BYTES}. Disallowed setting names are dropped, not
- * failed.
+ * Validate a raw hook request. Fails (with a reason for the stderr log) on a
+ * missing or unknown event or an input that is not JSON-serializable or
+ * exceeds {@link MAX_HOOK_INPUT_BYTES}. A malformed `sessionId` is treated as
+ * absent and malformed settings are dropped, not failed.
  */
 export function parseHookRequest(
 	raw: RawHookRequest,
 	env: NodeJS.ProcessEnv = process.env,
 ): ParseHookRequestResult {
+	if (typeof raw.event !== 'string') {
+		return { ok: false, reason: `event of type ${typeof raw.event}` };
+	}
 	if (!isHookEvent(raw.event)) {
-		return {
-			ok: false,
-			reason: `unknown event ${JSON.stringify(raw.event)}`,
-		};
+		return { ok: false, reason: `unknown event ${logValue(raw.event)}` };
 	}
 
 	let serialized: string | undefined;
@@ -120,10 +177,7 @@ export function parseHookRequest(
 		};
 	}
 
-	const sessionId =
-		typeof raw.sessionId === 'string' && raw.sessionId.length > 0
-			? raw.sessionId
-			: undefined;
+	const sessionId = parseSessionId(raw.sessionId);
 
 	return {
 		ok: true,
@@ -131,7 +185,7 @@ export function parseHookRequest(
 			event: raw.event,
 			input: JSON.parse(serialized) as unknown,
 			...(sessionId !== undefined ? { sessionId } : {}),
-			settings: resolveHookSettings(raw.settings, env),
+			settings: resolveHookSettings(parseSettingNames(raw.settings), env),
 		},
 	};
 }
@@ -205,11 +259,19 @@ export const HookOutputSchema = z
 
 export type HookOutput = z.infer<typeof HookOutputSchema>;
 
+/** Slice `text` to `max` UTF-16 units without leaving a lone high surrogate. */
+function capChars(text: string, max: number): string {
+	if (text.length <= max) return text;
+	const capped = text.slice(0, max);
+	const last = capped.charCodeAt(capped.length - 1);
+	return last >= 0xd800 && last <= 0xdbff ? capped.slice(0, -1) : capped;
+}
+
 /**
  * Map a hook program's result onto {@link HookOutput}. Only a string
- * `context` (as `additionalContext`, never for `Stop`) and the first line of
- * a string `message` (as `systemMessage`) survive, each capped; every other
- * field is dropped.
+ * `context` (as `additionalContext`, never for `Stop`) and the first
+ * non-blank line of a string `message` (as `systemMessage`) survive, each
+ * capped; every other field is dropped.
  */
 export function buildHookOutput(event: HookEvent, value: unknown): HookOutput {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -221,16 +283,18 @@ export function buildHookOutput(event: HookEvent, value: unknown): HookOutput {
 	if (event !== 'Stop' && typeof context === 'string' && context.length > 0) {
 		output.hookSpecificOutput = {
 			hookEventName: event,
-			additionalContext: context.slice(0, MAX_HOOK_CONTEXT_CHARS),
+			additionalContext: capChars(context, MAX_HOOK_CONTEXT_CHARS),
 		};
 	}
 
 	if (typeof message === 'string') {
 		const firstLine = message
-			.split(/\r?\n/, 1)[0]
-			.trim()
-			.slice(0, MAX_HOOK_MESSAGE_CHARS);
-		if (firstLine.length > 0) output.systemMessage = firstLine;
+			.split(/\r?\n/)
+			.map((line) => line.trim())
+			.find((line) => line.length > 0);
+		if (firstLine !== undefined) {
+			output.systemMessage = capChars(firstLine, MAX_HOOK_MESSAGE_CHARS);
+		}
 	}
 
 	return output;

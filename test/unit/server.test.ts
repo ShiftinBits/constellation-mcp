@@ -19,6 +19,12 @@ import {
 	serveStdio,
 	type StdioServerHandle,
 } from '@modelcontextprotocol/server/stdio';
+import { CodeModeRuntime } from '../../src/code-mode/runtime.js';
+import {
+	configCache,
+	type ConfigContext,
+} from '../../src/config/config-cache.js';
+import type { ConstellationConfig } from '../../src/config/config.js';
 import { buildServer } from '../../src/server.js';
 import { METHOD_SUMMARIES } from '../../src/types/method-summaries.js';
 
@@ -83,6 +89,60 @@ const QUIET_HOOK_CALL = {
 		code: 'return null',
 		cwd: '/not/a/project',
 		hook: { event: 'NotAHookEvent', input: {} },
+	},
+};
+
+/** Hook calls with a malformed field; the unindexed cwd keeps them quiet. */
+const MALFORMED_HOOK_CALLS: Array<[string, Record<string, unknown>]> = [
+	['sessionId', { event: 'PostToolUse', input: {}, sessionId: 5 }],
+	['settings', { event: 'PostToolUse', input: {}, settings: 'x' }],
+];
+
+const malformedHookCall = (hook: Record<string, unknown>) => ({
+	...QUIET_HOOK_CALL,
+	arguments: { ...QUIET_HOOK_CALL.arguments, hook },
+});
+
+const HOOK_OUTPUT = {
+	hookSpecificOutput: {
+		hookEventName: 'PostToolUse',
+		additionalContext: '3 dependents',
+	},
+	systemMessage: 'Impact checked',
+};
+
+/**
+ * Stub config resolution and execution so a hook call yields
+ * {@link HOOK_OUTPUT} with no filesystem or network access. Returns a
+ * function that restores both.
+ */
+function stubHookExecution(): () => void {
+	const configContext = {
+		config: { apiUrl: 'https://api.constellation.test' } as ConstellationConfig,
+		projectId: 'test-project',
+		branchName: 'test-branch',
+		apiKey: 'test-key',
+		configLoaded: true,
+		gitRoot: '/test/project',
+	} as ConfigContext;
+	const spies = [
+		jest
+			.spyOn(configCache, 'getConfigForPath')
+			.mockResolvedValue(configContext),
+		jest.spyOn(CodeModeRuntime.prototype, 'execute').mockResolvedValue({
+			success: true,
+			result: { context: '3 dependents', message: 'Impact checked' },
+		}),
+	];
+	return () => spies.forEach((spy) => spy.mockRestore());
+}
+
+const HOOK_CALL = {
+	name: 'code_intel',
+	arguments: {
+		code: 'return null',
+		cwd: '/test/project',
+		hook: { event: 'PostToolUse', input: {} },
 	},
 };
 
@@ -157,6 +217,30 @@ describe('buildServer', () => {
 			});
 			expect(res.result?.structuredContent).toEqual({});
 			expect(res.result?.isError).toBeFalsy();
+		});
+
+		it.each(MALFORMED_HOOK_CALLS)(
+			'should return a quiet hook output for a malformed %s',
+			async (_field, hook) => {
+				const res = await client.request('tools/call', malformedHookCall(hook));
+				expect(res.error).toBeUndefined();
+				expect(res.result?.structuredContent).toEqual({});
+				expect(res.result?.isError).toBeFalsy();
+			},
+		);
+
+		it('should return a non-empty hook output unwrapped in structuredContent', async () => {
+			const restore = stubHookExecution();
+			try {
+				const res = await client.request('tools/call', HOOK_CALL);
+				expect(res.error).toBeUndefined();
+				expect(res.result?.structuredContent).toEqual(HOOK_OUTPUT);
+				expect(res.result?.isError).toBeFalsy();
+				const [item] = res.result?.content as { text: string }[];
+				expect(item.text).toBe(JSON.stringify(res.result?.structuredContent));
+			} finally {
+				restore();
+			}
 		});
 
 		it('should list the static resources and both resource templates', async () => {
@@ -294,6 +378,44 @@ describe('buildServer', () => {
 			expect(res.result?.structuredContent).toEqual({});
 			expect(res.result?.isError).toBeFalsy();
 			expect(res.result?.content).toEqual([{ type: 'text', text: '{}' }]);
+		});
+
+		it('should accept a hook call that omits input', async () => {
+			const { hook } = QUIET_HOOK_CALL.arguments;
+			const res = await modernRequest('tools/call', {
+				...QUIET_HOOK_CALL,
+				arguments: {
+					...QUIET_HOOK_CALL.arguments,
+					hook: { event: hook.event },
+				},
+			});
+			expect(res.error).toBeUndefined();
+			expect(res.result?.structuredContent).toEqual({});
+			expect(res.result?.isError).toBeFalsy();
+		});
+
+		it.each(MALFORMED_HOOK_CALLS)(
+			'should return a quiet hook output for a malformed %s',
+			async (_field, hook) => {
+				const res = await modernRequest('tools/call', malformedHookCall(hook));
+				expect(res.error).toBeUndefined();
+				expect(res.result?.structuredContent).toEqual({});
+				expect(res.result?.isError).toBeFalsy();
+			},
+		);
+
+		it('should return a non-empty hook output unwrapped in structuredContent', async () => {
+			const restore = stubHookExecution();
+			try {
+				const res = await modernRequest('tools/call', HOOK_CALL);
+				expect(res.error).toBeUndefined();
+				expect(res.result?.structuredContent).toEqual(HOOK_OUTPUT);
+				expect(res.result?.isError).toBeFalsy();
+				const [item] = res.result?.content as { text: string }[];
+				expect(item.text).toBe(JSON.stringify(res.result?.structuredContent));
+			} finally {
+				restore();
+			}
 		});
 
 		it('should mark the metrics snapshot as private and uncached', async () => {

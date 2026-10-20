@@ -77,8 +77,11 @@ export const TIMEOUT_PARALLELISM_FACTOR = 1.25;
 export const COMPUTED_API_FALLBACK_WEIGHT = 3;
 
 // Hook mode (agent-plugin hooks calling code_intel)
+export const HOOK_DEFAULT_TIMEOUT_MS = 2500; // fits a plugin hook timeout of 3s
 export const MAX_HOOK_INPUT_BYTES = 256 * 1024; // 256KB of serialized hook input
 export const MAX_HOOK_CONTEXT_CHARS = 8000;
 export const MAX_HOOK_MESSAGE_CHARS = 300;
 export const HOOK_ONCE_MAX_SESSIONS = 64;
 export const HOOK_ONCE_MAX_KEYS = 256;
+export const HOOK_ONCE_MAX_KEY_CHARS = 256;
+export const HOOK_MAX_SESSION_ID_CHARS = 256;

@@ -30,6 +30,7 @@ import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
 import type { SandboxHookContext } from '../../../src/code-mode/sandbox-hook.js';
+import { HOOK_ONCE_MAX_KEY_CHARS } from '../../../src/constants/sandbox-limits.js';
 
 // Mock dependencies. Preserve real error classes so `instanceof` checks
 // downstream (error-factory branch matching, sandbox executor allowlist) and
@@ -2654,7 +2655,7 @@ describe('CodeModeSandbox', () => {
 
 		it('should expose event, input, sessionId and settings to the program', async () => {
 			const result = await sandbox.execute(
-				'return { event: hook.event, input: hook.input, sessionId: hook.sessionId, settings: hook.settings, unset: "CONSTELLATION_UNSET" in hook.settings };',
+				'return { event: hook.event, input: hook.input, sessionId: hook.sessionId, settings: hook.settings, unset: hook.settings.CONSTELLATION_UNSET === undefined };',
 				{ hook: hookContext() },
 			);
 
@@ -2743,6 +2744,83 @@ describe('CodeModeSandbox', () => {
 			});
 
 			expect([first.result, second.result]).toEqual([true, true]);
+		});
+
+		it('should reject a once key longer than HOOK_ONCE_MAX_KEY_CHARS', async () => {
+			const result = await sandbox.execute(
+				`return hook.once("k".repeat(${HOOK_ONCE_MAX_KEY_CHARS + 1}));`,
+				{ hook: hookContext() },
+			);
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain(
+				`exceeds ${HOOK_ONCE_MAX_KEY_CHARS} characters`,
+			);
+			expect(result.claimedKeys).toEqual([]);
+		});
+
+		it('should accept a once key of exactly HOOK_ONCE_MAX_KEY_CHARS', async () => {
+			const result = await sandbox.execute(
+				`return hook.once("k".repeat(${HOOK_ONCE_MAX_KEY_CHARS}));`,
+				{ hook: hookContext() },
+			);
+
+			expect(result.result).toBe(true);
+			expect(result.claimedKeys).toEqual(['k'.repeat(HOOK_ONCE_MAX_KEY_CHARS)]);
+		});
+
+		// The validator rejects `.prototype`, so each expression compares
+		// against the prototype of a literal created in the sandbox realm.
+		it.each([
+			[
+				'the hook object',
+				'Object.getPrototypeOf(hook) === Object.getPrototypeOf({})',
+			],
+			[
+				'a nested input object',
+				'Object.getPrototypeOf(hook.input.tool_input) === Object.getPrototypeOf({})',
+			],
+			[
+				'a nested input array',
+				'Object.getPrototypeOf(hook.input.paths) === Object.getPrototypeOf([])',
+			],
+			[
+				'the settings',
+				'Object.getPrototypeOf(hook.settings) === Object.getPrototypeOf({})',
+			],
+			[
+				'the once function',
+				'Object.getPrototypeOf(hook.once) === Object.getPrototypeOf(function () {})',
+			],
+		])('should build %s in the sandbox realm', async (_label, expression) => {
+			const result = await sandbox.execute(`return ${expression};`, {
+				hook: hookContext({
+					input: { tool_input: { file_path: 'a.ts' }, paths: ['a.ts'] },
+				}),
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toBe(true);
+		});
+
+		it('should not let the program pollute the host prototype through hook', async () => {
+			const result = await sandbox.execute(
+				'Object.defineProperty(Object.getPrototypeOf(hook.input), "polluted", { value: 1 });',
+				{ hook: hookContext() },
+			);
+
+			expect(result.error).toMatch(/not extensible/);
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+			expect(Object.prototype.hasOwnProperty('polluted')).toBe(false);
+		});
+
+		it('should throw when the program reassigns hook', async () => {
+			const result = await sandbox.execute('hook = {};', {
+				hook: hookContext(),
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.error).toMatch(/read only/);
 		});
 
 		it('should reject a non-string once key', async () => {

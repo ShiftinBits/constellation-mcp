@@ -265,10 +265,16 @@ describe('sandbox-worker', () => {
 			options: {},
 			hook,
 		};
+		const sent = new Promise<void>((resolve) => {
+			process.send = jest.fn((msg: any) => {
+				sentMessages.push(msg);
+				resolve();
+				return true;
+			}) as any;
+		});
 
 		messageHandler!(request);
-
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		await sent;
 
 		expect(mockExecute).toHaveBeenCalledWith(request.code, { hook });
 		expect(sentMessages[0]).toEqual({ type: 'result', result: expectedResult });

@@ -3,7 +3,7 @@
  * store and the allowlisted hook-output builder.
  */
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import {
 	BoundedHookOnceStore,
 	buildHookOutput,
@@ -13,12 +13,25 @@ import {
 	resolveHookSettings,
 } from '../../../src/code-mode/hook-mode.js';
 import {
+	HOOK_DEFAULT_TIMEOUT_MS,
+	HOOK_MAX_SESSION_ID_CHARS,
+	HOOK_ONCE_MAX_KEY_CHARS,
 	HOOK_ONCE_MAX_KEYS,
 	HOOK_ONCE_MAX_SESSIONS,
 	MAX_HOOK_CONTEXT_CHARS,
 	MAX_HOOK_INPUT_BYTES,
 	MAX_HOOK_MESSAGE_CHARS,
 } from '../../../src/constants/index.js';
+
+/** `[code_intel] hook:` lines logged through the console.error mock. */
+const hookLogLines = () =>
+	jest
+		.mocked(console.error)
+		.mock.calls.map(([line]) => line)
+		.filter(
+			(line): line is string =>
+				typeof line === 'string' && line.startsWith('[code_intel] hook:'),
+		);
 
 describe('hook mode', () => {
 	describe('caps', () => {
@@ -29,12 +42,18 @@ describe('hook mode', () => {
 				MAX_HOOK_MESSAGE_CHARS,
 				HOOK_ONCE_MAX_SESSIONS,
 				HOOK_ONCE_MAX_KEYS,
+				HOOK_ONCE_MAX_KEY_CHARS,
+				HOOK_MAX_SESSION_ID_CHARS,
+				HOOK_DEFAULT_TIMEOUT_MS,
 			}).toEqual({
 				MAX_HOOK_INPUT_BYTES: 262144,
 				MAX_HOOK_CONTEXT_CHARS: 8000,
 				MAX_HOOK_MESSAGE_CHARS: 300,
 				HOOK_ONCE_MAX_SESSIONS: 64,
 				HOOK_ONCE_MAX_KEYS: 256,
+				HOOK_ONCE_MAX_KEY_CHARS: 256,
+				HOOK_MAX_SESSION_ID_CHARS: 256,
+				HOOK_DEFAULT_TIMEOUT_MS: 2500,
 			});
 		});
 	});
@@ -118,6 +137,84 @@ describe('hook mode', () => {
 			expect(result.ok && result.request.input).toBeNull();
 		});
 
+		it.each<[string, unknown]>([
+			['missing', undefined],
+			['null', null],
+			['a number', 5],
+			['an object', { id: 'x' }],
+		])('should fail without echoing a %s event', (_label, event) => {
+			const result = parseHookRequest({ event }, {});
+
+			expect(result).toEqual({
+				ok: false,
+				reason: `event of type ${typeof event}`,
+			});
+		});
+
+		it('should truncate an unknown event in the failure reason', () => {
+			const result = parseHookRequest({ event: 'E'.repeat(500) }, {});
+
+			expect(result).toEqual({
+				ok: false,
+				reason: `unknown event "${'E'.repeat(100)}..."`,
+			});
+		});
+
+		it.each<[string, unknown]>([
+			['a number', 5],
+			['an object', { id: 'session-1' }],
+			['an array', ['session-1']],
+		])(
+			'should treat a %s sessionId as absent and log it once',
+			(_label, sessionId) => {
+				const result = parseHookRequest(
+					{ event: 'SessionStart', sessionId },
+					{},
+				);
+
+				expect(result.ok && 'sessionId' in result.request).toBe(false);
+				expect(hookLogLines()).toEqual([
+					`[code_intel] hook: ignored sessionId of type ${typeof sessionId}`,
+				]);
+			},
+		);
+
+		it('should treat a sessionId over HOOK_MAX_SESSION_ID_CHARS as absent and log it truncated', () => {
+			const sessionId = 's'.repeat(HOOK_MAX_SESSION_ID_CHARS + 1);
+
+			const result = parseHookRequest({ event: 'SessionStart', sessionId }, {});
+
+			expect(result.ok && 'sessionId' in result.request).toBe(false);
+			const lines = hookLogLines();
+			expect(lines).toHaveLength(1);
+			expect(lines[0]).toContain('ignored sessionId');
+			expect(lines[0]).not.toContain(sessionId);
+			expect(lines[0].length).toBeLessThan(200);
+		});
+
+		it('should keep a sessionId of exactly HOOK_MAX_SESSION_ID_CHARS', () => {
+			const sessionId = 's'.repeat(HOOK_MAX_SESSION_ID_CHARS);
+
+			const result = parseHookRequest({ event: 'SessionStart', sessionId }, {});
+
+			expect(result.ok && result.request.sessionId).toBe(sessionId);
+		});
+
+		it.each<[string, unknown]>([
+			['a string', 'CONSTELLATION_HOOK_MODE'],
+			['an object', { CONSTELLATION_HOOK_MODE: true }],
+		])('should treat %s settings value as no settings', (_label, settings) => {
+			const result = parseHookRequest(
+				{ event: 'Stop', settings },
+				{ CONSTELLATION_HOOK_MODE: 'quiet' },
+			);
+
+			expect(result.ok && result.request.settings).toEqual({});
+			expect(hookLogLines()).toEqual([
+				`[code_intel] hook: ignored settings of type ${typeof settings}`,
+			]);
+		});
+
 		it('should omit an empty sessionId', () => {
 			const result = parseHookRequest(
 				{ event: 'SessionStart', sessionId: '' },
@@ -178,6 +275,30 @@ describe('hook mode', () => {
 			);
 
 			expect(settings).toEqual({ CONSTELLATION_DEBUG: '1' });
+		});
+
+		it('should drop non-string setting names and keep the valid ones', () => {
+			const settings = resolveHookSettings(
+				[5, null, { name: 'CONSTELLATION_X' }, 'CONSTELLATION_DEBUG'],
+				{ CONSTELLATION_DEBUG: '1' },
+			);
+
+			expect(settings).toEqual({ CONSTELLATION_DEBUG: '1' });
+			expect(hookLogLines()).toEqual([
+				'[code_intel] hook: dropped setting name of type number',
+				'[code_intel] hook: dropped setting name of type object',
+				'[code_intel] hook: dropped setting name of type object',
+			]);
+		});
+
+		it('should truncate a dropped setting name in the log', () => {
+			const name = `x${'A'.repeat(500)}`;
+
+			resolveHookSettings([name], {});
+
+			expect(hookLogLines()).toEqual([
+				`[code_intel] hook: dropped malformed setting name "${name.slice(0, 100)}..."`,
+			]);
 		});
 
 		it('should return no settings when none are requested', () => {
@@ -342,12 +463,37 @@ describe('hook mode', () => {
 			expect(output).toStrictEqual({ systemMessage: 'first line' });
 		});
 
-		it('should omit a message whose first line is blank', () => {
+		it('should use the first non-blank line of a message', () => {
 			const output = buildHookOutput('SessionStart', {
-				message: '   \nsecond line',
+				message: '   \r\n\n  second line  \nthird',
+			});
+
+			expect(output).toStrictEqual({ systemMessage: 'second line' });
+		});
+
+		it('should omit a message with only blank lines', () => {
+			const output = buildHookOutput('SessionStart', {
+				message: '   \n\t\r\n',
 			});
 
 			expect(output).toStrictEqual({});
+		});
+
+		it('should not leave a lone high surrogate when the context cap splits a pair', () => {
+			const context = `${'a'.repeat(MAX_HOOK_CONTEXT_CHARS - 1)}\u{1F600}`;
+
+			const output = buildHookOutput('PostToolUse', { context });
+
+			const capped = output.hookSpecificOutput?.additionalContext ?? '';
+			expect(capped).toBe('a'.repeat(MAX_HOOK_CONTEXT_CHARS - 1));
+		});
+
+		it('should keep a surrogate pair that fits within the context cap', () => {
+			const context = `${'a'.repeat(MAX_HOOK_CONTEXT_CHARS - 2)}\u{1F600}`;
+
+			const output = buildHookOutput('PostToolUse', { context });
+
+			expect(output.hookSpecificOutput?.additionalContext).toBe(context);
 		});
 
 		it('should omit an empty context', () => {

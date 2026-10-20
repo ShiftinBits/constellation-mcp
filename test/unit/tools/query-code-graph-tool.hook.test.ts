@@ -28,6 +28,7 @@ import {
 } from '../../../src/config/config-cache.js';
 import { ConstellationConfig } from '../../../src/config/config.js';
 import {
+	HOOK_DEFAULT_TIMEOUT_MS,
 	MAX_CODE_SIZE,
 	MAX_HOOK_INPUT_BYTES,
 } from '../../../src/constants/index.js';
@@ -64,10 +65,10 @@ const getConfigForPath = configCache.getConfigForPath as jest.MockedFunction<
 >;
 
 interface HookArg {
-	event: string;
+	event?: unknown;
 	input?: unknown;
-	sessionId?: string;
-	settings?: string[];
+	sessionId?: unknown;
+	settings?: unknown;
 }
 
 interface ToolResult {
@@ -173,12 +174,28 @@ describe('code_intel hook mode', () => {
 			arrange?: () => void;
 			hook: HookArg;
 			code?: string;
+			/** Substring of the one `[code_intel] hook:` log line. */
+			reason: string;
 		}
 
 		const postToolUse: HookArg = { event: 'PostToolUse', input: {} };
 
 		it.each<[string, PreRuntimeCase]>([
-			['the event is unknown', { hook: { event: 'NotAnEvent', input: {} } }],
+			[
+				'the event is unknown',
+				{
+					hook: { event: 'NotAnEvent', input: {} },
+					reason: 'unknown event "NotAnEvent"',
+				},
+			],
+			[
+				'the event is not a string',
+				{ hook: { event: 7, input: {} }, reason: 'event of type number' },
+			],
+			[
+				'the event is missing',
+				{ hook: { input: {} }, reason: 'event of type undefined' },
+			],
 			[
 				'the input exceeds the size cap',
 				{
@@ -186,6 +203,7 @@ describe('code_intel hook mode', () => {
 						event: 'PostToolUse',
 						input: 'x'.repeat(MAX_HOOK_INPUT_BYTES),
 					},
+					reason: `(max ${MAX_HOOK_INPUT_BYTES})`,
 				},
 			],
 			[
@@ -197,6 +215,7 @@ describe('code_intel hook mode', () => {
 						);
 					},
 					hook: postToolUse,
+					reason: 'config resolution failed (CWD_NOT_INDEXED)',
 				},
 			],
 			[
@@ -208,6 +227,7 @@ describe('code_intel hook mode', () => {
 						);
 					},
 					hook: postToolUse,
+					reason: 'configuration error',
 				},
 			],
 			[
@@ -219,19 +239,28 @@ describe('code_intel hook mode', () => {
 						);
 					},
 					hook: postToolUse,
+					reason: 'no access key configured',
 				},
 			],
 			[
 				'the code exceeds the size cap',
-				{ hook: postToolUse, code: 'x'.repeat(MAX_CODE_SIZE + 1) },
+				{
+					hook: postToolUse,
+					code: 'x'.repeat(MAX_CODE_SIZE + 1),
+					reason: `(max ${MAX_CODE_SIZE})`,
+				},
 			],
 			[
 				'the code contains binary characters',
-				{ hook: postToolUse, code: 'return 1\x00' },
+				{
+					hook: postToolUse,
+					code: 'return 1\x00',
+					reason: 'binary or control characters',
+				},
 			],
 		])(
 			'should return {} without running when %s',
-			async (_case, { arrange, hook, code }) => {
+			async (_case, { arrange, hook, code, reason }) => {
 				// Arrange
 				arrange?.();
 
@@ -243,12 +272,14 @@ describe('code_intel hook mode', () => {
 				expect(result.isError).toBeUndefined();
 				expect(execute).not.toHaveBeenCalled();
 				expect(hookLogLines()).toHaveLength(1);
+				expect(hookLogLines()[0]).toContain(reason);
 			},
 		);
 
-		it.each<[string, () => void]>([
+		it.each<[string, string, () => void]>([
 			[
 				'execution returns a structured error',
+				'execution error EXECUTION_TIMEOUT',
 				() => {
 					execute.mockResolvedValue({
 						success: false,
@@ -267,12 +298,14 @@ describe('code_intel hook mode', () => {
 			],
 			[
 				'execution reports success false',
+				'execution failed',
 				() => {
 					execute.mockResolvedValue({ success: false, error: 'soft failure' });
 				},
 			],
 			[
 				'the branch is not indexed',
+				'branch not indexed',
 				() => {
 					execute.mockResolvedValue({
 						success: true,
@@ -287,23 +320,43 @@ describe('code_intel hook mode', () => {
 			],
 			[
 				'the program returns null',
+				'program produced no output',
 				() => {
 					execute.mockResolvedValue({ success: true, result: null });
 				},
 			],
 			[
 				'the program returns a non-object',
+				'program produced no output',
 				() => {
 					execute.mockResolvedValue({ success: true, result: 'context' });
 				},
 			],
 			[
+				'the program returns an empty context',
+				'program produced no output',
+				() => {
+					execute.mockResolvedValue({ success: true, result: { context: '' } });
+				},
+			],
+			[
+				'the program returns only control fields',
+				'program produced no output',
+				() => {
+					execute.mockResolvedValue({
+						success: true,
+						result: { decision: 'block' },
+					});
+				},
+			],
+			[
 				'the runtime throws',
+				'unexpected error (Error)',
 				() => {
 					execute.mockRejectedValue(new Error('boom'));
 				},
 			],
-		])('should return {} when %s', async (_case, arrange) => {
+		])('should return {} when %s', async (_case, reason, arrange) => {
 			// Arrange
 			arrange();
 
@@ -314,6 +367,66 @@ describe('code_intel hook mode', () => {
 			expect(result).toStrictEqual(EMPTY_RESULT);
 			expect(result.isError).toBeUndefined();
 			expect(hookLogLines()).toHaveLength(1);
+			expect(hookLogLines()[0]).toContain(reason);
+		});
+
+		it.each<[string, HookArg]>([
+			[
+				'sessionId is not a string',
+				{ event: 'PostToolUse', input: {}, sessionId: 5 },
+			],
+			[
+				'settings is not an array',
+				{ event: 'PostToolUse', input: {}, settings: 'x' },
+			],
+		])(
+			'should run with the malformed field dropped when %s',
+			async (_case, hook) => {
+				// Arrange
+				execute.mockResolvedValue({ success: true, result: null });
+
+				// Act
+				const result = await callHook(hook);
+
+				// Assert
+				expect(result).toStrictEqual(EMPTY_RESULT);
+				expect(execute.mock.calls[0][0].hook).toMatchObject({
+					settings: {},
+					claimed: [],
+				});
+				expect(execute.mock.calls[0][0].hook?.sessionId).toBeUndefined();
+			},
+		);
+	});
+
+	describe('timeout', () => {
+		it('should default to HOOK_DEFAULT_TIMEOUT_MS when no timeout is passed', async () => {
+			// Arrange
+			execute.mockResolvedValue({ success: true, result: null });
+
+			// Act
+			await handler({
+				code: 'return null',
+				cwd: '/test/project',
+				hook: { event: 'PostToolUse', input: {} },
+			});
+
+			// Assert
+			expect(execute.mock.calls[0][0].timeout).toBe(HOOK_DEFAULT_TIMEOUT_MS);
+			expect(MockedCodeModeRuntime).toHaveBeenCalledWith(
+				expect.objectContaining({ timeout: HOOK_DEFAULT_TIMEOUT_MS }),
+			);
+		});
+
+		it('should pass an explicit timeout through unchanged', async () => {
+			// Arrange
+			execute.mockResolvedValue({ success: true, result: null });
+
+			// Act
+			await callHook({ event: 'PostToolUse', input: {} });
+
+			// Assert
+			expect(execute.mock.calls[0][0].timeout).toBe(2500);
 		});
 	});
 
@@ -421,10 +534,43 @@ describe('code_intel hook mode', () => {
 			});
 
 			// Act
-			await callHook({ event: 'SessionStart', input: {}, sessionId });
+			const result = await callHook({
+				event: 'SessionStart',
+				input: {},
+				sessionId,
+			});
 
 			// Assert
+			expect(result).toStrictEqual(EMPTY_RESULT);
 			expect(hookOnceStore.claimed(sessionId).size).toBe(0);
+		});
+
+		it('should return {} without committing when a concurrent call claimed the key first', async () => {
+			// Arrange
+			const sessionId = freshSessionId();
+			execute.mockImplementation(async () => {
+				hookOnceStore.commit(sessionId, ['notice']);
+				return {
+					success: true,
+					result: { message: 'Indexed' },
+					claimedKeys: ['notice', 'other'],
+				};
+			});
+
+			// Act
+			const result = await callHook({
+				event: 'SessionStart',
+				input: {},
+				sessionId,
+			});
+
+			// Assert
+			expect(execute.mock.calls[0][0].hook?.claimed).toEqual([]);
+			expect(result).toStrictEqual(EMPTY_RESULT);
+			expect(hookLogLines()).toEqual([
+				'[code_intel] hook: once key already claimed by a concurrent call',
+			]);
+			expect([...hookOnceStore.claimed(sessionId)]).toEqual(['notice']);
 		});
 
 		it('should not commit claimed keys when execution fails', async () => {

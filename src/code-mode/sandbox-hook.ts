@@ -1,11 +1,13 @@
 /**
  * Sandbox `hook` global
  *
- * Builds the read-only `hook` object a hook-mode program sees. Kept free of
+ * Installs the read-only `hook` object a hook-mode program sees. Kept free of
  * zod and other parent-only dependencies because the hardened worker bundle
  * imports it through `sandbox.ts`.
  */
 
+import vm from 'vm';
+import { HOOK_ONCE_MAX_KEY_CHARS } from '../constants/sandbox-limits.js';
 import type { HookEvent, HookSettings } from './hook-mode.js';
 
 /**
@@ -22,53 +24,81 @@ export interface SandboxHookContext {
 	claimed: string[];
 }
 
-/** The `hook` global exposed to a hook-mode program. */
-export interface SandboxHookGlobal {
-	readonly event: HookEvent;
-	readonly input: unknown;
-	readonly sessionId?: string;
-	readonly settings: Readonly<HookSettings>;
-	/**
-	 * True the first time `key` is seen for this session (and records it as
-	 * newly claimed), false afterwards. Always true without a `sessionId`.
-	 */
-	once(key: string): boolean;
-}
-
-function deepFreeze<T>(value: T): T {
-	if (typeof value === 'object' && value !== null) {
-		Object.freeze(value);
-		for (const child of Object.values(value)) deepFreeze(child);
-	}
-	return value;
-}
-
 /**
- * Create the deep-frozen `hook` global. Keys newly claimed through `once` are
- * added to `newlyClaimed` so the caller can return them to the parent.
+ * Builds the hook inside the context realm from a JSON string, so every
+ * object reachable from `hook` (including `once`) has the context's frozen
+ * built-in prototypes and no host-realm object leaks in. Defines `hook` as a
+ * non-writable, non-configurable global and returns a function that reports
+ * the newly claimed keys as a JSON string.
+ *
+ * It runs before the program, after the context's prototypes are frozen.
+ * `once` and the returned reader use only frozen built-ins (Set methods,
+ * JSON) and plain indexing, never iterators, so the program cannot hook into
+ * them.
  */
-export function createSandboxHookGlobal(
-	context: SandboxHookContext,
-	newlyClaimed: Set<string>,
-): SandboxHookGlobal {
-	const data = structuredClone({
-		event: context.event,
-		input: context.input,
-		sessionId: context.sessionId,
-		settings: context.settings,
-	});
-	const { sessionId } = data;
-	const claimed = new Set(context.claimed);
-
-	const once = (key: unknown): boolean => {
-		if (typeof key !== 'string' || key.length === 0) {
-			throw new TypeError('hook.once(key) requires a non-empty string key');
+const HOOK_BUILDER_SOURCE = `(function (json) {
+	"use strict";
+	const data = JSON.parse(json);
+	const deepFreeze = (value) => {
+		if (typeof value === "object" && value !== null) {
+			Object.freeze(value);
+			for (const child of Object.values(value)) deepFreeze(child);
+		}
+		return value;
+	};
+	const sessionId = data.sessionId;
+	const claimed = new Set(data.claimed);
+	const newlyClaimed = new Set();
+	const newlyClaimedList = [];
+	const once = function once(key) {
+		if (typeof key !== "string" || key.length === 0) {
+			throw new TypeError("hook.once(key) requires a non-empty string key");
+		}
+		if (key.length > ${HOOK_ONCE_MAX_KEY_CHARS}) {
+			throw new TypeError("hook.once(key) key exceeds ${HOOK_ONCE_MAX_KEY_CHARS} characters");
 		}
 		if (sessionId === undefined) return true;
 		if (claimed.has(key) || newlyClaimed.has(key)) return false;
 		newlyClaimed.add(key);
+		newlyClaimedList[newlyClaimedList.length] = key;
 		return true;
 	};
+	const hook = deepFreeze({
+		event: data.event,
+		input: data.input,
+		sessionId,
+		settings: data.settings,
+		once: Object.freeze(once),
+	});
+	Object.defineProperty(globalThis, "hook", {
+		value: hook,
+		writable: false,
+		enumerable: false,
+		configurable: false,
+	});
+	return () => JSON.stringify(newlyClaimedList);
+})`;
 
-	return deepFreeze({ ...data, once: Object.freeze(once) });
+/**
+ * Define the deep-frozen `hook` global in `context`. Must run after the
+ * context's built-in prototypes are frozen and before the program. Returns a
+ * reader for the keys newly claimed through `hook.once(key)`.
+ */
+export function installSandboxHook(
+	context: vm.Context,
+	hook: SandboxHookContext,
+): () => string[] {
+	const build = vm.runInContext(HOOK_BUILDER_SOURCE, context) as (
+		json: string,
+	) => () => string;
+	const readClaimed = build(
+		JSON.stringify({
+			event: hook.event,
+			input: hook.input,
+			sessionId: hook.sessionId,
+			settings: hook.settings,
+			claimed: hook.claimed,
+		}),
+	);
+	return () => JSON.parse(readClaimed()) as string[];
 }
