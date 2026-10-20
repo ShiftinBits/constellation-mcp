@@ -19,6 +19,7 @@ import {
 	serveStdio,
 	type StdioServerHandle,
 } from '@modelcontextprotocol/server/stdio';
+import fs from 'fs';
 import { buildServer } from '../../src/server.js';
 
 // Mock worker-path to avoid import.meta.url (not supported in ts-jest CJS mode)
@@ -32,10 +33,24 @@ interface RpcResponse {
 	error?: { code: number; message: string; data?: { uri?: string } };
 }
 
+const API_TYPES_PATH = '/virtual/api-types.d.ts';
+
 const SERVER_OPTIONS = {
 	version: '0.0.0-test',
-	apiTypesPath: '/nonexistent/api-types.d.ts',
+	apiTypesPath: API_TYPES_PATH,
 };
+
+// Serve the bundled api-types.d.ts from memory; every other read is untouched
+const realReadFileSync = fs.readFileSync;
+jest
+	.spyOn(fs, 'readFileSync')
+	.mockImplementation(((
+		file: fs.PathOrFileDescriptor,
+		options?: Parameters<typeof fs.readFileSync>[1],
+	) =>
+		file === API_TYPES_PATH
+			? 'export interface ApiResponse {}'
+			: realReadFileSync(file, options)) as typeof fs.readFileSync);
 
 const MODERN_META = {
 	'io.modelcontextprotocol/protocolVersion': '2026-07-28',
@@ -99,6 +114,13 @@ describe('buildServer', () => {
 			expect(names(res.result?.tools, 'name')).toEqual(['code_intel']);
 		});
 
+		it('should advertise tool schemas without a $schema dialect', async () => {
+			const res = await client.request('tools/list');
+			const [tool] = res.result?.tools as Record<string, object>[];
+			expect(tool.inputSchema).not.toHaveProperty('$schema');
+			expect(tool.outputSchema).not.toHaveProperty('$schema');
+		});
+
 		it('should list the static resources and both resource templates', async () => {
 			const [resources, templates] = await Promise.all([
 				client.request('resources/list'),
@@ -120,9 +142,10 @@ describe('buildServer', () => {
 		});
 
 		it.each([
+			'constellation://types/api',
 			'constellation://types/api/searchSymbols',
 			'constellation://docs/guide/methods',
-		])('should read %s when the template variable is known', async (uri) => {
+		])('should read %s', async (uri) => {
 			const res = await client.request('resources/read', { uri });
 			expect(res.error).toBeUndefined();
 			const [content] = res.result?.contents as { uri: string; text: string }[];
@@ -176,8 +199,10 @@ describe('buildServer', () => {
 			['tools/list', {}],
 			['resources/list', {}],
 			['resources/templates/list', {}],
-			['resources/read', { uri: 'constellation://docs/guide' }],
+			['resources/read', { uri: 'constellation://types/api' }],
 			['resources/read', { uri: 'constellation://types/api/searchSymbols' }],
+			['resources/read', { uri: 'constellation://docs/guide' }],
+			['resources/read', { uri: 'constellation://docs/guide/methods' }],
 		])('should mark %s %j as public for one hour', async (method, params) => {
 			const res = await modernRequest(method, params);
 			expect(res.result).toMatchObject({
@@ -193,8 +218,10 @@ describe('buildServer', () => {
 			expect(res.result).toMatchObject({ ttlMs: 0, cacheScope: 'private' });
 		});
 
-		it('should reject an unknown guide section with -32602 and data.uri', async () => {
-			const uri = 'constellation://docs/guide/nope';
+		it.each([
+			'constellation://types/api/notAMethod',
+			'constellation://docs/guide/nope',
+		])('should reject %s with -32602 and data.uri', async (uri) => {
 			const res = await modernRequest('resources/read', { uri });
 			expect(res.error?.code).toBe(-32602);
 			expect(res.error?.data?.uri).toBe(uri);

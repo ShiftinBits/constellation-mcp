@@ -17,7 +17,8 @@ import { Metrics } from './utils/metrics.js';
 /**
  * Discovery, list and static-resource results only change when the package
  * version changes (i.e. on restart) and hold no per-user data, so shared
- * caches may keep them for an hour.
+ * caches may keep them for an hour. A cache that outlives a restart can keep
+ * serving the pre-upgrade results for up to that hour.
  */
 const STATIC_CACHE_HINT: CacheHint = { ttlMs: 3_600_000, cacheScope: 'public' };
 

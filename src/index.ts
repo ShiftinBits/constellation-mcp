@@ -1,3 +1,4 @@
+import type { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createRequire } from 'module';
 import path from 'path';
@@ -61,13 +62,22 @@ async function startServer() {
 
 		// Build once up front so a registration error fails fast with the banner
 		// below; serveStdio would otherwise only hit it on the first client message
-		buildServer(serverOptions);
+		let prebuilt: McpServer | undefined = buildServer(serverOptions);
 
 		// serveStdio picks the protocol era from the client's opening message
-		// (2026-07-28 or a legacy initialize) and builds one server per connection
-		serveStdio(() => buildServer(serverOptions), {
-			onerror: (error) => console.error('[CONSTELLATION] stdio error:', error),
-		});
+		// (2026-07-28 or a legacy initialize); its first factory call reuses the
+		// prebuilt server, and any later call (legacy fallback) builds a fresh one
+		serveStdio(
+			() => {
+				const server = prebuilt ?? buildServer(serverOptions);
+				prebuilt = undefined;
+				return server;
+			},
+			{
+				onerror: (error) =>
+					console.error('[CONSTELLATION] stdio error:', error),
+			},
+		);
 
 		console.error(
 			'[CONSTELLATION] Code Mode Only - 1 powerful tool for all operations',

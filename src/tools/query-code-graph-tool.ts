@@ -74,6 +74,13 @@ interface SchemaCompliantOutput {
 }
 
 /**
+ * Omit the `$schema` dialect from the advertised tool schemas. Every keyword
+ * they use reads the same in draft-07 and 2020-12, while a 2020-12 `$schema`
+ * makes strict clients compiling with a draft-07 Ajv reject the tool.
+ */
+const NO_SCHEMA_DIALECT = { $schema: undefined };
+
+/**
  * Transform CodeModeResponse to match the declared outputSchema.
  * This ensures strict MCP clients (like Google Gemini CLI) don't reject
  * the response due to additional properties not in the schema.
@@ -200,66 +207,70 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				'Typical workflow: code_intel to find (results include source snippets) → Edit to modify\n\n' +
 				`Sandbox limits: ${DEFAULT_MAX_API_CALLS} api.* calls per execution, ${DEFAULT_MEMORY_LIMIT_MB} MB memory, ${MAX_CODE_SIZE / 1024} KB max code size, \`limit\` max 100 on any method with a \`limit\` param. Pure JS only — no require/import/fs/net/process (see constellation://docs/guide for full restrictions).\n\n` +
 				'IMPORTANT: The `cwd` parameter is required — always set it to the target project directory path.',
-			inputSchema: z.object({
-				code: z
-					.string()
-					.min(1)
-					.describe(
-						'JavaScript code to execute. Can use top-level await. ' +
-							'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
-							'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
-							'impactAnalysis, findOrphanedCode, getArchitectureOverview',
-					),
-				timeout: z
-					.number()
-					.min(MIN_EXECUTION_TIMEOUT_MS)
-					.max(MAX_EXECUTION_TIMEOUT_MS)
-					.optional()
-					.describe(
-						`Optional execution-time override in milliseconds. When omitted, the sandbox derives the timeout from the static complexity of your code (heavier api.* methods raise the budget) and clamps the result to [${MIN_EXECUTION_TIMEOUT_MS}, ${MAX_EXECUTION_TIMEOUT_MS}]. The breakdown is returned in the response so you can see what was applied. Explicit values still win and are clamped to the same range.`,
-					),
-				cwd: z
-					.string()
-					.min(1)
-					.describe(
-						'Absolute path to the project directory being queried. ' +
-							'Used to locate the correct constellation.json by finding the git repository root. ' +
-							'Set this to the root of the repository or workspace folder you are working in.',
-					),
-			}),
-			outputSchema: z.object({
-				success: z.boolean(),
-				result: z.any().optional(),
-				logs: z.array(z.string()).optional(),
-				time: z.number().optional(),
-				asOfCommit: z.string().optional(),
-				lastIndexedAt: z.string().optional(),
-				resultContext: z
-					.object({
-						reason: z.string(),
-						branchIndexed: z.boolean(),
-						indexedFileCount: z.number(),
-					})
-					.optional(),
-				timeoutBreakdown: z
-					.object({
-						baseMs: z.number(),
-						calls: z.array(
-							z.object({
-								method: z.string(),
-								weight: z.number(),
-								computed: z.literal(true).optional(),
-							}),
+			inputSchema: z
+				.object({
+					code: z
+						.string()
+						.min(1)
+						.describe(
+							'JavaScript code to execute. Can use top-level await. ' +
+								'Available API methods: searchSymbols, getSymbolDetails, getDependencies, ' +
+								'getDependents, findCircularDependencies, traceSymbolUsage, getCallGraph, ' +
+								'impactAnalysis, findOrphanedCode, getArchitectureOverview',
 						),
-						parallelismFactor: z.number(),
-						estimatedMs: z.number(),
-						coldStartGraceMs: z.number(),
-						appliedMs: z.number(),
-						warnings: z.array(z.string()),
-					})
-					.optional(),
-				error: z.string().optional(),
-			}),
+					timeout: z
+						.number()
+						.min(MIN_EXECUTION_TIMEOUT_MS)
+						.max(MAX_EXECUTION_TIMEOUT_MS)
+						.optional()
+						.describe(
+							`Optional execution-time override in milliseconds. When omitted, the sandbox derives the timeout from the static complexity of your code (heavier api.* methods raise the budget) and clamps the result to [${MIN_EXECUTION_TIMEOUT_MS}, ${MAX_EXECUTION_TIMEOUT_MS}]. The breakdown is returned in the response so you can see what was applied. Explicit values still win and are clamped to the same range.`,
+						),
+					cwd: z
+						.string()
+						.min(1)
+						.describe(
+							'Absolute path to the project directory being queried. ' +
+								'Used to locate the correct constellation.json by finding the git repository root. ' +
+								'Set this to the root of the repository or workspace folder you are working in.',
+						),
+				})
+				.meta(NO_SCHEMA_DIALECT),
+			outputSchema: z
+				.object({
+					success: z.boolean(),
+					result: z.any().optional(),
+					logs: z.array(z.string()).optional(),
+					time: z.number().optional(),
+					asOfCommit: z.string().optional(),
+					lastIndexedAt: z.string().optional(),
+					resultContext: z
+						.object({
+							reason: z.string(),
+							branchIndexed: z.boolean(),
+							indexedFileCount: z.number(),
+						})
+						.optional(),
+					timeoutBreakdown: z
+						.object({
+							baseMs: z.number(),
+							calls: z.array(
+								z.object({
+									method: z.string(),
+									weight: z.number(),
+									computed: z.literal(true).optional(),
+								}),
+							),
+							parallelismFactor: z.number(),
+							estimatedMs: z.number(),
+							coldStartGraceMs: z.number(),
+							appliedMs: z.number(),
+							warnings: z.array(z.string()),
+						})
+						.optional(),
+					error: z.string().optional(),
+				})
+				.meta(NO_SCHEMA_DIALECT),
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
