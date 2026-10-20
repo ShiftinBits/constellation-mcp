@@ -7,7 +7,10 @@
  */
 
 import vm from 'vm';
-import { HOOK_ONCE_MAX_KEY_CHARS } from '../constants/sandbox-limits.js';
+import {
+	HOOK_ONCE_MAX_KEY_CHARS,
+	HOOK_ONCE_MAX_KEYS,
+} from '../constants/sandbox-limits.js';
 import type { HookEvent, HookSettings } from './hook-mode.js';
 
 /**
@@ -50,26 +53,31 @@ const HOOK_BUILDER_SOURCE = `(function (json) {
 	const claimed = new Set(data.claimed);
 	const newlyClaimed = new Set();
 	const newlyClaimedList = [];
-	const once = function once(key) {
-		if (typeof key !== "string" || key.length === 0) {
-			throw new TypeError("hook.once(key) requires a non-empty string key");
-		}
-		if (key.length > ${HOOK_ONCE_MAX_KEY_CHARS}) {
-			throw new TypeError("hook.once(key) key exceeds ${HOOK_ONCE_MAX_KEY_CHARS} characters");
-		}
-		if (sessionId === undefined) return true;
-		if (claimed.has(key) || newlyClaimed.has(key)) return false;
-		newlyClaimed.add(key);
-		newlyClaimedList[newlyClaimedList.length] = key;
-		return true;
-	};
-	const hook = deepFreeze({
+	// Method shorthand: no own \`prototype\` and not constructible.
+	const hook = {
 		event: data.event,
 		input: data.input,
 		sessionId,
 		settings: data.settings,
-		once: Object.freeze(once),
-	});
+		once(key) {
+			if (typeof key !== "string" || key.length === 0) {
+				throw new TypeError("hook.once(key) requires a non-empty string key");
+			}
+			if (key.length > ${HOOK_ONCE_MAX_KEY_CHARS}) {
+				throw new TypeError("hook.once(key) key exceeds ${HOOK_ONCE_MAX_KEY_CHARS} characters");
+			}
+			if (sessionId === undefined) return true;
+			if (claimed.has(key) || newlyClaimed.has(key)) return false;
+			// The store keeps at most this many keys per session, so more
+			// claims in one run would be evicted at once.
+			if (newlyClaimedList.length >= ${HOOK_ONCE_MAX_KEYS}) return false;
+			newlyClaimed.add(key);
+			newlyClaimedList[newlyClaimedList.length] = key;
+			return true;
+		},
+	};
+	Object.freeze(hook.once);
+	deepFreeze(hook);
 	Object.defineProperty(globalThis, "hook", {
 		value: hook,
 		writable: false,

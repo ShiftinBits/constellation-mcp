@@ -30,7 +30,10 @@ import { ConstellationConfig } from '../../../src/config/config.js';
 import type { ConfigContext } from '../../../src/config/config-cache.js';
 import { enrichWithSourceSnippets } from '../../../src/code-mode/source-enrichment.js';
 import type { SandboxHookContext } from '../../../src/code-mode/sandbox-hook.js';
-import { HOOK_ONCE_MAX_KEY_CHARS } from '../../../src/constants/sandbox-limits.js';
+import {
+	HOOK_ONCE_MAX_KEY_CHARS,
+	HOOK_ONCE_MAX_KEYS,
+} from '../../../src/constants/sandbox-limits.js';
 
 // Mock dependencies. Preserve real error classes so `instanceof` checks
 // downstream (error-factory branch matching, sandbox executor allowlist) and
@@ -2767,6 +2770,35 @@ describe('CodeModeSandbox', () => {
 
 			expect(result.result).toBe(true);
 			expect(result.claimedKeys).toEqual(['k'.repeat(HOOK_ONCE_MAX_KEY_CHARS)]);
+		});
+
+		it('should stop claiming new keys after HOOK_ONCE_MAX_KEYS in one execution', async () => {
+			// Arrange
+			const code = `
+				const results = [];
+				for (let i = 0; i <= ${HOOK_ONCE_MAX_KEYS}; i++) results.push(hook.once("k" + i));
+				return results;
+			`;
+
+			// Act
+			const result = await sandbox.execute(code, { hook: hookContext() });
+
+			// Assert
+			const results = result.result as boolean[];
+			expect(results.slice(0, HOOK_ONCE_MAX_KEYS).every(Boolean)).toBe(true);
+			expect(results[HOOK_ONCE_MAX_KEYS]).toBe(false);
+			expect(result.claimedKeys).toHaveLength(HOOK_ONCE_MAX_KEYS);
+		});
+
+		it('should expose once without an own prototype object', async () => {
+			// Act
+			const result = await sandbox.execute(
+				'return Object.getOwnPropertyNames(hook.once).sort();',
+				{ hook: hookContext() },
+			);
+
+			// Assert
+			expect(result.result).toEqual(['length', 'name']);
 		});
 
 		// The validator rejects `.prototype`, so each expression compares

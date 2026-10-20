@@ -179,17 +179,25 @@ describe('hook mode', () => {
 			},
 		);
 
-		it('should treat a sessionId over HOOK_MAX_SESSION_ID_CHARS as absent and log it truncated', () => {
+		it('should hash a sessionId over HOOK_MAX_SESSION_ID_CHARS into a stable bounded key without logging it', () => {
+			// Arrange
 			const sessionId = 's'.repeat(HOOK_MAX_SESSION_ID_CHARS + 1);
+			const other = 't'.repeat(HOOK_MAX_SESSION_ID_CHARS + 1);
 
-			const result = parseHookRequest({ event: 'SessionStart', sessionId }, {});
+			// Act
+			const first = parseHookRequest({ event: 'SessionStart', sessionId }, {});
+			const second = parseHookRequest({ event: 'SessionStart', sessionId }, {});
+			const third = parseHookRequest(
+				{ event: 'SessionStart', sessionId: other },
+				{},
+			);
 
-			expect(result.ok && 'sessionId' in result.request).toBe(false);
-			const lines = hookLogLines();
-			expect(lines).toHaveLength(1);
-			expect(lines[0]).toContain('ignored sessionId');
-			expect(lines[0]).not.toContain(sessionId);
-			expect(lines[0].length).toBeLessThan(200);
+			// Assert
+			const key = first.ok ? first.request.sessionId : undefined;
+			expect(key).toMatch(/^sha256:[0-9a-f]{64}$/);
+			expect(second.ok && second.request.sessionId).toBe(key);
+			expect(third.ok && third.request.sessionId).not.toBe(key);
+			expect(hookLogLines()).toEqual([]);
 		});
 
 		it('should keep a sessionId of exactly HOOK_MAX_SESSION_ID_CHARS', () => {

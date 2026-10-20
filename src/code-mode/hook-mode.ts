@@ -9,6 +9,7 @@
  * advisory-only hook output (no decision, block or rewrite fields).
  */
 
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
 	HOOK_MAX_SESSION_ID_CHARS,
@@ -89,11 +90,10 @@ function parseSessionId(value: unknown): string | undefined {
 		);
 		return undefined;
 	}
+	// Hash an over-long id into a bounded key rather than dropping it, so
+	// `once` still dedupes for that session.
 	if (value.length > HOOK_MAX_SESSION_ID_CHARS) {
-		console.error(
-			`[code_intel] hook: ignored sessionId of ${value.length} chars (max ${HOOK_MAX_SESSION_ID_CHARS}) ${logValue(value)}`,
-		);
-		return undefined;
+		return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 	}
 	return value;
 }

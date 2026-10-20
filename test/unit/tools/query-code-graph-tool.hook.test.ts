@@ -545,7 +545,7 @@ describe('code_intel hook mode', () => {
 			expect(hookOnceStore.claimed(sessionId).size).toBe(0);
 		});
 
-		it('should return {} without committing when a concurrent call claimed the key first', async () => {
+		it('should keep the output and commit all keys when a concurrent call claimed a key first', async () => {
 			// Arrange
 			const sessionId = freshSessionId();
 			execute.mockImplementation(async () => {
@@ -566,11 +566,14 @@ describe('code_intel hook mode', () => {
 
 			// Assert
 			expect(execute.mock.calls[0][0].hook?.claimed).toEqual([]);
-			expect(result).toStrictEqual(EMPTY_RESULT);
-			expect(hookLogLines()).toEqual([
-				'[code_intel] hook: once key already claimed by a concurrent call',
+			expect(result.structuredContent).toStrictEqual({
+				systemMessage: 'Indexed',
+			});
+			expect(hookLogLines()).toEqual([]);
+			expect([...hookOnceStore.claimed(sessionId)].sort()).toEqual([
+				'notice',
+				'other',
 			]);
-			expect([...hookOnceStore.claimed(sessionId)]).toEqual(['notice']);
 		});
 
 		it('should not commit claimed keys when execution fails', async () => {

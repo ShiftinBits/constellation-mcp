@@ -278,13 +278,10 @@ async function runHookMode({
 			return quiet('program produced no output');
 		}
 		if (sessionId && response.claimedKeys?.length) {
-			// The claimed snapshot was taken before execution, so a concurrent
-			// call for the same session may have committed one of these keys
-			// meanwhile. Check and commit with no await in between.
-			const committed = hookOnceStore.claimed(sessionId);
-			if (response.claimedKeys.some((key) => committed.has(key))) {
-				return quiet('once key already claimed by a concurrent call');
-			}
+			// The claimed snapshot predates execution, so two concurrent calls for
+			// one session can both claim a key and show its notice twice. That is
+			// accepted: the program's always-on context cannot be told apart from
+			// once-gated content, and dropping it would lose more than a duplicate.
 			hookOnceStore.commit(sessionId, response.claimedKeys);
 		}
 		return hookModeResult(output);
