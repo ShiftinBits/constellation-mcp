@@ -7,6 +7,7 @@
  *  - Emits zero POSTs when telemetry is explicitly disabled
  *  - Emits zero POSTs when the script ran no api methods
  *  - Emits zero POSTs on error paths (structured error, validation failure)
+ *  - Emits zero POSTs for hook-mode calls, which are not agent usage
  *  - POST failure (500 / network error) does not propagate to the response
  */
 
@@ -282,6 +283,26 @@ describe('code_intel — usage telemetry wiring', () => {
 
 		expect(result.structuredContent.success).toBe(true);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('should NOT post for a successful hook-mode call that ran api methods', async () => {
+		mockRuntime.execute.mockResolvedValue({
+			success: true,
+			result: { context: 'impact: 3 dependents' },
+			executionTime: 50,
+			invocations: ['searchSymbols'],
+			invocationActualTokens: [100],
+		} as never);
+
+		const result = (await registeredHandler({
+			code: 'x',
+			cwd: '/test/project',
+			hook: { event: 'PostToolUse', input: {} },
+		})) as { structuredContent: Record<string, unknown> };
+		await flushMicrotasks();
+
+		expect(result.structuredContent).toHaveProperty('hookSpecificOutput');
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it('should honor USAGE_ENDPOINT_URL override', async () => {

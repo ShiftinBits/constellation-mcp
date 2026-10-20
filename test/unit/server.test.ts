@@ -67,6 +67,25 @@ function createClient(transport: InMemoryTransport) {
 const names = (items: unknown, key: string) =>
 	(items as Record<string, string>[]).map((item) => item[key]);
 
+interface AdvertisedTool {
+	inputSchema: { properties: Record<string, unknown>; required?: string[] };
+	outputSchema: { type?: string; anyOf?: unknown[] };
+}
+
+/** The single advertised tool from a tools/list response. */
+const codeIntelTool = (res: RpcResponse) =>
+	(res.result?.tools as AdvertisedTool[])[0];
+
+/** A hook-mode call that is quiet before any config or network access. */
+const QUIET_HOOK_CALL = {
+	name: 'code_intel',
+	arguments: {
+		code: 'return null',
+		cwd: '/not/a/project',
+		hook: { event: 'NotAHookEvent', input: {} },
+	},
+};
+
 describe('buildServer', () => {
 	describe('legacy era (initialize)', () => {
 		let transport: InMemoryTransport;
@@ -102,6 +121,42 @@ describe('buildServer', () => {
 			const [tool] = res.result?.tools as Record<string, object>[];
 			expect(tool.inputSchema).not.toHaveProperty('$schema');
 			expect(tool.outputSchema).not.toHaveProperty('$schema');
+		});
+
+		it('should advertise the output union with an object root', async () => {
+			const res = await client.request('tools/list');
+			const { outputSchema } = codeIntelTool(res);
+			expect(outputSchema.type).toBe('object');
+			expect(outputSchema.anyOf).toHaveLength(2);
+			expect(outputSchema).not.toHaveProperty('$schema');
+		});
+
+		it('should expose the optional hook input', async () => {
+			const res = await client.request('tools/list');
+			const { inputSchema } = codeIntelTool(res);
+			expect(inputSchema.properties).toHaveProperty('hook');
+			expect(inputSchema.required).not.toContain('hook');
+		});
+
+		it('should return an unwrapped empty hook output without isError', async () => {
+			const res = await client.request('tools/call', QUIET_HOOK_CALL);
+			expect(res.error).toBeUndefined();
+			expect(res.result?.structuredContent).toEqual({});
+			expect(res.result?.isError).toBeFalsy();
+			expect(res.result?.content).toEqual([{ type: 'text', text: '{}' }]);
+		});
+
+		it('should accept a hook call that omits input', async () => {
+			const { hook } = QUIET_HOOK_CALL.arguments;
+			const res = await client.request('tools/call', {
+				...QUIET_HOOK_CALL,
+				arguments: {
+					...QUIET_HOOK_CALL.arguments,
+					hook: { event: hook.event },
+				},
+			});
+			expect(res.result?.structuredContent).toEqual({});
+			expect(res.result?.isError).toBeFalsy();
 		});
 
 		it('should list the static resources and both resource templates', async () => {
@@ -216,6 +271,29 @@ describe('buildServer', () => {
 				ttlMs: 3_600_000,
 				cacheScope: 'public',
 			});
+		});
+
+		it('should advertise the output union with an object root', async () => {
+			const res = await modernRequest('tools/list');
+			const { outputSchema } = codeIntelTool(res);
+			expect(outputSchema.type).toBe('object');
+			expect(outputSchema.anyOf).toHaveLength(2);
+			expect(outputSchema).not.toHaveProperty('$schema');
+		});
+
+		it('should expose the optional hook input', async () => {
+			const res = await modernRequest('tools/list');
+			const { inputSchema } = codeIntelTool(res);
+			expect(inputSchema.properties).toHaveProperty('hook');
+			expect(inputSchema.required).not.toContain('hook');
+		});
+
+		it('should return an empty hook output without isError', async () => {
+			const res = await modernRequest('tools/call', QUIET_HOOK_CALL);
+			expect(res.error).toBeUndefined();
+			expect(res.result?.structuredContent).toEqual({});
+			expect(res.result?.isError).toBeFalsy();
+			expect(res.result?.content).toEqual([{ type: 'text', text: '{}' }]);
 		});
 
 		it('should mark the metrics snapshot as private and uncached', async () => {

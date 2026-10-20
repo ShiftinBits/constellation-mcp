@@ -93,6 +93,20 @@ Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `co
 - **Validation** (`validators/`): Acorn AST walker flags dangerous globals/properties, computed property chains, dynamic `import()`, `with`.
 - **Limits**: 100KB max code; 50 API calls per-execution; 128MB memory (best-effort @50ms; hard limit only in `hardened`). Results warn at 100KB, truncated with preview at 1MB (still `success: true`).
 
+## Hook Mode
+
+For agent-plugin `mcp_tool` hooks (`code-mode/hook-mode.ts`, wired in `runHookMode`). Opt-in via the optional `hook` input; agents omit it, and without it the output is unchanged.
+
+- **Input**: `hook: { event, input?, sessionId?, settings? }`. `event` is one of `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStart`, `UserPromptSubmit`, `Stop`. `input` is the hook payload (JSON, max 256 KB serialized). `settings` lists env names to expose; only `CONSTELLATION_[A-Z0-9_]+` names are kept and `CONSTELLATION_ACCESS_KEY` is always dropped. Values are resolved by the server process.
+- **`hook` global**: deep-frozen `{ event, input, sessionId, settings, once(key) }` (undefined in normal mode). Read `hook.settings.NAME` directly; do not enumerate, since hardened IPC drops unset keys. `once(key)` is true the first time a key is seen in a session (always true without `sessionId`).
+- **Program result**: return `{ context?, message? }` or `null`. `context` becomes `hookSpecificOutput.additionalContext` (every event except `Stop`, max 8000 chars); the first line of `message` becomes `systemMessage` (max 300 chars). Nothing else can be emitted: advisory only, never deny, block or rewrite.
+- **Output**: `structuredContent` is the HookOutput and the text item is its `JSON.stringify`; the no-op is `{}`. `outputSchema` is the union of the envelope and HookOutput (root `type: "object"`).
+- **Quiet failures**: unknown event, oversized input, config errors, missing access key, code size or binary chars, any execution error, an unindexed branch, or an empty result all return `{}` without `isError` and log one `[code_intel] hook: <reason>` line to stderr.
+- **No usage telemetry**: hook-mode calls never POST usage events.
+- **`once` keys** are committed only when the output is non-empty, so a failed or empty run shows its notice again next time.
+- **Timeouts**: set the plugin hook `timeout: 3` (seconds) and pass `code_intel` `timeout` of about 2500 ms; without it hook mode falls back to the 30s default.
+- **`code` must be a fixed literal**: never interpolate hook placeholders into it; read event data from `hook.input`.
+
 ## Observability
 
 - **Metrics** (`utils/metrics.ts`): in-memory singleton (counts, errors, API calls, validation failures, duration histogram; rolling 1000 samples). Exposed via `constellation://metrics`.
