@@ -193,22 +193,22 @@ describe('registerQueryCodeGraphTool', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 
-			expect(config.inputSchema.code).toBeDefined();
-			expect(config.inputSchema.timeout).toBeDefined();
-			expect(config.inputSchema.cwd).toBeDefined();
+			expect(config.inputSchema.shape.code).toBeDefined();
+			expect(config.inputSchema.shape.timeout).toBeDefined();
+			expect(config.inputSchema.shape.cwd).toBeDefined();
 		});
 
 		it('should register with correct output schema', () => {
 			const call = mockServer.registerTool.mock.calls[0];
 			const config = call[1];
 
-			expect(config.outputSchema.success).toBeDefined();
-			expect(config.outputSchema.result).toBeDefined();
-			expect(config.outputSchema.logs).toBeDefined();
-			expect(config.outputSchema.time).toBeDefined();
-			expect(config.outputSchema.asOfCommit).toBeDefined();
-			expect(config.outputSchema.error).toBeDefined();
-			expect(config.outputSchema.timeoutBreakdown).toBeDefined();
+			expect(config.outputSchema.shape.success).toBeDefined();
+			expect(config.outputSchema.shape.result).toBeDefined();
+			expect(config.outputSchema.shape.logs).toBeDefined();
+			expect(config.outputSchema.shape.time).toBeDefined();
+			expect(config.outputSchema.shape.asOfCommit).toBeDefined();
+			expect(config.outputSchema.shape.error).toBeDefined();
+			expect(config.outputSchema.shape.timeoutBreakdown).toBeDefined();
 		});
 
 		it('should declare coldStartGraceMs in the timeoutBreakdown output schema', () => {
@@ -218,7 +218,7 @@ describe('registerQueryCodeGraphTool', () => {
 			// Guards the SB-933 fix: the field must be in the Zod outputSchema or
 			// strict MCP clients strip it from structuredContent.
 			const breakdownShape =
-				config.outputSchema.timeoutBreakdown.unwrap().shape;
+				config.outputSchema.shape.timeoutBreakdown.unwrap().shape;
 			expect(breakdownShape.coldStartGraceMs).toBeDefined();
 		});
 	});
