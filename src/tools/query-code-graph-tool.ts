@@ -602,8 +602,8 @@ export function registerQueryCodeGraphTool(server: McpServer): void {
 				console.error('[code_intel] Execution successful');
 
 				// Fire-and-forget usage telemetry on successful calls only.
-				// Gated on USAGE_TRACKING_ENABLED=true (default off) AND
-				// response.success. A degraded result that propagates a
+				// Gated on isUsageTrackingEnabled() (default on; opt out with
+				// CONSTELLATION_USAGE_METRICS=false) AND response.success. A degraded result that propagates a
 				// failure without a structuredError would otherwise reach
 				// here with partial invocations — explicitly gating on
 				// `response.success` keeps telemetry scoped to the happy
