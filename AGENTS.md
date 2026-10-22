@@ -72,6 +72,7 @@ AI Assistant → MCP (stdio) → code_intel → Sandbox → ConstellationClient 
 | `CONSTELLATION_AUDIT_LOG`         | `true` enables JSON audit trail on stderr                                                      |
 | `CONSTELLATION_USAGE_METRICS`     | `false`/`0` disables per-call telemetry POST (narrow contract — `no`/`off` do **not** disable) |
 | `USAGE_ENDPOINT_URL`              | Override usage receiver (default `${CONSTELLATION_API_URL}/intel/v1/usage`)                    |
+| `CONSTELLATION_INCLUDE_SNIPPETS`  | `false` disables `sourceSnippet` enrichment (`code-mode/source-enrichment.ts`)                 |
 | `DEBUG`                           | Verbose logging                                                                                |
 
 **Testing against local Core**: the workspace `.mcp.json` registers `local-constellation` — `node constellation-mcp/dist/index.js` (this repo's build, so `npm run build` and restart Claude Code after MCP changes), env from `LOCAL_CONSTELLATION_*`, nginx `:4080` — for validating Core and MCP changes; the plugin `constellation` server stays on the hosted API. Outside Claude Code: `CONSTELLATION_API_URL=$LOCAL_CONSTELLATION_API_URL CONSTELLATION_ACCESS_KEY=$LOCAL_CONSTELLATION_ACCESS_KEY npm run inspector`. Env override only swaps the API URL; `projectId` still comes from each repo's `constellation.json`, and the local graph is indexed for core only.
@@ -84,11 +85,12 @@ Legacy `USAGE_TRACKING_ENABLED=false` is honored transitionally as an opt-out (t
 
 Structured response: `code`, `type`, `message`, `recoverable`, `guidance[]`, `context`, `docs?`, `suggestedCode?`, `alternativeApproach?`.
 
-**Retry** (`constellation-client.ts`): exponential backoff (1s base, 2^n, 250ms jitter, 30s cap), 5xx only, 3 attempts.
+**Retry** (`constellation-client.ts`): exponential backoff (1s base, 2^n, 250ms jitter, 30s cap), only on 500/502/503/504, 3 attempts.
 
 ## Sandbox Behavior
 
-- **Dual timeout** (`sandbox.ts`): VM timeout catches sync hangs; `Promise.race` catches async hangs. Dynamic, AST-weighted per call (1–60s; parse-failure fallback 30s).
+- **Dual timeout** (`sandbox.ts`): VM timeout catches sync hangs; `Promise.race` catches async hangs. Dynamic, AST-weighted per call (1–60s; parse-failure fallback 30s). The first call per process gets +10s cold-start grace (`cold-start-tracker.ts`).
+- **Language guard** (`language-registry.ts` `GUARDED_METHODS`): `getDependencies`, `getDependents`, `getCallGraph`, `traceSymbolUsage`, `impactAnalysis` reject a `filePath` whose extension is not in `constellation.json` `languages` with `UNSUPPORTED_LANGUAGE`, before any HTTP call. Guard is off when no languages are configured.
 - **Auto-return** (`auto-return.ts`): AST-based implicit `return` on last expression (handles destructuring, multi-declarator const). Explicit `return` unchanged; falls back gracefully on parse errors.
 - **Validation** (`validators/`): Acorn AST walker flags dangerous globals/properties, computed property chains, dynamic `import()`, `with`.
 - **Limits**: 100KB max code; 50 API calls per-execution; 128MB memory (best-effort @50ms; hard limit only in `hardened`). Results warn at 100KB, truncated with preview at 1MB (still `success: true`).
@@ -119,13 +121,14 @@ For agent-plugin `mcp_tool` hooks (`code-mode/hook-mode.ts`, wired in `runHookMo
 
 ## Testing
 
-`test/unit/{module}/` mirrors `src/`; helpers and mocks in `test/helpers/` + `test/__mocks__/`; smoke test in `test/smoke/`. `test/unit/server.test.ts` drives `buildServer()` with raw JSON-RPC over `InMemoryTransport`. Coverage excludes `index.ts`, `worker-path.ts`, `sandbox-worker.ts`, and type defs. `npm run inspector` validates the live MCP protocol.
+`test/unit/{module}/` mirrors `src/`; helpers and mocks in `test/helpers/`; smoke test in `test/smoke/`. `test/unit/server.test.ts` drives `buildServer()` with raw JSON-RPC over `InMemoryTransport`. Coverage excludes `index.ts`, `worker-path.ts`, `sandbox-worker.ts`, and type defs. `npm run inspector` validates the live MCP protocol.
 
 ## Gotchas
 
 - **Logging**: `console.error` only — stdout is the MCP protocol channel.
 - **ESM imports**: must include `.js` extension (`from './config.js'`).
-- **Pre-commit**: husky + lint-staged run eslint/prettier on staged files.
+- **Pre-commit** (`.husky/pre-commit`): lint-staged (eslint/prettier), then `type-check`, then `jest --onlyChanged`.
+- **Versions**: `publish.yml` bumps `package.json`, `server.json` and `manifest.json` together from the release tag. Never hand-edit any of the three.
 - **Config cache**: LRU by git root, no file watch — restart after `constellation.json` changes.
 - **Result truncation**: large results silently truncated at 1MB with preview (still `success: true`).
 - **Prototype freeze**: built-in prototypes/constructors frozen in the sandbox to prevent pollution.
@@ -137,4 +140,4 @@ For agent-plugin `mcp_tool` hooks (`code-mode/hook-mode.ts`, wired in `runHookMo
 
 ## Worktrees
 
-Create git worktrees only under this repo's `.claude/worktrees/<branch-slug>` (already gitignored), e.g. `git worktree add .claude/worktrees/feat-x -b feat/x origin/main`. Never create them outside the repo (e.g. sibling `../constellation-<name>-<branch>` folders) or in a `.worktrees/` directory.
+Create git worktrees only under this repo's `.claude/worktrees/<branch-slug>` (already gitignored), e.g. `git worktree add .claude/worktrees/feat-x -b feat/x origin/main`. Never create them outside the repo (e.g. sibling `../constellation-<name>-<branch>` folders) or in a `.worktrees/` directory. The pre-commit `jest --onlyChanged` step fails inside linked worktrees: commit from the main clone, never with `--no-verify` or `HUSKY=0`.
