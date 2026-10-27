@@ -473,7 +473,12 @@ interface GetCapabilitiesResult {
     orphanedCode: boolean;
     architectureOverview: boolean;
   };
-  limitations: string[];                // Warnings to consider, e.g., not indexed
+  partialIndex?: {                      // Present only when the last index skipped work
+    failedFileCount?: number;           // Files that failed to index
+    pass3FileErrors?: number;           // Relationship-pass failures
+    swallowedStepErrors?: number;       // Non-fatal steps that were skipped
+  };
+  limitations: string[];                // Warnings to consider, e.g., not indexed or partially indexed
 }`,
 };
 

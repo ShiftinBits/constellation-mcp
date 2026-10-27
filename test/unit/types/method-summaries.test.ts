@@ -97,6 +97,7 @@ const CAPABILITY_FIELDS: Record<keyof ProjectCapabilities, true> = {
 	symbolCount: true,
 	fileCount: true,
 	availableFeatures: true,
+	partialIndex: true,
 	limitations: true,
 };
 
