@@ -11,6 +11,15 @@ import { MAX_EXECUTION_TIMEOUT_MS } from '../constants/sandbox-limits.js';
 const NOT_INDEXED_LIMITATION = 'Project not indexed - run: constellation index';
 
 /**
+ * Counts of work skipped by the last index; absent when the index is whole
+ */
+export interface PartialIndex {
+	failedFileCount?: number;
+	pass3FileErrors?: number;
+	swallowedStepErrors?: number;
+}
+
+/**
  * Project capabilities returned by api.getCapabilities()
  */
 export interface ProjectCapabilities {
@@ -41,6 +50,9 @@ export interface ProjectCapabilities {
 		orphanedCode: boolean;
 		architectureOverview: boolean;
 	};
+
+	/** Present only when the last index completed with work skipped */
+	partialIndex?: PartialIndex;
 
 	/** Any limitations or warnings for the AI to consider */
 	limitations: string[];
@@ -98,6 +110,26 @@ export async function getProjectCapabilities(
 			return createNotIndexedCapabilities(NOT_INDEXED_LIMITATION);
 		}
 
+		const partial = (
+			overview.metadata as { partialIndex?: PartialIndex } | undefined
+		)?.partialIndex;
+		const failedFiles = partial?.failedFileCount ?? 0;
+		const degradedSteps =
+			(partial?.pass3FileErrors ?? 0) + (partial?.swallowedStepErrors ?? 0);
+		const isPartial = failedFiles > 0 || degradedSteps > 0;
+
+		const limitations =
+			symbolCount === 0
+				? [
+						'No symbols indexed - the project may be empty or not yet fully indexed',
+					]
+				: [];
+		if (isPartial) {
+			limitations.push(
+				`Last index completed with ${failedFiles} file(s) that failed to index and ${degradedSteps} degraded step(s); results may be incomplete`,
+			);
+		}
+
 		return {
 			isIndexed: true,
 			indexedBranch: context.branchName,
@@ -113,12 +145,8 @@ export async function getProjectCapabilities(
 				orphanedCode: true,
 				architectureOverview: true,
 			},
-			limitations:
-				symbolCount === 0
-					? [
-							'No symbols indexed - the project may be empty or not yet fully indexed',
-						]
-					: [],
+			...(isPartial && { partialIndex: partial }),
+			limitations,
 		};
 	} catch (error) {
 		// Determine if this is a connection error or not-indexed error

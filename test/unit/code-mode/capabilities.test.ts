@@ -482,6 +482,95 @@ describe('capabilities', () => {
 		});
 	});
 
+	describe('partial index warnings', () => {
+		const overviewWith = (partialIndex?: Record<string, number>) => ({
+			success: true,
+			data: {
+				metadata: { languages: [{ language: 'typescript', fileCount: 10 }] },
+				structure: { symbols: { total: 100 }, files: { total: 10 } },
+			},
+			metadata: {
+				toolName: 'get_architecture_overview',
+				executionTime: 50,
+				cached: false,
+				timestamp: new Date().toISOString(),
+				...(partialIndex && { partialIndex }),
+			},
+		});
+
+		it('should surface partialIndex and a limitation when counts are non-zero', async () => {
+			const partialIndex = {
+				failedFileCount: 2,
+				pass3FileErrors: 3,
+				swallowedStepErrors: 1,
+			};
+			mockClient.executeMcpTool.mockResolvedValueOnce(
+				overviewWith(partialIndex),
+			);
+
+			const result = await getProjectCapabilities(mockClient, mockContext);
+
+			expect(result.isIndexed).toBe(true);
+			expect(result.partialIndex).toEqual(partialIndex);
+			expect(result.limitations).toEqual([
+				'Last index completed with 2 file(s) that failed to index and 4 degraded step(s); results may be incomplete',
+			]);
+		});
+
+		it('should warn when only a degraded step count is non-zero', async () => {
+			mockClient.executeMcpTool.mockResolvedValueOnce(
+				overviewWith({ swallowedStepErrors: 1 }),
+			);
+
+			const result = await getProjectCapabilities(mockClient, mockContext);
+
+			expect(result.partialIndex).toEqual({ swallowedStepErrors: 1 });
+			expect(result.limitations).toHaveLength(1);
+		});
+
+		it('should leave output unchanged when partialIndex is absent', async () => {
+			mockClient.executeMcpTool.mockResolvedValueOnce(overviewWith());
+
+			const result = await getProjectCapabilities(mockClient, mockContext);
+
+			expect(result).not.toHaveProperty('partialIndex');
+			expect(result.limitations).toEqual([]);
+		});
+
+		it('should leave output unchanged when partialIndex is all zero', async () => {
+			mockClient.executeMcpTool.mockResolvedValueOnce(
+				overviewWith({
+					failedFileCount: 0,
+					pass3FileErrors: 0,
+					swallowedStepErrors: 0,
+				}),
+			);
+
+			const result = await getProjectCapabilities(mockClient, mockContext);
+
+			expect(result).not.toHaveProperty('partialIndex');
+			expect(result.limitations).toEqual([]);
+		});
+
+		it('should not report partialIndex on the not-indexed path', async () => {
+			mockClient.executeMcpTool.mockResolvedValueOnce({
+				...overviewWith({ failedFileCount: 5 }),
+				data: {
+					metadata: { languages: [] },
+					structure: { symbols: { total: 0 }, files: { total: 0 } },
+				},
+			});
+
+			const result = await getProjectCapabilities(mockClient, mockContext);
+
+			expect(result.isIndexed).toBe(false);
+			expect(result).not.toHaveProperty('partialIndex');
+			expect(result.limitations).toEqual([
+				'Project not indexed - run: constellation index',
+			]);
+		});
+	});
+
 	describe('ProjectCapabilities interface', () => {
 		it('should have expected structure for indexed project', async () => {
 			mockClient.executeMcpTool.mockResolvedValueOnce({
