@@ -201,6 +201,40 @@ describe('method-summaries', () => {
 		expect(summary).toContain('resultContext');
 	});
 
+	describe('edge provenance fields', () => {
+		const TIERS = [
+			'lsp',
+			'receiver-type',
+			'interface-dispatch',
+			'import',
+			'lexical-scope',
+			'same-file',
+			'directory',
+			'exported-anywhere',
+			'name',
+		];
+
+		it('should list the resolvedBy tiers in the wire enum order', () => {
+			expect(wire.edgeResolvedBySchema.options).toEqual(TIERS);
+		});
+
+		it.each([
+			['traceSymbolUsage', 'SymbolUsage'],
+			['getCallGraph', 'CallGraphNode'],
+			['impactAnalysis', 'DependentSymbol'],
+		])(
+			'%s summary should document resolvedBy and source on %s',
+			(method, shape) => {
+				const summary = METHOD_SUMMARIES[method];
+				const block = summary.slice(summary.indexOf(`// ${shape}`));
+				expect(block).toMatch(/\.resolvedBy\s+-/);
+				expect(block).toMatch(/\.source\s+-/);
+				expect(block).toContain(TIERS.join(' | '));
+				expect(block).toContain("'extractor' | 'lsp'");
+			},
+		);
+	});
+
 	describe('contract with the wire types', () => {
 		it('should check every summary against a contract', () => {
 			expect(

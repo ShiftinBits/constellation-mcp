@@ -155,6 +155,19 @@ describe('code-mode-guide', () => {
 			expect(guide).toContain('deep `offset`');
 		});
 
+		it('should note edge provenance and flag the weak resolvedBy tiers', () => {
+			const content = GUIDE_SECTIONS.methods.getter();
+			expect(content).toContain('**Edge provenance:**');
+			expect(content).toContain('`resolvedBy`');
+			expect(content).toContain('`source`');
+			expect(content).toMatch(
+				/Treat `name` and `exported-anywhere` edges as guesses/,
+			);
+			expect(getCodeModeGuide()).toContain(
+				'relationshipType, depth: 1, resolvedBy?, source? }',
+			);
+		});
+
 		it('should reference api.listMethods() and type resources', () => {
 			const guide = getCodeModeGuide();
 			expect(guide).toContain('api.listMethods()');

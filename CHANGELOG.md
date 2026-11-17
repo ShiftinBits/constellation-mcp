@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Per-method type summaries and the Code Mode guide now document the optional edge provenance
+  fields on `traceSymbolUsage` direct usages, `getCallGraph` callers/callees and `impactAnalysis`
+  dependents: `resolvedBy` (how the edge was resolved, from `lsp` down to a bare `name` match) and
+  `source` (`extractor` or `lsp`). The guide tells agents to treat `name` and `exported-anywhere`
+  edges as guesses. Requires `@constellationdev/types` 1.5.0.
+
 ### Changed
 
 - `api.getCallGraph` inline help, per-method type summary (`constellation://types/api/getCallGraph`),
