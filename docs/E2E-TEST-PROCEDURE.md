@@ -2,6 +2,8 @@
 
 This document provides a complete, reproducible test procedure for validating the constellation-mcp MCP server functionality.
 
+> **Validation status:** The graph checks in this document were ported from Cypher to ArcadeDB SQL by static translation against the graph schema definition. They have not yet been executed against a live graph. On the first full run, treat a query error as a defect in this procedure before treating it as a product defect.
+
 ---
 
 ## Prerequisites
@@ -25,8 +27,10 @@ This document provides a complete, reproducible test procedure for validating th
    ```
 
 4. **MCP servers** connected to Claude Code:
-   - **Constellation MCP** (`mcp__plugin_constellation_constellation__code_intel`) - For API tests
-   - **Neo4j MCP** (`mcp__neo4j__read-cypher`) - For validation queries
+   - **Constellation MCP** (`mcp__local-constellation__code_intel`, the server pointed at the local stack) - For API tests
+   - **ArcadeDB MCP** (`mcp__arcadedb__query` with `language: sql`, database `constellation`, read-only) - For validation queries. Connect as the non-root `constellation` service user, never `root`.
+
+5. **Graph schema applied** to the local ArcadeDB (`npm run graph:schema` in constellation-core). ArcadeDB Studio at http://localhost:2480 is a browser UI for people; run the validation queries through the MCP tool, not through Studio or the HTTP API.
 
 ### Test Context
 
@@ -35,9 +39,9 @@ This document provides a complete, reproducible test procedure for validating th
 - **Branch:** main
 - **MCP Tools:**
   - `code_intel` (Constellation API tests)
-  - `read-cypher` (Neo4j validation queries)
+  - `mcp__arcadedb__query` (ArcadeDB validation queries, `language: sql`)
 
-> **Note:** The Project ID above is environment-specific. If running tests against a different Constellation instance, update the project ID in all Neo4j validation queries throughout this document. You can find your project ID by running `constellation status` or checking the Constellation web interface.
+> **Note:** The Project ID above is environment-specific. If running tests against a different Constellation instance, update the project ID in all ArcadeDB validation queries throughout this document. Every validation query is scoped by both `projectId` and `branch`. You can find your project ID by running `constellation status` or checking the Constellation web interface.
 
 ---
 
@@ -52,6 +56,8 @@ constellation index --full
 
 This command parses the codebase, extracts AST intelligence, and uploads it to constellation-core. The index must be current for tests to return accurate results.
 
+The index must land in the same stack the tests query: when the tests run against a local stack, point the CLI at that stack before indexing.
+
 ---
 
 ## Test Execution Method
@@ -60,27 +66,34 @@ All tests are executed via the `code_intel` MCP tool. Each test case provides:
 
 - **Code**: JavaScript to execute in the sandbox
 - **Expected**: What the result should contain
-- **Neo4j Validation**: Cypher query to cross-check results against the graph database
-- **Cross-Validation**: Comparison logic between API and Neo4j results
+- **ArcadeDB Validation**: ArcadeDB SQL query (or queries) to cross-check results against the graph database
+- **Cross-Validation**: Comparison logic between API and ArcadeDB results
 - **Validates**: What aspect of the system is being tested
 
 ---
 
-## Neo4j Validation Workflow
+## ArcadeDB Validation Workflow
 
 Claude Code executes tests using both MCP servers in a two-phase process:
 
 ### Phase 1: Execute Constellation API Test
 
-Claude calls `mcp__plugin_constellation_constellation__code_intel` with the test JavaScript code and captures the result.
+Claude calls `mcp__local-constellation__code_intel` with the test JavaScript code and captures the result.
 
-### Phase 2: Execute Neo4j Validation Query
+### Phase 2: Execute ArcadeDB Validation Query
 
-Claude calls `mcp__neo4j__read-cypher` with the validation Cypher query and captures the result.
+Claude calls `mcp__arcadedb__query` (`language: sql`, database `constellation`) with the validation query and captures the result.
+
+How to read the validation blocks:
+
+- **One statement per call.** A block may hold several statements, labelled `-- A:`, `-- B:` and so on. Send each statement in its own call and leave the `--` label lines out.
+- **Bounded samples** keep their `LIMIT` inside a subquery on purpose; do not move it to the top level.
+- **One row per matching symbol.** Where a statement anchors on a symbol name and returns per-symbol counts, add the rows together when more than one symbol matches.
+- **Path checks** (import cycles, maximum import depth) have no single-statement SQL form. Those blocks return the file-to-file `IMPORTS` edge list and state the rule to compute the value from it. If the edge list comes back truncated, page it with `SKIP`/`LIMIT` inside a subquery.
 
 ### Phase 3: Compare Results
 
-Claude compares API results against Neo4j results:
+Claude compares API results against ArcadeDB results:
 
 - **Counts should match** (within tolerance for pagination)
 - **IDs should exist** in both systems
@@ -89,19 +102,21 @@ Claude compares API results against Neo4j results:
 
 ### Interpreting Discrepancies
 
-| Scenario                | Likely Cause                         | Action              |
-| ----------------------- | ------------------------------------ | ------------------- |
-| API count > Neo4j count | API caching or stale data            | Re-index project    |
-| API count < Neo4j count | API filtering (test exclusion)       | Check filter params |
-| Missing relationships   | Incomplete extraction                | Check CLI parser    |
-| Extra relationships     | API enrichment layer                 | Expected behavior   |
-| Symbol not found        | Symbol ID mismatch or encoding issue | Verify ID format    |
+| Scenario                   | Likely Cause                         | Action              |
+| -------------------------- | ------------------------------------ | ------------------- |
+| API count > ArcadeDB count | API caching or stale data            | Re-index project    |
+| API count < ArcadeDB count | API filtering (test exclusion)       | Check filter params |
+| Missing relationships      | Incomplete extraction                | Check CLI parser    |
+| Extra relationships        | API enrichment layer                 | Expected behavior   |
+| Symbol not found           | Symbol ID mismatch or encoding issue | Verify ID format    |
 
-### Neo4j Schema Reference
+### ArcadeDB Schema Reference
 
-**Node Labels**: `File`, `Symbol`, `Module`, `Package`, `UnresolvedReference`, `Export`
+**Vertex Types**: `File`, `Symbol`, `Package`, `Export`, `Preprocessor`, `UnresolvedReference`, `UnresolvedSymbol`, `UnresolvedCall`, `UnresolvedFile`, `PendingRef`, `PendingRel`
 
-**Relationship Types**: `REFERENCES`, `CONTAINS`, `HAS_CHILD`, `IMPORTS`, `DEPENDS_ON`, `EXPORTS`, `EXPORTS_SYMBOL`, `BELONGS_TO_MODULE`, `CALLS`, `INHERITS`, `RE_EXPORTS_FROM`, `USES_SYMBOL`
+**Edge Types**: `REFERENCES`, `CALLS`, `IMPORTS`, `CONTAINS`, `HAS_CHILD`, `INHERITS`, `INHERITS_CLOSURE`, `IMPLEMENTS`, `EXTENDS`, `DEPENDS_ON`, `DECORATED_BY`, `EXPORTS`, `EXPORTS_SYMBOL`, `RE_EXPORTS_FROM`, `HAS_DIRECTIVE`, `PARTIAL_OF`, `CALLS_UNRESOLVED`, `REFERENCES_UNRESOLVED`
+
+**Scope Properties**: every vertex carries `projectId` and `branch` (the property is `branch`). Scope every query by both, on the anchor type and on the traversed endpoint.
 
 **Key Symbol Properties**: `name`, `kind`, `filePath`, `isExported`, `projectId`, `branch`, `id`, `qualifiedName`, `modifiers`, `line`, `column`
 
@@ -137,24 +152,29 @@ return {
 - `firstSymbol.kind === "class"`
 - `hasPagination: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'CodeModeSandbox'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as count,
-       collect({name: s.name, kind: s.kind, filePath: s.filePath}) as symbols
+```sql
+-- A: count
+SELECT count(*) AS `count`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%CodeModeSandbox%'
+
+-- B: symbols
+SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%CodeModeSandbox%'
 ```
 
 **Cross-Validation:**
 
-- Neo4j `count` should equal API `symbolCount`
-- Neo4j `symbols[0].name` should equal `firstSymbol.name`
-- Neo4j `symbols[0].kind` should equal `firstSymbol.kind`
+- ArcadeDB `count` should equal API `symbolCount`
+- ArcadeDB `symbols[0].name` should equal `firstSymbol.name`
+- ArcadeDB `symbols[0].kind` should equal `firstSymbol.kind`
 
-**Validates:** Basic search functionality, symbol structure, Neo4j data consistency
+**Validates:** Basic search functionality, symbol structure, ArcadeDB data consistency
 
 ---
 
@@ -182,25 +202,34 @@ return {
 - `withinLimit: true`
 - `symbolCount <= 5`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.kind = 'class'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as totalCount,
-       collect(s.name)[0..5] as limitedNames
+```sql
+-- A: totalCount
+SELECT count(*) AS totalCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
+  AND `kind` = 'class'
+
+-- B: limitedNames (first 5)
+SELECT name FROM (
+  SELECT `name` AS name
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%Error%'
+    AND `kind` = 'class'
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
 - All API symbols should have `kind === 'class'`
 - API `symbolCount` should be <= 5 (limit applied)
-- Neo4j `totalCount` represents unfiltered count (may be >= API count due to limit)
+- ArcadeDB `totalCount` represents unfiltered count (may be >= API count due to limit)
 
-**Validates:** `filterByKind` parameter, `limit` parameter, Neo4j kind filtering
+**Validates:** `filterByKind` parameter, `limit` parameter, ArcadeDB kind filtering
 
 ---
 
@@ -239,27 +268,36 @@ return {
 - `privateCount >= 0` (private symbols exist if class members match)
 - `allPrivate: true` (if any returned, all have `visibility: 'private'`)
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.isExported = true
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as exportedCount,
-       collect({name: s.name, isExported: s.isExported})[0..10] as symbols
+```sql
+-- A: exportedCount
+SELECT count(*) AS exportedCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
+  AND `isExported` = true
+
+-- B: symbols (first 10)
+SELECT name, isExported FROM (
+  SELECT `name` AS name, `isExported` AS isExported
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%Error%'
+    AND `isExported` = true
+  LIMIT 10
+)
 ```
 
 **Cross-Validation:**
 
-- API `exportedCount` should be <= Neo4j `exportedCount` (API applies limit)
+- API `exportedCount` should be <= ArcadeDB `exportedCount` (API applies limit)
 - All API symbols should have `isExported: true`
 - Note: `filterByVisibility: ['exported']` maps to `s.isExported = true` in Core
 - Note: `filterByVisibility: ['public']` maps to `s.visibility = 'public'` (class members only)
 - The TS extractor sets `visibility` only on class members, and `isExported` only on module-level exports — the two never co-exist as `public` + `true`
 
-**Validates:** `filterByVisibility` parameter (both 'exported' and 'private' variants), Neo4j visibility/export filtering
+**Validates:** `filterByVisibility` parameter (both 'exported' and 'private' variants), ArcadeDB visibility/export filtering
 
 ---
 
@@ -289,24 +327,33 @@ return {
 - `allInClientDir: true`
 - All file paths contain "src/client/"
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.filePath STARTS WITH 'src/client/'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as count,
-       collect({name: s.name, filePath: s.filePath})[0..10] as symbols
+```sql
+-- A: count
+SELECT count(*) AS `count`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
+  AND `filePath` LIKE 'src/client/%'
+
+-- B: symbols (first 10)
+SELECT name, filePath FROM (
+  SELECT `name` AS name, `filePath` AS filePath
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%Error%'
+    AND `filePath` LIKE 'src/client/%'
+  LIMIT 10
+)
 ```
 
 **Cross-Validation:**
 
 - All API symbols should have `filePath` containing "src/client/"
-- Neo4j `count` should be >= API `symbolCount` (API may apply additional filtering)
+- ArcadeDB `count` should be >= API `symbolCount` (API may apply additional filtering)
 
-**Validates:** `filterByFile` parameter, Neo4j path filtering
+**Validates:** `filterByFile` parameter, ArcadeDB path filtering
 
 ---
 
@@ -337,26 +384,26 @@ return {
 - `hasUsageCount: true`
 - Symbols include numeric `usageCount` field
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'getDefaultConfig'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WITH s, count(ref) as usageCount
-RETURN s.name as name, usageCount
-ORDER BY usageCount DESC
-LIMIT 5
+```sql
+SELECT name, usageCount FROM (
+  SELECT `name` AS name,
+         in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS usageCount
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%getDefaultConfig%'
+  ORDER BY usageCount DESC
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `usageCount` should match Neo4j reference count for each symbol
-- Symbol names should match between API and Neo4j results
+- API `usageCount` should match ArcadeDB reference count for each symbol
+- Symbol names should match between API and ArcadeDB results
 
-**Validates:** `includeUsageCount` option, Neo4j reference counting
+**Validates:** `includeUsageCount` option, ArcadeDB reference counting
 
 ---
 
@@ -384,27 +431,43 @@ return {
 - `pagination.hasMore: true`
 - Different symbols on each page
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-WITH s ORDER BY s.name
-WITH collect(s.name) as allNames
-RETURN allNames[0..3] as firstPage,
-       allNames[3..6] as secondPage,
-       size(allNames) as totalCount
+```sql
+-- A: firstPage
+SELECT name FROM (
+  SELECT `name` AS name
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%Error%'
+  ORDER BY `name`
+  SKIP 0 LIMIT 3
+)
+
+-- B: secondPage
+SELECT name FROM (
+  SELECT `name` AS name
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%Error%'
+  ORDER BY `name`
+  SKIP 3 LIMIT 3
+)
+
+-- C: totalCount
+SELECT count(*) AS totalCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
 ```
 
 **Cross-Validation:**
 
-- API `firstPage` names should match Neo4j `firstPage` (order may vary)
-- API `secondPage` names should match Neo4j `secondPage` (order may vary)
+- API `firstPage` names should match ArcadeDB `firstPage` (order may vary)
+- API `secondPage` names should match ArcadeDB `secondPage` (order may vary)
 - No overlap between pages in both systems
 
-**Validates:** `offset` parameter, `pagination` in response, Neo4j SKIP/LIMIT consistency
+**Validates:** `offset` parameter, `pagination` in response, ArcadeDB SKIP/LIMIT consistency
 
 ---
 
@@ -434,24 +497,23 @@ return {
 - `symbolName === "CodeModeSandbox"`
 - `symbolKind === "class"`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN s.id as id, s.name as name, s.kind as kind, s.filePath as filePath
+```sql
+SELECT `id` AS id, `name` AS name, `kind` AS kind, `filePath` AS filePath
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'CodeModeSandbox'
 ```
 
 **Cross-Validation:**
 
-- API `symbolName` should match Neo4j `name`
-- API `symbolKind` should match Neo4j `kind`
-- API `filePath` should match Neo4j `filePath`
-- Symbol ID should exist in Neo4j
+- API `symbolName` should match ArcadeDB `name`
+- API `symbolKind` should match ArcadeDB `kind`
+- API `filePath` should match ArcadeDB `filePath`
+- Symbol ID should exist in ArcadeDB
 
-**Validates:** Symbol lookup by ID, Neo4j symbol existence
+**Validates:** Symbol lookup by ID, ArcadeDB symbol existence
 
 ---
 
@@ -477,24 +539,23 @@ return {
 - `success: true`
 - `symbolName === "CodeModeSandbox"`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'CodeModeSandbox'
-  AND s.filePath = 'src/code-mode/sandbox.ts'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN s.name as name, s.kind as kind, s.filePath as filePath
+```sql
+SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'CodeModeSandbox'
+  AND `filePath` = 'src/code-mode/sandbox.ts'
 ```
 
 **Cross-Validation:**
 
-- API `symbolName` should match Neo4j `name`
-- API `filePath` should match Neo4j `filePath`
+- API `symbolName` should match ArcadeDB `name`
+- API `filePath` should match ArcadeDB `filePath`
 - Exactly one symbol should be returned in both systems
 
-**Validates:** Symbol lookup by name+path combination, Neo4j precise matching
+**Validates:** Symbol lookup by name+path combination, ArcadeDB precise matching
 
 ---
 
@@ -528,24 +589,34 @@ return {
 - `hasReferences: true`
 - `referenceCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (ref)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WITH s, count(ref) as refCount, collect(DISTINCT ref.filePath) as refFiles
-RETURN s.name as name, refCount, refFiles
+```sql
+-- A: refCount (one row per matching symbol)
+SELECT `name` AS name,
+       in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS refCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'createStructuredError'
+
+-- B: refFiles (distinct file paths of the referencing symbols)
+SELECT DISTINCT outV().filePath AS refFile
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'createStructuredError'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  AND outV().filePath IS NOT NULL
 ```
 
 **Cross-Validation:**
 
-- API `referenceCount` should match or be close to Neo4j `refCount`
+- API `referenceCount` should match or be close to ArcadeDB `refCount`
 - Both systems should show references exist for this symbol
 
-**Validates:** `includeReferences` option, Neo4j REFERENCES relationship counting
+**Validates:** `includeReferences` option, ArcadeDB REFERENCES relationship counting
 
 ---
 
@@ -581,30 +652,25 @@ return {
 - `hasRelationships: true`
 - `relationshipKeys` includes items like "calls", "calledBy", "inherits"
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (s)-[:CALLS]->(called:Symbol)
-OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
-OPTIONAL MATCH (s)-[:INHERITS]->(parent:Symbol)
-OPTIONAL MATCH (child:Symbol)-[:INHERITS]->(s)
-RETURN s.name as name,
-       count(DISTINCT called) as callsCount,
-       count(DISTINCT caller) as calledByCount,
-       count(DISTINCT parent) as inheritsCount,
-       count(DISTINCT child) as inheritedByCount
+```sql
+SELECT `name` AS name,
+       out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS callsCount,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS calledByCount,
+       out('INHERITS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS inheritsCount,
+       in('INHERITS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS inheritedByCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'ConstellationClient'
 ```
 
 **Cross-Validation:**
 
-- API relationship counts should match Neo4j relationship counts
-- Relationship types present in API should have corresponding Neo4j relationships
+- API relationship counts should match ArcadeDB relationship counts
+- Relationship types present in API should have corresponding ArcadeDB relationships
 
-**Validates:** `includeRelationships` option, Neo4j CALLS/INHERITS relationships
+**Validates:** `includeRelationships` option, ArcadeDB CALLS/INHERITS relationships
 
 ---
 
@@ -625,18 +691,17 @@ return {
 - `success: true`
 - `pong: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-// ping is a lightweight auth check that doesn't query Neo4j
-// If ping succeeds, authentication is valid
-RETURN 'ping validates authentication, not Neo4j data' as note
+```sql
+-- ping is a lightweight auth check that does not query the graph database.
+-- If ping succeeds, authentication is valid. There is no statement to run.
 ```
 
 **Cross-Validation:**
 
 - ping() succeeds = valid authentication
-- No Neo4j query required (auth-only check)
+- No ArcadeDB query required (auth-only check)
 
 **Validates:** Authentication verification, lightweight connectivity check
 
@@ -666,20 +731,25 @@ return {
 - `hasFileCount: true`
 - `availableFeatures` includes: searchSymbols, impactAnalysis, callGraph, etc.
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-WITH count(s) as symbolCount
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN symbolCount, count(f) as fileCount
+```sql
+-- A: symbolCount
+SELECT count(*) AS symbolCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+
+-- B: fileCount
+SELECT count(*) AS fileCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 ```
 
 **Cross-Validation:**
 
-- API `symbolCount` should match Neo4j `symbolCount`
-- API `fileCount` should match Neo4j `fileCount`
-- `isIndexed` should be true if Neo4j returns counts > 0
+- API `symbolCount` should match ArcadeDB `symbolCount`
+- API `fileCount` should match ArcadeDB `fileCount`
+- `isIndexed` should be true if ArcadeDB returns counts > 0
 
 **Validates:** Project indexing status, capability discovery, feature availability
 
@@ -769,22 +839,38 @@ return {
 - `file === "src/code-mode/sandbox.ts"`
 - `directDependencyCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(dep)
-RETURN f.path as file,
-       count(dep) as depCount,
-       collect(CASE WHEN dep:File THEN dep.path WHEN dep:Package THEN dep.name END)[0..5] as firstDeps
+```sql
+-- A: depCount
+SELECT `path` AS `file`,
+       out('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS depCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `path` = 'src/code-mode/sandbox.ts'
+
+-- B: firstDeps (first 5)
+SELECT dep FROM (
+  SELECT CASE WHEN inV().@type = 'File' THEN inV().path
+              WHEN inV().@type = 'Package' THEN inV().name
+              ELSE null END AS dep
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/code-mode/sandbox.ts'
+  )
+  WHERE inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `directDependencyCount` should match Neo4j `depCount` (includes both File and Package imports)
-- API `firstThreeDeps` should be subset of Neo4j imported targets
+- API `directDependencyCount` should match ArcadeDB `depCount` (includes both File and Package imports)
+- API `firstThreeDeps` should be subset of ArcadeDB imported targets
 
-**Validates:** Basic dependency analysis, Neo4j IMPORTS relationship (File + Package targets)
+**Validates:** Basic dependency analysis, ArcadeDB IMPORTS relationship (File + Package targets)
 
 ---
 
@@ -810,24 +896,46 @@ return {
 - `hasTransitive: true`
 - `transitiveDependencyCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(direct)
-WHERE direct:File OR direct:Package
-OPTIONAL MATCH (f)-[:IMPORTS*2]->(transitive)
-WHERE (transitive:File OR transitive:Package) AND transitive <> f
-RETURN count(DISTINCT direct) as directCount,
-       count(DISTINCT transitive) as transitiveCount
+```sql
+-- A: directCount
+SELECT count(*) AS directCount FROM (
+  SELECT DISTINCT inV().@rid AS rid
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/code-mode/sandbox.ts'
+  )
+  WHERE (inV().@type = 'File' OR inV().@type = 'Package')
+    AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+)
+
+-- B: transitiveCount (exactly two IMPORTS hops, start file excluded)
+SELECT count(*) AS transitiveCount FROM (
+  SELECT DISTINCT inV().@rid AS rid
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM (
+      SELECT expand(out('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+      FROM File
+      WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+        AND `path` = 'src/code-mode/sandbox.ts'
+    )
+  )
+  WHERE (inV().@type = 'File' OR inV().@type = 'Package')
+    AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+    AND ifnull(inV().path, '') <> 'src/code-mode/sandbox.ts'
+)
 ```
 
 **Cross-Validation:**
 
-- API `directDependencyCount` should match Neo4j `directCount` (includes both `File` and `Package` targets — a label-filtered `(direct:File)` pattern undercounts)
-- API `transitiveDependencyCount` should be close to Neo4j `transitiveCount`
+- API `directDependencyCount` should match ArcadeDB `directCount` (includes both `File` and `Package` targets; a filter on `inV().@type = 'File'` alone undercounts)
+- API `transitiveDependencyCount` should be close to ArcadeDB `transitiveCount`
 
-**Validates:** `depth` parameter, transitive dependencies, Neo4j path traversal (File + Package targets)
+**Validates:** `depth` parameter, transitive dependencies, ArcadeDB path traversal (File + Package targets)
 
 ---
 
@@ -853,21 +961,41 @@ return {
 - `hasPackages: true`
 - `packages` includes npm/node packages like "vm"
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(pkg:Package)
-RETURN count(pkg) as packageCount,
-       collect(pkg.name)[0..5] as packages
+```sql
+-- A: packageCount
+SELECT count(*) AS packageCount
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `path` = 'src/code-mode/sandbox.ts'
+)
+WHERE inV().@type = 'Package'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+
+-- B: packages (first 5)
+SELECT name FROM (
+  SELECT inV().name AS name
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/code-mode/sandbox.ts'
+  )
+  WHERE inV().@type = 'Package'
+    AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `packageCount` should match Neo4j package count
-- API `packages` should match Neo4j package names
+- API `packageCount` should match ArcadeDB package count
+- API `packages` should match ArcadeDB package names
 
-**Validates:** `includePackages` option, Neo4j Package node imports
+**Validates:** `includePackages` option, ArcadeDB Package node imports
 
 ---
 
@@ -902,24 +1030,32 @@ return {
 - `hasSymbols: true`
 - Dependencies include `importedSymbols` arrays
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-MATCH (f)-[imp:IMPORTS]->(dep:File)
-WHERE imp.symbols IS NOT NULL
-RETURN dep.path as depPath,
-       imp.symbols as importedSymbols,
-       size(imp.symbols) as symbolCount
-LIMIT 3
+```sql
+SELECT depPath, importedSymbols, symbolCount FROM (
+  SELECT inV().path AS depPath,
+         `symbols` AS importedSymbols,
+         `symbols`.size() AS symbolCount
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/code-mode/sandbox.ts'
+  )
+  WHERE inV().@type = 'File'
+    AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+    AND `symbols` IS NOT NULL
+  LIMIT 3
+)
 ```
 
 **Cross-Validation:**
 
-- API `importedSymbols` should match Neo4j `imp.symbols` property
+- API `importedSymbols` should match ArcadeDB `importedSymbols` (the `symbols` property of the `IMPORTS` edge)
 - Symbol counts should be consistent between systems
 
-**Validates:** `includeSymbols` option, Neo4j IMPORTS relationship symbols property
+**Validates:** `includeSymbols` option, ArcadeDB IMPORTS relationship symbols property
 
 ---
 
@@ -945,22 +1081,37 @@ return {
 - `success: true`
 - `directDependentCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
-RETURN f.path as file,
-       count(dependent) as dependentCount,
-       collect(dependent.path)[0..3] as firstThree
+```sql
+-- A: dependentCount
+SELECT `path` AS `file`,
+       in('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS dependentCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `path` = 'src/client/error-factory.ts'
+
+-- B: firstThree
+SELECT dependentPath FROM (
+  SELECT outV().path AS dependentPath
+  FROM (
+    SELECT expand(inE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/client/error-factory.ts'
+  )
+  WHERE outV().@type = 'File'
+    AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  LIMIT 3
+)
 ```
 
 **Cross-Validation:**
 
-- API `directDependentCount` should match Neo4j `dependentCount`
-- API `firstThree` should be subset of Neo4j dependent files
+- API `directDependentCount` should match ArcadeDB `dependentCount`
+- API `firstThree` should be subset of ArcadeDB dependent files
 
-**Validates:** Reverse dependency analysis, Neo4j reverse IMPORTS traversal
+**Validates:** Reverse dependency analysis, ArcadeDB reverse IMPORTS traversal
 
 ---
 
@@ -986,24 +1137,46 @@ return {
 - `hasTransitive: true`
 - `transitiveDependentCount >= directDependentCount`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/types/mcp-errors.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (direct)-[:IMPORTS]->(f)
-WHERE direct:File OR direct:Package
-OPTIONAL MATCH (transitive)-[:IMPORTS*2]->(f)
-WHERE (transitive:File OR transitive:Package) AND transitive <> f
-RETURN count(DISTINCT direct) as directCount,
-       count(DISTINCT transitive) as transitiveCount
+```sql
+-- A: directCount
+SELECT count(*) AS directCount FROM (
+  SELECT DISTINCT outV().@rid AS rid
+  FROM (
+    SELECT expand(inE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `path` = 'src/types/mcp-errors.ts'
+  )
+  WHERE (outV().@type = 'File' OR outV().@type = 'Package')
+    AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+)
+
+-- B: transitiveCount (exactly two IMPORTS hops, target file excluded)
+SELECT count(*) AS transitiveCount FROM (
+  SELECT DISTINCT outV().@rid AS rid
+  FROM (
+    SELECT expand(inE('IMPORTS'))
+    FROM (
+      SELECT expand(in('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+      FROM File
+      WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+        AND `path` = 'src/types/mcp-errors.ts'
+    )
+  )
+  WHERE (outV().@type = 'File' OR outV().@type = 'Package')
+    AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+    AND ifnull(outV().path, '') <> 'src/types/mcp-errors.ts'
+)
 ```
 
 **Cross-Validation:**
 
-- API `directDependentCount` should match Neo4j `directCount` (label-agnostic match on the source node — a `(direct:File)`-only pattern is the same defect class as the `getDependencies` depth queries, even though in practice only `File` nodes originate `IMPORTS` edges)
-- API `transitiveDependentCount` should be close to Neo4j `transitiveCount`
+- API `directDependentCount` should match ArcadeDB `directCount` (the source vertex is not restricted to `File` alone; a `File`-only filter is the same defect class as the `getDependencies` depth queries, even though in practice only `File` vertices originate `IMPORTS` edges)
+- API `transitiveDependentCount` should be close to ArcadeDB `transitiveCount`
 
-**Validates:** `depth` parameter for reverse dependencies, Neo4j reverse path traversal
+**Validates:** `depth` parameter for reverse dependencies, ArcadeDB reverse path traversal
 
 ---
 
@@ -1029,22 +1202,34 @@ return {
 - `success: true`
 - Note: `hasDetailedMetrics` may be false (known observation)
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/config/config-cache.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
-RETURN f.path as file,
-       count(DISTINCT dependent) as dependentCount,
-       collect(DISTINCT dependent.path) as dependents
+```sql
+-- A: dependentCount (distinct importing files)
+SELECT `path` AS `file`,
+       in('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS dependentCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `path` = 'src/config/config-cache.ts'
+
+-- B: dependents
+SELECT DISTINCT outV().path AS dependent
+FROM (
+  SELECT expand(inE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `path` = 'src/config/config-cache.ts'
+)
+WHERE outV().@type = 'File'
+  AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- API `directDependentCount` should match Neo4j `dependentCount` (must use `count(DISTINCT dependent)` — a bare `count(dependent)` inflates the total when a single file imports the target via more than one `IMPORTS` edge)
-- Metric calculation is API-layer enrichment, not directly in Neo4j
+- API `directDependentCount` should match ArcadeDB `dependentCount` (must count distinct importing files, hence `.asSet().size()`; a bare `.size()` inflates the total when a single file imports the target via more than one `IMPORTS` edge)
+- Metric calculation is API-layer enrichment, not directly in ArcadeDB
 
-**Validates:** `includeImpactMetrics` option, Neo4j dependent count accuracy
+**Validates:** `includeImpactMetrics` option, ArcadeDB dependent count accuracy
 
 ---
 
@@ -1068,26 +1253,34 @@ return {
 - `totalCycles` and `cycleCount` should match
 - A clean codebase will have 0 cycles
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..10]->(f)
-WITH [n IN nodes(path)[0..-1] | n.path] as cycleNodes
-UNWIND cycleNodes as node
-WITH cycleNodes, node
-ORDER BY node
-WITH cycleNodes, collect(node) as sortedCycle
-RETURN count(DISTINCT sortedCycle) as cycleCount,
-       collect(DISTINCT sortedCycle)[0..3] as sampleCycles
+```sql
+-- ArcadeDB SQL has no variable-length path pattern, so the cycle count is
+-- computed from the file-to-file IMPORTS edge list this statement returns.
+-- Rule: enumerate the simple directed cycles of length 2 to 10 in the edge
+-- list (a self-import is length 1 and does not count), reduce each cycle to
+-- its sorted list of member paths, and count the distinct lists.
+--   cycleCount   = number of distinct sorted member lists
+--   sampleCycles = the first 3 of them
+SELECT outV().path AS fromPath, inV().path AS toPath
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY fromPath, toPath
 ```
 
 **Cross-Validation:**
 
-- API `cycleCount` should match Neo4j `cycleCount`
+- API `cycleCount` should match ArcadeDB `cycleCount`
 - Both systems should detect the same circular dependency patterns
-- Note: a cycle `A -> B -> A` is found once per member file it is traversed from (`MATCH ... -[:IMPORTS*2..10]->(f)` starting at `A` and starting at `B` are two separate paths for the same cycle). The query strips the closing duplicate node and sorts each cycle's node set into a rotation-independent key before deduping with `count(DISTINCT sortedCycle)`; a naive `count(DISTINCT cyclePaths)` on the raw path node list counts each rotation separately and overcounts by the cycle length
+- Note: a cycle `A -> B -> A` is found once per member file it is traversed from (a walk starting at `A` and a walk starting at `B` are two separate paths for the same cycle). The rule above reduces each cycle to its sorted member list, a rotation-independent key, before counting distinct lists; counting the raw ordered path lists counts each rotation separately and overcounts by the cycle length
 
-**Validates:** Circular dependency detection, Neo4j cycle detection query (rotation-independent deduplication)
+**Validates:** Circular dependency detection, ArcadeDB cycle detection query (rotation-independent deduplication)
 
 ---
 
@@ -1111,21 +1304,33 @@ return {
 
 - Returns only cycles involving the specified file
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH path = (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..5]->(f)
-WITH [n IN nodes(path) | n.path] as cyclePaths, length(path) as cycleLength
-RETURN count(DISTINCT cyclePaths) as cycleCount,
-       collect(DISTINCT cyclePaths) as cycles
+```sql
+-- ArcadeDB SQL has no variable-length path pattern, so the cycles are
+-- computed from the file-to-file IMPORTS edge list this statement returns.
+-- Rule: enumerate the directed cycles of length 2 to 5 that start and end at
+-- 'src/code-mode/sandbox.ts', each written as its ordered list of paths
+-- (start file first and last).
+--   cycleCount = number of distinct ordered lists
+--   cycles     = those lists
+SELECT outV().path AS fromPath, inV().path AS toPath
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY fromPath, toPath
 ```
 
 **Cross-Validation:**
 
-- API `totalCycles` should match Neo4j `cycleCount`
+- API `totalCycles` should match ArcadeDB `cycleCount`
 - All cycles should involve the specified file
 
-**Validates:** `filePath` filter, `maxDepth` limit, Neo4j file-specific cycle detection
+**Validates:** `filePath` filter, `maxDepth` limit, ArcadeDB file-specific cycle detection
 
 ---
 
@@ -1156,25 +1361,36 @@ return {
 - `hasDirectUsages: true`
 - `directUsageCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'getDefaultConfig'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-RETURN s.name as symbolName,
-       count(usage) as usageCount,
-       collect(DISTINCT type(r)) as relationshipTypes
+```sql
+-- A: usageCount
+SELECT count(*) AS usageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'getDefaultConfig'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+
+-- B: relationshipTypes
+SELECT DISTINCT @type AS relationshipType
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'getDefaultConfig'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `usageCount`
+- API `directUsageCount` should match ArcadeDB `usageCount`
 - Both systems should show usages exist for this symbol
 
-**Validates:** Usage tracing by ID, Neo4j REFERENCES/CALLS relationship counting
+**Validates:** Usage tracing by ID, ArcadeDB REFERENCES/CALLS relationship counting
 
 ---
 
@@ -1201,26 +1417,27 @@ return {
 - `totalUsageCount > 0`
 - `directUsageCount > 0` (may be capped by pagination limit)
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'createStructuredError'
-  AND s.filePath = 'src/client/error-factory.ts'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-RETURN s.name as symbolName,
-       count(usage) as usageCount
+```sql
+SELECT count(*) AS usageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'createStructuredError'
+    AND `filePath` = 'src/client/error-factory.ts'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- API `totalUsageCount` should match Neo4j `usageCount` (true total, not capped)
+- API `totalUsageCount` should match ArcadeDB `usageCount` (true total, not capped)
 - `directUsageCount` may be less than `totalUsageCount` due to pagination (default limit: 50)
-- Symbol should be found by name+path in Neo4j
+- Symbol should be found by name+path in ArcadeDB
 
-**Validates:** Usage tracing by name+path, pagination behavior, Neo4j precise symbol lookup
+**Validates:** Usage tracing by name+path, pagination behavior, ArcadeDB precise symbol lookup
 
 ---
 
@@ -1256,26 +1473,28 @@ return {
 - `functionOnlyCount <= allUsageCount` (filtered is subset of all)
 - `isSubset: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (usage:Symbol)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WHERE usage.kind = 'function'
-RETURN s.name as symbolName,
-       count(usage) as functionUsageCount
+```sql
+SELECT count(*) AS functionUsageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'createStructuredError'
+)
+WHERE outV().@type = 'Symbol'
+  AND outV().kind = 'function'
+  AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- API `functionOnlyCount` should match Neo4j `functionUsageCount`
+- API `functionOnlyCount` should match ArcadeDB `functionUsageCount`
 - `filterByUsageType` filters by the **symbol kind** of the using node (not the relationship type)
 - To filter by relationship type, use `filterByRelationshipType` parameter instead
 
-**Validates:** `filterByUsageType` filter (symbol kind filtering), Neo4j usage.kind matching
+**Validates:** `filterByUsageType` filter (symbol kind filtering), ArcadeDB `outV().kind` matching
 
 ---
 
@@ -1309,27 +1528,40 @@ return {
 
 - `hasTransitive: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (direct)-[r1:REFERENCES|CALLS|USES_SYMBOL]->(s)
-OPTIONAL MATCH (transitive)-[r2:REFERENCES|CALLS|USES_SYMBOL*2]->(s)
-WHERE transitive <> s
-RETURN s.name as symbolName,
-       count(DISTINCT direct) as directCount,
-       count(DISTINCT transitive) as transitiveCount
+```sql
+-- A: directCount
+SELECT count(*) AS directCount FROM (
+  SELECT DISTINCT @rid FROM (
+    SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+    FROM Symbol
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `name` = 'ConstellationClient'
+  )
+)
+
+-- B: transitiveCount (exactly two hops, the symbol itself excluded)
+SELECT count(*) AS transitiveCount FROM (
+  SELECT DISTINCT @rid FROM (
+    SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+    FROM (
+      SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+      FROM Symbol
+      WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+        AND `name` = 'ConstellationClient'
+    )
+  )
+  WHERE NOT (@type = 'Symbol' AND `name` = 'ConstellationClient')
+)
 ```
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `directCount`
-- API `transitiveCount` should be related to Neo4j multi-hop relationships
+- API `directUsageCount` should match ArcadeDB `directCount`
+- API `transitiveCount` should be related to ArcadeDB multi-hop relationships
 
-**Validates:** `includeTransitive` option, Neo4j multi-hop relationship traversal
+**Validates:** `includeTransitive` option, ArcadeDB multi-hop relationship traversal
 
 ---
 
@@ -1366,23 +1598,25 @@ return {
 
 - `hasTestFiles: false`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WHERE NOT (usage.filePath CONTAINS 'test' OR usage.filePath CONTAINS '.spec.' OR usage.filePath CONTAINS '.test.')
-RETURN s.name as symbolName,
-       count(usage) as nonTestUsageCount
+```sql
+SELECT count(*) AS nonTestUsageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'CodeModeSandbox'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  AND outV().filePath IS NOT NULL
+  AND NOT (outV().filePath LIKE '%test%' OR outV().filePath LIKE '%.spec.%' OR outV().filePath LIKE '%.test.%')
 ```
 
 **Cross-Validation:**
 
 - `hasTestFiles: false` — the primary assertion (no test file paths in returned results)
-- API `directUsageCount` may differ from Neo4j `nonTestUsageCount` due to different test-file exclusion granularity (API uses regex patterns at symbol level; Neo4j `CONTAINS` operates at file path level). Count comparison is informational, not a pass/fail criterion.
+- API `directUsageCount` may differ from ArcadeDB `nonTestUsageCount` due to different test-file exclusion granularity (API uses regex patterns at symbol level; the ArcadeDB `LIKE` substring checks operate at file path level). Count comparison is informational, not a pass/fail criterion.
 
 **Validates:** `excludeTests` filter behavioral correctness (test files excluded from results)
 
@@ -1421,25 +1655,39 @@ return {
 - `hasContext: true` with code snippets
 - Note: Currently returns `hasContext: false` (known observation)
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (usage)-[r:REFERENCES|CALLS|USES_SYMBOL]->(s)
-RETURN s.name as symbolName,
-       count(usage) as usageCount,
-       collect({filePath: usage.filePath, line: usage.line})[0..5] as usageLocations
+```sql
+-- A: usageCount
+SELECT count(*) AS usageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` = 'createStructuredError'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+
+-- B: usageLocations (first 5)
+SELECT filePath, line FROM (
+  SELECT outV().filePath AS filePath, outV().line AS line
+  FROM (
+    SELECT expand(inE('REFERENCES','CALLS'))
+    FROM Symbol
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `name` = 'createStructuredError'
+  )
+  WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `directUsageCount` should match Neo4j `usageCount`
-- Context is API-layer enrichment (reads source), not stored in Neo4j
+- API `directUsageCount` should match ArcadeDB `usageCount`
+- Context is API-layer enrichment (reads source), not stored in ArcadeDB
 
-**Validates:** `includeContext` option, Neo4j usage locations (context is API-generated)
+**Validates:** `includeContext` option, ArcadeDB usage locations (context is API-generated)
 
 ---
 
@@ -1475,27 +1723,27 @@ return {
 - `hasCallees: true`
 - `calleeCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'execute'
-  AND s.kind = 'method'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-WITH s LIMIT 1
-OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
-RETURN s.name as rootName,
-       count(callee) as calleeCount,
-       collect(callee.name) as calleeNames
+```sql
+SELECT rootName, calleeCount, calleeNames FROM (
+  SELECT `name` AS rootName,
+         out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS calleeCount,
+         out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].name AS calleeNames
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%execute%'
+    AND `kind` = 'method'
+  LIMIT 1
+)
 ```
 
 **Cross-Validation:**
 
-- API `calleeCount` should match Neo4j `calleeCount`
-- Callee names should match between API and Neo4j results
+- API `calleeCount` should match ArcadeDB `calleeCount`
+- Callee names should match between API and ArcadeDB results
 
-**Validates:** Call graph for outgoing calls, Neo4j CALLS relationship traversal
+**Validates:** Call graph for outgoing calls, ArcadeDB CALLS relationship traversal
 
 ---
 
@@ -1530,25 +1778,23 @@ return {
 - `hasCallers: true`
 - `callerCount > 0`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'createStructuredError'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
-RETURN s.name as rootName,
-       count(caller) as callerCount,
-       collect(caller.name) as callerNames
+```sql
+SELECT `name` AS rootName,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS callerCount,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].name AS callerNames
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'createStructuredError'
 ```
 
 **Cross-Validation:**
 
-- API `callerCount` should match Neo4j `callerCount`
-- Caller names should match between API and Neo4j results
+- API `callerCount` should match ArcadeDB `callerCount`
+- Caller names should match between API and ArcadeDB results
 
-**Validates:** Call graph for incoming calls, Neo4j reverse CALLS relationship
+**Validates:** Call graph for incoming calls, ArcadeDB reverse CALLS relationship
 
 ---
 
@@ -1582,29 +1828,27 @@ return {
 - `hasCallers: true`
 - `hasCallees: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'getDefaultConfig'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
-OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
-RETURN s.name as rootName,
-       count(DISTINCT caller) as callerCount,
-       count(DISTINCT callee) as calleeCount,
-       collect(DISTINCT caller.name) as callerNames,
-       collect(DISTINCT callee.name) as calleeNames
+```sql
+-- callerNames and calleeNames may repeat a name; compare them as sets.
+SELECT `name` AS rootName,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS callerCount,
+       out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS calleeCount,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].name AS callerNames,
+       out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].name AS calleeNames
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'getDefaultConfig'
 ```
 
 **Cross-Validation:**
 
-- API `callerCount` should match Neo4j `callerCount`
-- API `calleeCount` should match Neo4j `calleeCount`
+- API `callerCount` should match ArcadeDB `callerCount`
+- API `calleeCount` should match ArcadeDB `calleeCount`
 - Both directions should be captured
 
-**Validates:** Bidirectional call graph, Neo4j dual-direction CALLS traversal
+**Validates:** Bidirectional call graph, ArcadeDB dual-direction CALLS traversal
 
 ---
 
@@ -1638,35 +1882,48 @@ return {
 - `success: true`
 - `hasSummary: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'ConstellationClient'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-CALL {
-  WITH s
-  MATCH (containerFile:File)-[:CONTAINS]->(:Symbol)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-  RETURN containerFile.path as filePath
-  UNION
-  WITH s
-  MATCH (fileRef:File)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-  RETURN fileRef.path as filePath
-}
-WITH s, collect(DISTINCT filePath) as impactedFiles
-RETURN s.name as symbolName,
-       size(impactedFiles) as impactedFileCount,
-       impactedFiles[0..5] as sampleFiles
+```sql
+-- A: impactedFileCount
+SELECT count(*) AS impactedFileCount FROM (
+  SELECT DISTINCT filePath FROM (
+    SELECT CASE WHEN outV().@type = 'File' THEN outV().path ELSE outV().filePath END AS filePath
+    FROM (
+      SELECT expand(inE('REFERENCES','CALLS'))
+      FROM Symbol
+      WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+        AND `name` = 'ConstellationClient'
+    )
+    WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  )
+  WHERE filePath IS NOT NULL
+)
+
+-- B: sampleFiles (first 5)
+SELECT filePath FROM (
+  SELECT DISTINCT filePath FROM (
+    SELECT CASE WHEN outV().@type = 'File' THEN outV().path ELSE outV().filePath END AS filePath
+    FROM (
+      SELECT expand(inE('REFERENCES','CALLS'))
+      FROM Symbol
+      WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+        AND `name` = 'ConstellationClient'
+    )
+    WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+  )
+  WHERE filePath IS NOT NULL
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `impactedFileCount` should be close to Neo4j `impactedFileCount`
-- Note: `REFERENCES`/`CALLS`/`USES_SYMBOL` edges originate from a `Symbol` node when the reference sits inside an enclosing symbol, but from the `File` node directly when it does not (module-level usage with no containing symbol) — see `relationship-builder.service.ts` in constellation-core. A query that only walks `(f:File)-[:CONTAINS]->(ref)-[:REFERENCES...]->(s)` misses every File-origin edge; the `UNION` above covers both origins
-- Impact analysis includes API-layer risk calculations not stored in Neo4j
+- API `impactedFileCount` should be close to ArcadeDB `impactedFileCount`
+- Note: `REFERENCES`/`CALLS` edges originate from a `Symbol` vertex when the reference sits inside an enclosing symbol, but from the `File` vertex directly when it does not (module-level usage with no containing symbol). A query that only reads the `filePath` of referencing symbols misses every File-origin edge; the `CASE WHEN outV().@type = 'File'` projection above covers both origins
+- Impact analysis includes API-layer risk calculations not stored in ArcadeDB
 
-**Validates:** Basic impact analysis, Neo4j reference-to-file mapping (Symbol-origin and File-origin edges)
+**Validates:** Basic impact analysis, ArcadeDB reference-to-file mapping (Symbol-origin and File-origin edges)
 
 ---
 
@@ -1703,26 +1960,71 @@ return {
 - `fileDifference > 0` — more orphaned files when test files are included
 - `excludeTrue.orphanedFileCount < excludeFalse.orphanedFileCount`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File)
-WHERE f.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND f.branch = 'main'
-  AND (f.path =~ '.*[._](test|spec)[._].*' OR f.path =~ '(^|.*/)(__tests__|test|tests|testing|spec)/.*')
-OPTIONAL MATCH (dependent:File)-[:IMPORTS]->(f)
-WITH f, count(DISTINCT dependent) as dependentCount
-WHERE dependentCount = 0
-RETURN count(f) as orphanedTestFileCount,
-       collect(f.path)[0..5] as sampleTestFiles
+```sql
+-- A: orphanedTestFileCount
+SELECT count(*) AS orphanedTestFileCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND (
+    `path` LIKE '%.test.%'
+    OR `path` LIKE '%.test_%'
+    OR `path` LIKE '%.spec.%'
+    OR `path` LIKE '%.spec_%'
+    OR `path` LIKE '%_test.%'
+    OR `path` LIKE '%_test_%'
+    OR `path` LIKE '%_spec.%'
+    OR `path` LIKE '%_spec_%'
+    OR `path` LIKE '__tests__/%'
+    OR `path` LIKE '%/__tests__/%'
+    OR `path` LIKE 'test/%'
+    OR `path` LIKE '%/test/%'
+    OR `path` LIKE 'tests/%'
+    OR `path` LIKE '%/tests/%'
+    OR `path` LIKE 'testing/%'
+    OR `path` LIKE '%/testing/%'
+    OR `path` LIKE 'spec/%'
+    OR `path` LIKE '%/spec/%'
+  )
+  AND in('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+
+-- B: sampleTestFiles (first 5)
+SELECT path FROM (
+  SELECT `path` AS path
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND (
+      `path` LIKE '%.test.%'
+      OR `path` LIKE '%.test_%'
+      OR `path` LIKE '%.spec.%'
+      OR `path` LIKE '%.spec_%'
+      OR `path` LIKE '%_test.%'
+      OR `path` LIKE '%_test_%'
+      OR `path` LIKE '%_spec.%'
+      OR `path` LIKE '%_spec_%'
+      OR `path` LIKE '__tests__/%'
+      OR `path` LIKE '%/__tests__/%'
+      OR `path` LIKE 'test/%'
+      OR `path` LIKE '%/test/%'
+      OR `path` LIKE 'tests/%'
+      OR `path` LIKE '%/tests/%'
+      OR `path` LIKE 'testing/%'
+      OR `path` LIKE '%/testing/%'
+      OR `path` LIKE 'spec/%'
+      OR `path` LIKE '%/spec/%'
+    )
+    AND in('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `testFileCount` should approximate Neo4j `orphanedTestFileCount`
-- API `fileDifference` should approximate Neo4j `orphanedTestFileCount`
+- API `testFileCount` should approximate ArcadeDB `orphanedTestFileCount`
+- API `fileDifference` should approximate ArcadeDB `orphanedTestFileCount`
 
-**Validates:** `excludeTests` parameter filtering, Cypher regex test file patterns, default behavior
+**Validates:** `excludeTests` parameter filtering, test file path patterns (written as a `LIKE` disjunction), default behavior
 
 ---
 
@@ -1753,27 +2055,39 @@ return {
 - `allSymbolsMatchPattern: true` — all returned orphaned symbols match the file pattern
 - `allFilesMatchPattern: true` — all returned orphaned files match the file pattern
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-  AND s.filePath CONTAINS 'sandbox'
-  AND s.isExported = true
-OPTIONAL MATCH (ref)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-WHERE ref.filePath <> s.filePath
-WITH s, count(ref) as crossFileRefs
-WHERE crossFileRefs = 0
-RETURN count(s) as exportedNoXFileRefs
+```sql
+-- exportedNoXFileRefs = A.exportedCount - B.withCrossFileRefs
+-- A: exported symbols in the matching files
+SELECT count(*) AS exportedCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `filePath` LIKE '%sandbox%'
+  AND `isExported` = true
+
+-- B: those with at least one reference from a symbol in another file
+SELECT count(*) AS withCrossFileRefs FROM (
+  SELECT DISTINCT inV().@rid AS rid
+  FROM (
+    SELECT expand(inE('REFERENCES','CALLS'))
+    FROM Symbol
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `filePath` LIKE '%sandbox%'
+      AND `isExported` = true
+  )
+  WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+    AND outV().filePath IS NOT NULL
+    AND outV().filePath <> inV().filePath
+)
 ```
 
 **Cross-Validation:**
 
 - `allSymbolsMatchPattern` and `allFilesMatchPattern` are the primary assertions (filter correctness)
-- API `orphanedSymbolCount` may be less than Neo4j `exportedNoXFileRefs` because the API applies stricter orphan detection criteria (entry point exclusion, dynamic load detection) beyond simple cross-file reference counting. Count comparison is informational.
+- API `orphanedSymbolCount` may be less than ArcadeDB `exportedNoXFileRefs` because the API applies stricter orphan detection criteria (entry point exclusion, dynamic load detection) beyond simple cross-file reference counting. Count comparison is informational.
 
-**Validates:** `filePattern` filter correctness, API orphan detection strictness vs raw Neo4j counting
+**Validates:** `filePattern` filter correctness, API orphan detection strictness vs raw ArcadeDB counting
 
 ---
 
@@ -1781,20 +2095,42 @@ RETURN count(s) as exportedNoXFileRefs
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Neo4j Validation Pattern for Impact Tests:**
+**ArcadeDB Validation Pattern for Impact Tests:**
 
-All impact tests should validate against Neo4j using similar patterns:
+All impact tests should validate against ArcadeDB using similar patterns:
 
-```cypher
+```sql
 -- For symbol-based impact
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-OPTIONAL MATCH (usage)-[:REFERENCES|CALLS|USES_SYMBOL]->(s)
-RETURN count(DISTINCT usage) as directImpact
+SELECT count(*) AS directImpact FROM (
+  SELECT DISTINCT @rid FROM (
+    SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+    FROM Symbol
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `name` = '<symbolName>'
+  )
+)
 
--- For file-based impact (depth traversal)
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-OPTIONAL MATCH path = (usage)-[:REFERENCES|CALLS|USES_SYMBOL*1..2]->(s)
-RETURN count(DISTINCT usage) as transitiveImpact
+-- For file-based impact (depth traversal, one or two hops)
+SELECT count(*) AS transitiveImpact FROM (
+  SELECT DISTINCT @rid FROM (
+    SELECT expand(unionall($hop1, $hop2))
+    LET $hop1 = (
+          SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+          FROM Symbol
+          WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+            AND `name` = '<symbolName>'
+        ),
+        $hop2 = (
+          SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+          FROM (
+            SELECT expand(in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'])
+            FROM Symbol
+            WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+              AND `name` = '<symbolName>'
+          )
+        )
+  )
+)
 ```
 
 ---
@@ -1822,30 +2158,39 @@ return {
 - `hasStructure: true`
 - `hasDependencies: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-// File count
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN count(f) as totalFiles
+```sql
+-- File count
+SELECT count(*) AS totalFiles
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 
-// Symbol distribution
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN s.kind as kind, count(s) as count
-ORDER BY count DESC
+-- Symbol distribution
+SELECT `kind` AS kind, count(*) AS kindCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+GROUP BY kind
+ORDER BY kindCount DESC
 
-// Dependency count
-MATCH (f1:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(f2:File)
-RETURN count(*) as totalDependencies
+-- Dependency count
+SELECT count(*) AS totalDependencies
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- API file counts should match Neo4j file count
-- API symbol distribution should match Neo4j kind counts
-- API dependency count should match Neo4j IMPORTS count
+- API file counts should match ArcadeDB file count
+- API symbol distribution should match ArcadeDB kind counts
+- API dependency count should match ArcadeDB IMPORTS count
 
-**Validates:** Basic architecture overview, Neo4j aggregate statistics
+**Validates:** Basic architecture overview, ArcadeDB aggregate statistics
 
 ---
 
@@ -1874,18 +2219,19 @@ return {
 - `hasSymbols: true` — structure uses `symbols` field
 - `hasModules: true` — structure uses `modules` field
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN count(f) as totalFiles
+```sql
+SELECT count(*) AS totalFiles
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 ```
 
 **Cross-Validation:**
 
 - `structureKeys` should include `files`, `symbols`, `modules`
 - Note: The API uses `files`/`symbols`/`modules` (not `directories`/`entryPoints`) in the structure section. These may be summary objects rather than arrays, so `.length` may return 0 even when data is present.
-- Neo4j `totalFiles` confirms data exists for the project
+- ArcadeDB `totalFiles` confirms data exists for the project
 
 **Validates:** Architecture structure field names, section presence
 
@@ -1895,24 +2241,39 @@ RETURN count(f) as totalFiles
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Neo4j Validation Pattern for Architecture Tests:**
+**ArcadeDB Validation Pattern for Architecture Tests:**
 
-```cypher
+```sql
 -- Language distribution
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-WHERE f.language IS NOT NULL
-RETURN f.language as language, count(f) as fileCount
+SELECT `language` AS language, count(*) AS fileCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `language` IS NOT NULL
+GROUP BY language
 
 -- External package usage
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(p:Package)
-RETURN p.name as package, count(f) as usageCount
-ORDER BY usageCount DESC
-LIMIT 10
+SELECT packageName, usageCount FROM (
+  SELECT inV().name AS packageName, count(*) AS usageCount
+  FROM (
+    SELECT expand(outE('IMPORTS'))
+    FROM File
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  )
+  WHERE inV().@type = 'Package'
+    AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+  GROUP BY packageName
+  ORDER BY usageCount DESC
+  LIMIT 10
+)
 
 -- Module structure
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-WITH split(f.path, '/')[0] as topDir, count(f) as fileCount
-RETURN topDir, fileCount
+SELECT topDir, count(*) AS fileCount
+FROM (
+  SELECT `path`.split('/')[0] AS topDir
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+GROUP BY topDir
 ORDER BY fileCount DESC
 ```
 
@@ -1944,20 +2305,20 @@ try {
 - Error thrown
 - `hasQueryMention: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-Parameter validation tests validate API-layer behavior, not Neo4j data. However, we can verify that the validation prevents invalid queries from reaching Neo4j:
+Parameter validation tests validate API-layer behavior, not ArcadeDB data. However, we can verify that the validation prevents invalid queries from reaching ArcadeDB:
 
-```cypher
-// Verify no query was executed with empty parameters
-// This is a no-op validation - if API validation works, Neo4j is never called
-RETURN 'Parameter validation is API-layer, not Neo4j' as note
+```sql
+-- Verify no query was executed with empty parameters.
+-- This is a no-op validation: if API validation works, the graph database is
+-- never called. There is no statement to run.
 ```
 
 **Cross-Validation:**
 
-- API should throw error before reaching Neo4j
-- No Neo4j query should be executed for invalid parameters
+- API should throw error before reaching ArcadeDB
+- No ArcadeDB query should be executed for invalid parameters
 
 **Validates:** Required parameter validation, API-layer error handling
 
@@ -1967,7 +2328,7 @@ RETURN 'Parameter validation is API-layer, not Neo4j' as note
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Note:** Parameter validation tests (TC-VALID-002 through TC-VALID-011) validate API-layer input validation. These tests ensure the API correctly rejects invalid inputs before any Neo4j queries are executed. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
+**Note:** Parameter validation tests (TC-VALID-002 through TC-VALID-011) validate API-layer input validation. These tests ensure the API correctly rejects invalid inputs before any ArcadeDB queries are executed. ArcadeDB validation is not applicable for these tests as they test error handling, not data retrieval.
 
 ---
 
@@ -2043,7 +2404,7 @@ return {
 
 **Validates:** MEMORY_EXCEEDED error code (SB-156), structuredContent in error responses (SB-259), dangerous-pattern regex sweep does not false-positive on string/comment text
 
-**Note:** Error handling tests (TC-ERR-001 through TC-ERR-007) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying Neo4j data. Neo4j validation is not applicable for these tests as they test error handling, not data retrieval.
+**Note:** Error handling tests (TC-ERR-001 through TC-ERR-007) validate API-layer error response structures and handling. These tests document expected error formats (AUTH_ERROR, SYMBOL_NOT_FOUND, NETWORK_ERROR, etc.) rather than querying ArcadeDB data. ArcadeDB validation is not applicable for these tests as they test error handling, not data retrieval.
 
 ---
 
@@ -2394,7 +2755,7 @@ return obj.x;
 
 ---
 
-**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-017) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Additional tests (TC-SEC-010 through TC-SEC-012) validate input size limits and output truncation. Tests TC-SEC-013 through TC-SEC-015 block v4 dangerous globals (Atomics, SharedArrayBuffer, WebAssembly). TC-SEC-016 validates computed property warnings, and TC-SEC-017 validates legacy property blocking. Neo4j validation is not applicable for these tests as they test sandbox security, not data retrieval.
+**Note:** Sandbox security tests (TC-SEC-001 through TC-SEC-017) validate the JavaScript sandbox execution environment security features. These tests verify that dangerous code patterns (require, import, eval, Function constructor, process access, prototype manipulation, file system access, infinite loops) are properly blocked at the validation or runtime phase. Additional tests (TC-SEC-010 through TC-SEC-012) validate input size limits and output truncation. Tests TC-SEC-013 through TC-SEC-015 block v4 dangerous globals (Atomics, SharedArrayBuffer, WebAssembly). TC-SEC-016 validates computed property warnings, and TC-SEC-017 validates legacy property blocking. ArcadeDB validation is not applicable for these tests as they test sandbox security, not data retrieval.
 
 ---
 
@@ -2420,22 +2781,21 @@ return {
 - `isEmpty: true`
 - `hasSymbolsArray: true`
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'ThisSymbolDefinitelyDoesNotExist12345678XYZABC'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as count
+```sql
+SELECT count(*) AS `count`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%ThisSymbolDefinitelyDoesNotExist12345678XYZABC%'
 ```
 
 **Cross-Validation:**
 
-- Neo4j `count` should be 0
-- Both API and Neo4j should return empty results for non-existent symbols
+- ArcadeDB `count` should be 0
+- Both API and ArcadeDB should return empty results for non-existent symbols
 
-**Validates:** Empty results handling, Neo4j consistent empty responses
+**Validates:** Empty results handling, ArcadeDB consistent empty responses
 
 ---
 
@@ -2443,37 +2803,53 @@ RETURN count(s) as count
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Neo4j Validation Pattern for Edge Case Tests:**
+**ArcadeDB Validation Pattern for Edge Case Tests:**
 
 Edge case tests validate API behavior with boundary conditions. For tests that query data:
 
-```cypher
+```sql
 -- For non-existent file queries (TC-EDGE-002)
-MATCH (f:File {path: '<non-existent-path>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-RETURN count(f) as count
+SELECT count(*) AS `count`
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `path` = '<non-existent-path>'
 -- Expected: 0
 
 -- For non-existent symbol queries (TC-EDGE-003)
-MATCH (s:Symbol {id: '<invalid-symbol-id>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-RETURN count(s) as count
+SELECT count(*) AS `count`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `id` = '<invalid-symbol-id>'
 -- Expected: 0
 
 -- For special character searches (TC-EDGE-004)
-MATCH (s:Symbol)
-WHERE s.name CONTAINS '<special-chars>'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-RETURN count(s) as count
+-- In a LIKE pattern, % and ? are wildcards; escape either with a backslash.
+SELECT count(*) AS `count`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%<special-chars>%'
 
 -- For very long query strings (TC-EDGE-005)
--- Validate that queries with long strings don't crash Neo4j
+-- Validate that queries with long strings don't crash ArcadeDB
 
 -- For deeply nested structures (TC-EDGE-007)
--- Validate depth traversal limits are respected
-MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS*1..10]->(dep:File)
-RETURN max(length(path)) as maxDepth
+-- Validate depth traversal limits are respected.
+-- ArcadeDB SQL has no variable-length path pattern, so maxDepth is computed
+-- from the file-to-file IMPORTS edge list this statement returns.
+-- Rule: maxDepth = the length of the longest import path of 1 to 10 hops
+-- that repeats no edge (10 when a longer one exists).
+SELECT outV().path AS fromPath, inV().path AS toPath
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY fromPath, toPath
 ```
 
-**Note:** Some edge case tests (TC-EDGE-006: undefined/null handling) validate API-layer behavior and don't require Neo4j validation. TC-EDGE-006 sends `offset: null` — Zod strict validation correctly rejects this with a type error. The `.default(0)` only applies when `offset` is omitted (`undefined`), not when `null` is explicitly sent. Score PASS when validation error is returned.
+**Note:** Some edge case tests (TC-EDGE-006: undefined/null handling) validate API-layer behavior and don't require ArcadeDB validation. TC-EDGE-006 sends `offset: null`; Zod strict validation correctly rejects this with a type error. The `.default(0)` only applies when `offset` is omitted (`undefined`), not when `null` is explicitly sent. Score PASS when validation error is returned.
 
 ---
 
@@ -2504,29 +2880,25 @@ return {
 - `success: true`
 - Method chaining works
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name = 'CodeModeSandbox'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-OPTIONAL MATCH (s)-[:CALLS]->(callee:Symbol)
-OPTIONAL MATCH (caller:Symbol)-[:CALLS]->(s)
-OPTIONAL MATCH (s)-[:INHERITS]->(parent:Symbol)
-RETURN s.name as name, s.kind as kind,
-       count(DISTINCT callee) as calleeCount,
-       count(DISTINCT caller) as callerCount,
-       count(DISTINCT parent) as inheritsCount
+```sql
+SELECT `name` AS name, `kind` AS kind,
+       out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS calleeCount,
+       in('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS callerCount,
+       out('INHERITS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS inheritsCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'CodeModeSandbox'
 ```
 
 **Cross-Validation:**
 
 - Symbol name should match between search and details
-- Relationship counts should match Neo4j relationship counts
+- Relationship counts should match ArcadeDB relationship counts
 - Both API calls should reference the same symbol ID
 
-**Validates:** Sequential method chaining, Neo4j data consistency across calls
+**Validates:** Sequential method chaining, ArcadeDB data consistency across calls
 
 ---
 
@@ -2553,24 +2925,24 @@ return {
 - Both queries succeed
 - Returns counts for both
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/client/error-factory.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-OPTIONAL MATCH (f)-[:IMPORTS]->(imports:File)
-OPTIONAL MATCH (importedBy:File)-[:IMPORTS]->(f)
-RETURN f.path as file,
-       count(DISTINCT imports) as importsCount,
-       count(DISTINCT importedBy) as importedByCount
+```sql
+SELECT `path` AS `file`,
+       out('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS importsCount,
+       in('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].asSet().size() AS importedByCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `path` = 'src/client/error-factory.ts'
 ```
 
 **Cross-Validation:**
 
-- API `imports` should match Neo4j `importsCount`
-- API `importedBy` should match Neo4j `importedByCount`
+- API `imports` should match ArcadeDB `importsCount`
+- API `importedBy` should match ArcadeDB `importedByCount`
 - Parallel queries should return consistent data
 
-**Validates:** Promise.all parallel queries, Neo4j bidirectional dependency consistency
+**Validates:** Promise.all parallel queries, ArcadeDB bidirectional dependency consistency
 
 ---
 
@@ -2578,45 +2950,75 @@ RETURN f.path as file,
 
 See E2E-TEST-RESULTS.md for complete test cases.
 
-**Neo4j Validation Pattern for Combined Workflow Tests:**
+**ArcadeDB Validation Pattern for Combined Workflow Tests:**
 
-Combined workflow tests chain multiple API methods. Each step can be validated against Neo4j:
+Combined workflow tests chain multiple API methods. Each step can be validated against ArcadeDB:
 
-```cypher
+```sql
 -- TC-COMBO-003: Full Symbol Analysis (search -> details -> usage -> impact)
 -- Step 1: Verify search result exists
-MATCH (s:Symbol)
-WHERE s.name CONTAINS '<searchQuery>'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-RETURN s.id, s.name, s.filePath
-LIMIT 1
+SELECT id, name, filePath FROM (
+  SELECT `id` AS id, `name` AS name, `filePath` AS filePath
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `name` LIKE '%<searchQuery>%'
+  LIMIT 1
+)
 
 -- Step 2: Verify symbol details
-MATCH (s:Symbol {id: '<symbolId from step 1>'})
-RETURN s.name, s.kind, s.filePath, s.isExported
+SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath, `isExported` AS isExported
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `id` = '<symbolId from step 1>'
 
 -- Step 3: Verify usage count
-MATCH (s:Symbol {id: '<symbolId>'})<-[:REFERENCES|CALLS|USES_SYMBOL]-(usage)
-RETURN count(usage) as usageCount
+SELECT count(*) AS usageCount
+FROM (
+  SELECT expand(inE('REFERENCES','CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `id` = '<symbolId>'
+)
+WHERE outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 
 -- Step 4: Verify impact analysis
-MATCH (s:Symbol {id: '<symbolId>'})<-[:REFERENCES|CALLS|USES_SYMBOL]-(usage)
-WITH DISTINCT usage
-MATCH (f:File)-[:CONTAINS]->(usage)
-RETURN count(DISTINCT f.path) as impactedFileCount
+SELECT count(*) AS impactedFileCount FROM (
+  SELECT DISTINCT outV().filePath AS filePath
+  FROM (
+    SELECT expand(inE('REFERENCES','CALLS'))
+    FROM Symbol
+    WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+      AND `id` = '<symbolId>'
+  )
+  WHERE outV().@type = 'Symbol'
+    AND outV().filePath IS NOT NULL
+    AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+)
 
 -- TC-COMBO-004: Architecture to Dependencies
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-WITH f ORDER BY size(()-[:IMPORTS]->(f)) DESC
-LIMIT 1
-MATCH (f)-[:IMPORTS]->(dep:File)
-RETURN f.path as mostImported, collect(dep.path) as dependencies
+SELECT mostImported, dependencies FROM (
+  SELECT `path` AS mostImported,
+         in('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS importerCount,
+         out('IMPORTS')[@type = 'File' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].path AS dependencies
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  ORDER BY importerCount DESC
+  LIMIT 1
+)
 
 -- TC-COMBO-005: Circular Dependency Investigation
-MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS*2..5]->(f)
-WITH [n IN nodes(path) | n.path] as cyclePath
-RETURN cyclePath[0] as startFile, cyclePath
-LIMIT 1
+-- ArcadeDB SQL has no variable-length path pattern. Find one directed cycle
+-- of length 2 to 5 in the file-to-file IMPORTS edge list this statement
+-- returns; startFile is its first path and cyclePath its ordered path list.
+SELECT outV().path AS fromPath, inV().path AS toPath
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY fromPath, toPath
 ```
 
 ---
@@ -2636,22 +3038,21 @@ return result.symbols?.length || 0;
 
 - Returns a number (await works at top level)
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-RETURN count(s) as totalCount
+```sql
+SELECT count(*) AS totalCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
 ```
 
 **Cross-Validation:**
 
 - API returned count should be <= 5 (due to limit)
-- Neo4j `totalCount` should be >= API count (Neo4j has no limit)
+- ArcadeDB `totalCount` should be >= API count (ArcadeDB has no limit)
 
-**Validates:** Async IIFE wrapping, Neo4j query execution
+**Validates:** Async IIFE wrapping, ArcadeDB query execution
 
 ---
 
@@ -2672,29 +3073,28 @@ return {
 
 - Both values populated
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-// First query
-MATCH (s:Symbol)
-WHERE s.name CONTAINS 'Error'
-  AND s.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s.branch = 'main'
-WITH count(s) as errorCount
-// Second query
-MATCH (s2:Symbol)
-WHERE s2.name CONTAINS 'Client'
-  AND s2.projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1'
-  AND s2.branch = 'main'
-RETURN errorCount, count(s2) as clientCount
+```sql
+-- First query
+SELECT count(*) AS errorCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Error%'
+
+-- Second query
+SELECT count(*) AS clientCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` LIKE '%Client%'
 ```
 
 **Cross-Validation:**
 
-- API `first` should be <= 3 and <= Neo4j `errorCount`
-- API `second` should be <= 3 and <= Neo4j `clientCount`
+- API `first` should be <= 3 and <= ArcadeDB `errorCount`
+- API `second` should be <= 3 and <= ArcadeDB `clientCount`
 
-**Validates:** Sequential await execution, Neo4j multiple query consistency
+**Validates:** Sequential await execution, ArcadeDB multiple query consistency
 
 ---
 
@@ -2720,7 +3120,7 @@ const x = 1 + 1;
 return null;
 ```
 
-**Note:** Return value tests (TC-CODE-003 through TC-CODE-007) validate sandbox JavaScript execution and serialization capabilities. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+**Note:** Return value tests (TC-CODE-003 through TC-CODE-007) validate sandbox JavaScript execution and serialization capabilities. These tests don't query ArcadeDB data and therefore don't require ArcadeDB validation.
 
 **Validates:** Various return value types
 
@@ -2749,7 +3149,7 @@ return { done: true };
 - Logs captured in `logs` array
 - Error/warn prefixed appropriately
 
-**Note:** Console logging tests (TC-CODE-008 through TC-CODE-012) validate sandbox console capture functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+**Note:** Console logging tests (TC-CODE-008 through TC-CODE-012) validate sandbox console capture functionality. These tests don't query ArcadeDB data and therefore don't require ArcadeDB validation.
 
 **Validates:** Console capture
 
@@ -2796,7 +3196,7 @@ return {
 - `hasDecisionGuide: true`
 - `hasReference: true` (v4: bridges Tier 4 → Tier 3)
 
-**Note:** `listMethods()` returns all 14 entries on the `api` object, including `listMethods` and `help` themselves — they are not excluded from the registry output. listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query Neo4j data and therefore don't require Neo4j validation.
+**Note:** `listMethods()` returns all 14 entries on the `api` object, including `listMethods` and `help` themselves; they are not excluded from the registry output. listMethods tests (TC-CODE-013 through TC-CODE-015) validate the sandbox API documentation functionality. These tests don't query ArcadeDB data and therefore don't require ArcadeDB validation.
 
 **Validates:** Complete method list and documentation
 
@@ -2947,15 +3347,15 @@ return {
 
 ---
 
-## Category 12: Neo4j Cross-Validation (10 Tests)
+## Category 12: ArcadeDB Cross-Validation (10 Tests)
 
-This category contains dedicated tests for validating data consistency between the Constellation API and Neo4j graph database.
+This category contains dedicated tests for validating data consistency between the Constellation API and ArcadeDB graph database.
 
 ### TC-XVAL-001: Symbol Count Consistency
 
-**Purpose:** Verify API symbol count matches Neo4j total count
+**Purpose:** Verify API symbol count matches ArcadeDB total count
 
-**Note:** This test uses a common character query since the API requires at least 1 character. The Core `searchSymbols` executor matches with `toLower(s.name) CONTAINS toLower($query)`, which is **case-insensitive** — the query `'e'` matches symbols containing either 'e' or 'E'. The Neo4j validation query below must wrap both sides in `toLower()` to reproduce the same matching.
+**Note:** This test uses a common character query since the API requires at least 1 character. The Core `searchSymbols` executor lowercases both the symbol name and the query before its substring match, which is **case-insensitive**: the query `'e'` matches symbols containing either 'e' or 'E'. The ArcadeDB validation query below must use `name.toLowerCase() LIKE` with a lowercase pattern to reproduce the same matching.
 
 **Code:**
 
@@ -2967,18 +3367,19 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-WHERE toLower(s.name) CONTAINS toLower('e')
-RETURN count(s) as neo4jCount
+```sql
+SELECT count(*) AS graphCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name`.toLowerCase() LIKE '%e%'
 ```
 
 **Cross-Validation:**
 
-- `apiCount` should equal `neo4jCount` (exact match expected)
-- Note: the Core executor's `CONTAINS` match is case-insensitive — the validation query must use `toLower()` on both sides, not raw `CONTAINS`, or it will undercount
+- `apiCount` should equal `graphCount` (exact match expected)
+- Note: the Core executor's substring match is case-insensitive. The validation query must use `name.toLowerCase() LIKE` with a lowercase pattern, not a bare `LIKE`, or it will undercount
 - Discrepancy indicates indexing issue or stale data
 
 **Validates:** Total symbol count consistency
@@ -2987,7 +3388,7 @@ RETURN count(s) as neo4jCount
 
 ### TC-XVAL-002: File Count Consistency
 
-**Purpose:** Verify API file count matches Neo4j file count
+**Purpose:** Verify API file count matches ArcadeDB file count
 
 **Code:**
 
@@ -2998,16 +3399,17 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN count(f) as neo4jFileCount
+```sql
+SELECT count(*) AS graphFileCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 ```
 
 **Cross-Validation:**
 
-- `fileCount` should equal `neo4jFileCount`
+- `fileCount` should equal `graphFileCount`
 
 **Validates:** File count consistency
 
@@ -3027,21 +3429,37 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/index.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS]->(dep)
-RETURN count(dep) as neo4jDepCount,
-       collect(CASE WHEN dep:File THEN dep.path ELSE dep.name END) as neo4jDeps,
-       count(CASE WHEN dep:File THEN 1 END) as fileDepCount,
-       count(CASE WHEN dep:Package THEN 1 END) as packageDepCount
+```sql
+-- A: counts
+SELECT count(*) AS graphDepCount,
+       sum(CASE WHEN inV().@type = 'File' THEN 1 ELSE 0 END) AS fileDepCount,
+       sum(CASE WHEN inV().@type = 'Package' THEN 1 ELSE 0 END) AS packageDepCount
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `path` = 'src/index.ts'
+)
+WHERE inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+
+-- B: graphDeps
+SELECT CASE WHEN inV().@type = 'File' THEN inV().path ELSE inV().name END AS graphDep
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `path` = 'src/index.ts'
+)
+WHERE inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
 ```
 
 **Cross-Validation:**
 
-- `depCount` should equal `neo4jDepCount` (includes both File and Package targets)
+- `depCount` should equal `graphDepCount` (includes both File and Package targets)
 - File dependencies have `filePath` set; Package dependencies have `filePath: null` and `name` set
-- `fileDepCount + packageDepCount` should equal `neo4jDepCount`
+- `fileDepCount + packageDepCount` should equal `graphDepCount`
 
 **Validates:** IMPORTS relationship consistency
 
@@ -3049,7 +3467,7 @@ RETURN count(dep) as neo4jDepCount,
 
 ### TC-XVAL-004: Symbol Kind Distribution
 
-**Purpose:** Verify API symbol kinds match Neo4j distribution
+**Purpose:** Verify API symbol kinds match ArcadeDB distribution
 
 **Code:**
 
@@ -3076,19 +3494,21 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN s.kind as kind, count(s) as count
-ORDER BY count DESC
+```sql
+SELECT `kind` AS kind, count(*) AS kindCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+GROUP BY kind
+ORDER BY kindCount DESC
 ```
 
 **Cross-Validation:**
 
-- API class count should match Neo4j class count
-- API function count should match Neo4j function count
-- API method count should match Neo4j method count
+- API class count should match ArcadeDB class count
+- API function count should match ArcadeDB function count
+- API method count should match ArcadeDB method count
 
 **Validates:** Symbol kind distribution consistency
 
@@ -3096,18 +3516,30 @@ ORDER BY count DESC
 
 ### TC-XVAL-005: Call Graph Bidirectional Consistency
 
-**Purpose:** Verify callers/callees are symmetric in Neo4j
+**Purpose:** Verify callers/callees are symmetric in ArcadeDB
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-// All CALLS relationships should be bidirectionally queryable
-MATCH (a:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[r:CALLS]->(b:Symbol)
-WITH a, b
-MATCH (b)<-[r2:CALLS]-(a)
-WITH count(*) as symmetricCount
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:CALLS]->()
-RETURN symmetricCount, count(*) as totalCalls, symmetricCount = count(*) as isSymmetric
+```sql
+-- All CALLS relationships should be bidirectionally queryable.
+-- isSymmetric = (A.symmetricCount equals B.totalCalls)
+-- A: CALLS edges between two in-scope symbols, read from the callee side
+SELECT count(*) AS symmetricCount
+FROM (
+  SELECT expand(inE('CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE outV().@type = 'Symbol'
+  AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
+
+-- B: CALLS edges leaving an in-scope symbol, read from the caller side
+SELECT count(*) AS totalCalls
+FROM (
+  SELECT expand(outE('CALLS'))
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
 ```
 
 **Cross-Validation:**
@@ -3121,7 +3553,7 @@ RETURN symmetricCount, count(*) as totalCalls, symmetricCount = count(*) as isSy
 
 ### TC-XVAL-006: Exported Symbol Consistency
 
-**Purpose:** Verify isExported flag matches Neo4j data
+**Purpose:** Verify isExported flag matches ArcadeDB data
 
 **Code:**
 
@@ -3137,21 +3569,32 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-WHERE s.isExported = true
-  AND toLower(s.name) CONTAINS toLower('e')
-RETURN count(s) as neo4jExportedCount,
-       collect(s.name)[0..5] as sampleNames
+```sql
+-- A: graphExportedCount
+SELECT count(*) AS graphExportedCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `isExported` = true
+  AND `name`.toLowerCase() LIKE '%e%'
+
+-- B: sampleNames (first 5)
+SELECT name FROM (
+  SELECT `name` AS name
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `isExported` = true
+    AND `name`.toLowerCase() LIKE '%e%'
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- `exportedCount` should equal `neo4jExportedCount` (both filtered by case-insensitive `toLower(s.name) CONTAINS toLower('e')`, matching the Core executor)
+- `exportedCount` should equal `graphExportedCount` (both filtered by the case-insensitive `name.toLowerCase() LIKE '%e%'`, matching the Core executor)
 - Note: the Core executor's `CONTAINS` match is case-insensitive; raw `CONTAINS 'e'` undercounts relative to the API
-- Sample symbols should exist in Neo4j exported symbols
+- Sample symbols should exist in ArcadeDB exported symbols
 
 **Validates:** isExported flag consistency
 
@@ -3159,7 +3602,7 @@ RETURN count(s) as neo4jExportedCount,
 
 ### TC-XVAL-007: Package Import Consistency
 
-**Purpose:** Verify external package imports match Neo4j Package nodes
+**Purpose:** Verify external package imports match ArcadeDB Package nodes
 
 **Code:**
 
@@ -3174,19 +3617,26 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (f:File {path: 'src/code-mode/sandbox.ts', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})-[:IMPORTS]->(p:Package)
-RETURN count(p) as neo4jPackageCount,
-       collect(p.name) as neo4jPackages
-ORDER BY p.name
+```sql
+-- graphPackageCount = number of rows; graphPackages = the names
+SELECT inV().name AS name
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `path` = 'src/code-mode/sandbox.ts'
+)
+WHERE inV().@type = 'Package'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY name
 ```
 
 **Cross-Validation:**
 
-- `packageCount` should equal `neo4jPackageCount`
-- `packages` array should match `neo4jPackages`
+- `packageCount` should equal `graphPackageCount`
+- `packages` array should match `graphPackages`
 
 **Validates:** Package node import consistency
 
@@ -3194,7 +3644,7 @@ ORDER BY p.name
 
 ### TC-XVAL-008: Symbol Location Accuracy
 
-**Purpose:** Verify symbol line/column numbers match Neo4j
+**Purpose:** Verify symbol line/column numbers match ArcadeDB
 
 **Code:**
 
@@ -3211,18 +3661,20 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {name: 'CodeModeSandbox', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN s.name as name, s.filePath as filePath, s.line as line, s.column as column
+```sql
+SELECT `name` AS name, `filePath` AS filePath, `line` AS line, `column` AS `column`
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = 'CodeModeSandbox'
 ```
 
 **Cross-Validation:**
 
-- API `line` should equal Neo4j `line`
-- API `column` should equal Neo4j `column`
-- API `filePath` should equal Neo4j `filePath`
+- API `line` should equal ArcadeDB `line`
+- API `column` should equal ArcadeDB `column`
+- API `filePath` should equal ArcadeDB `filePath`
 
 **Validates:** Symbol location data accuracy
 
@@ -3230,7 +3682,7 @@ RETURN s.name as name, s.filePath as filePath, s.line as line, s.column as colum
 
 ### TC-XVAL-009: Circular Dependency Detection Accuracy
 
-**Purpose:** Verify circular dependencies match Neo4j cycle detection
+**Purpose:** Verify circular dependencies match ArcadeDB cycle detection
 
 **Code:**
 
@@ -3243,24 +3695,32 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH path = (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})-[:IMPORTS*2..5]->(f)
-WITH [n IN nodes(path)[0..-1] | n.path] as cycleNodes
-UNWIND cycleNodes as node
-WITH cycleNodes, node
-ORDER BY node
-WITH cycleNodes, collect(node) as sortedCycle
-RETURN count(DISTINCT sortedCycle) as neo4jCycleCount,
-       collect(DISTINCT sortedCycle)[0] as sampleCycle
+```sql
+-- ArcadeDB SQL has no variable-length path pattern, so the cycle count is
+-- computed from the file-to-file IMPORTS edge list this statement returns.
+-- Rule: enumerate the simple directed cycles of length 2 to 5 in the edge
+-- list (a self-import is length 1 and does not count), reduce each cycle to
+-- its sorted list of member paths, and count the distinct lists.
+--   graphCycleCount = number of distinct sorted member lists
+--   sampleCycle     = the first of them
+SELECT outV().path AS fromPath, inV().path AS toPath
+FROM (
+  SELECT expand(outE('IMPORTS'))
+  FROM File
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+WHERE inV().@type = 'File'
+  AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
+ORDER BY fromPath, toPath
 ```
 
 **Cross-Validation:**
 
-- API `cycleCount` should equal Neo4j `neo4jCycleCount`
+- API `cycleCount` should equal ArcadeDB `graphCycleCount`
 - Same files should appear in detected cycles
-- Note: for a two-file cycle `A -> B -> A`, `IMPORTS*2..5` starting from `A` and starting from `B` produce two distinct raw paths for the same cycle. The query normalizes each cycle to a sorted, rotation-independent node set before deduping with `count(DISTINCT sortedCycle)`; a raw `count(DISTINCT [n IN nodes(path) | n.path])` counts each rotation separately (e.g. 2 instead of 1), which is the discrepancy the API's own deduplication correctly avoids
+- Note: for a two-file cycle `A -> B -> A`, a walk starting from `A` and a walk starting from `B` produce two distinct raw paths for the same cycle. The rule above normalizes each cycle to a sorted, rotation-independent member list before counting distinct lists; counting the raw ordered path lists counts each rotation separately (e.g. 2 instead of 1), which is the discrepancy the API's own deduplication correctly avoids
 
 **Validates:** Circular dependency detection accuracy (rotation-independent deduplication)
 
@@ -3268,7 +3728,7 @@ RETURN count(DISTINCT sortedCycle) as neo4jCycleCount,
 
 ### TC-XVAL-010: Orphaned Code Detection Accuracy
 
-**Purpose:** Verify orphaned code detection matches Neo4j unreferenced symbols
+**Purpose:** Verify orphaned code detection matches ArcadeDB unreferenced symbols
 
 **Code:**
 
@@ -3289,23 +3749,37 @@ return {
 };
 ```
 
-**Neo4j Validation:**
+**ArcadeDB Validation:**
 
-```cypher
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-WHERE s.filePath STARTS WITH 'src/'
-  AND s.kind IN ['function', 'class']
-  AND s.isExported = true
-  AND NOT exists(()-[:REFERENCES|CALLS|USES_SYMBOL]->(s))
-  AND NOT exists(()-[:IMPORTS]->(s))
-RETURN count(s) as neo4jOrphanCount,
-       collect({name: s.name, kind: s.kind, filePath: s.filePath})[0..5] as sampleOrphans
+```sql
+-- A: graphOrphanCount
+SELECT count(*) AS graphOrphanCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `filePath` LIKE 'src/%'
+  AND `kind` IN ['function', 'class']
+  AND `isExported` = true
+  AND in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+  AND in('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+
+-- B: sampleOrphans (first 5)
+SELECT name, kind, filePath FROM (
+  SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+    AND `filePath` LIKE 'src/%'
+    AND `kind` IN ['function', 'class']
+    AND `isExported` = true
+    AND in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+    AND in('IMPORTS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() = 0
+  LIMIT 5
+)
 ```
 
 **Cross-Validation:**
 
-- API `orphanCount` should be close to Neo4j `neo4jOrphanCount`
-- Detected orphans should match Neo4j unreferenced symbols
+- API `orphanCount` should be close to ArcadeDB `graphOrphanCount`
+- Detected orphans should match ArcadeDB unreferenced symbols
 - Note: API may apply additional filtering (test files, internal symbols)
 
 **Validates:** Orphaned code detection accuracy
@@ -3316,49 +3790,66 @@ RETURN count(s) as neo4jOrphanCount,
 
 ### Test Count by Category
 
-| Category               | Count   | Neo4j Validation |
-| ---------------------- | ------- | ---------------- |
-| Discovery Methods      | 14      | Full             |
-| Dependency Methods     | 9       | Full             |
-| Tracing Methods        | 9       | Full             |
-| Impact Methods         | 9       | Full             |
-| Architecture Methods   | 4       | Full             |
-| Parameter Validation   | 11      | N/A (API-layer)  |
-| Error Handling         | 7       | N/A (API-layer)  |
-| Sandbox Security       | 17      | N/A (Sandbox)    |
-| Edge Cases             | 8       | Partial          |
-| Combined Workflows     | 5       | Full             |
-| Code Mode Specific     | 21      | Partial          |
-| Neo4j Cross-Validation | 10      | Full             |
-| **TOTAL**              | **124** |                  |
+| Category                  | Count   | ArcadeDB Validation |
+| ------------------------- | ------- | ------------------- |
+| Discovery Methods         | 14      | Full                |
+| Dependency Methods        | 9       | Full                |
+| Tracing Methods           | 9       | Full                |
+| Impact Methods            | 9       | Full                |
+| Architecture Methods      | 4       | Full                |
+| Parameter Validation      | 11      | N/A (API-layer)     |
+| Error Handling            | 7       | N/A (API-layer)     |
+| Sandbox Security          | 17      | N/A (Sandbox)       |
+| Edge Cases                | 8       | Partial             |
+| Combined Workflows        | 5       | Full                |
+| Code Mode Specific        | 21      | Partial             |
+| ArcadeDB Cross-Validation | 10      | Full                |
+| **TOTAL**                 | **124** |                     |
 
-### Neo4j Validation Commands
+### ArcadeDB Validation Commands
 
 **Schema Discovery:**
 
-```cypher
-CALL db.labels()                    -- List all node labels
-CALL db.relationshipTypes()         -- List all relationship types
-MATCH (s:Symbol) RETURN keys(s)[0..10] -- Sample symbol properties
+```sql
+-- Vertex types, edge types, properties and indexes: call mcp__arcadedb__get_schema
+-- (no statement needed).
+
+-- Sample symbol record (all stored properties)
+SELECT FROM (
+  SELECT FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  LIMIT 1
+)
 ```
 
 **Common Validation Queries:**
 
-```cypher
+```sql
 -- Count symbols
-MATCH (s:Symbol {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN count(s)
+SELECT count(*) AS symbolCount
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 
 -- Count files
-MATCH (f:File {projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1', branch: 'main'})
-RETURN count(f)
+SELECT count(*) AS fileCount
+FROM File
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
 
--- Count relationships
-MATCH ()-[r]->() RETURN type(r), count(r) ORDER BY count(r) DESC
+-- Count relationships leaving symbols (repeat with FROM File for file-sourced edges)
+SELECT @type AS relType, count(*) AS relCount
+FROM (
+  SELECT expand(outE())
+  FROM Symbol
+  WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+)
+GROUP BY relType
+ORDER BY relCount DESC
 
 -- Symbol lookup by name
-MATCH (s:Symbol {name: '<symbolName>', projectId: 'proj:adf45ed0a35649d19a7d70edaa9636b1'})
-RETURN s.name, s.kind, s.filePath, s.line
+SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath, `line` AS line
+FROM Symbol
+WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
+  AND `name` = '<symbolName>'
 ```
 
 ### MCP Tool Commands
@@ -3366,13 +3857,13 @@ RETURN s.name, s.kind, s.filePath, s.line
 **Constellation API Test:**
 
 ```
-mcp__plugin_constellation_constellation__code_intel
+mcp__local-constellation__code_intel
 ```
 
-**Neo4j Validation Query:**
+**ArcadeDB Validation Query:**
 
 ```
-mcp__neo4j__read-cypher
+mcp__arcadedb__query   (language: sql, database: constellation)
 ```
 
 ### Known Issues and Limitations
@@ -3407,11 +3898,14 @@ None.
 - **Process-level isolation**: `CONSTELLATION_SANDBOX_ISOLATION=hardened` enables child-process isolation with hard memory limits and SIGKILL timeout. This is an env var setting, not testable via the `code_intel` tool
 - **MEMORY_EXCEEDED**: New error code (SB-156) for sandbox heap limit enforcement. 128MB limit checked every 50ms (best-effort)
 
-#### Neo4j Query Behavior Notes
+#### ArcadeDB Query Behavior Notes
 
-- **Case sensitivity**: The Core `searchSymbols` executor matches with `toLower(s.name) CONTAINS toLower($query)` — case-insensitive. `s.name CONTAINS 'e'` alone (raw Cypher) is case-sensitive and undercounts; validation queries must wrap both sides in `toLower()` to match the Core executor's behavior.
-- **IMPORTS targets**: `IMPORTS` relationships connect files to both `File` and `Package` nodes. Validation queries must use `(f)-[:IMPORTS]->(dep)` without label filtering to count all targets.
-- **filterByUsageType vs filterByRelationshipType**: `filterByUsageType` filters by `usage.kind` (symbol kind of the using node). `filterByRelationshipType` filters by `type(r)` (Neo4j relationship type). These are distinct parameters with different semantics.
+- **Case sensitivity**: The Core `searchSymbols` executor lowercases both sides of its substring match, so it is case-insensitive. A bare `name LIKE '%e%'` is case-sensitive and undercounts; validation queries that mirror a search must use `name.toLowerCase() LIKE` with a lowercase pattern to match the Core executor's behavior.
+- **LIKE wildcards**: ArcadeDB `LIKE` uses `%` (any run) and `?` (one character); `_` and `.` are literals.
+- **Distinct counts**: `count(DISTINCT x)` is not valid ArcadeDB SQL. Distinct counts use `count(*)` over a `SELECT DISTINCT` subquery, or `.asSet().size()` on a traversal.
+- **Usage edges**: usages are `REFERENCES` and `CALLS` edges. The graph has no `USES_SYMBOL` edge type.
+- **IMPORTS targets**: `IMPORTS` relationships connect files to both `File` and `Package` nodes. Validation queries must expand `outE('IMPORTS')` without an `inV().@type` filter to count all targets.
+- **filterByUsageType vs filterByRelationshipType**: `filterByUsageType` filters by `outV().kind` (symbol kind of the using vertex). `filterByRelationshipType` filters by the edge `@type` (ArcadeDB edge type). These are distinct parameters with different semantics.
 - **visibility vs isExported**: The TS extractor sets `visibility` (`public`/`private`) only on class members with explicit access modifiers. `isExported` is set on module-level exports. These properties apply to different symbol categories and never co-exist as `visibility='public'` + `isExported=true`.
 
 #### AST Validation Pattern Checkers
