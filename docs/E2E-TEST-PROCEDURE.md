@@ -88,6 +88,7 @@ How to read the validation blocks:
 
 - **One statement per call.** A block may hold several statements, labelled `-- A:`, `-- B:` and so on. Send each statement in its own call and leave the `--` label lines out.
 - **Bounded samples** keep their `LIMIT` inside a subquery on purpose; do not move it to the top level.
+- **Name matches are case-insensitive.** `searchSymbols` matches its query as a case-insensitive substring, so the checks compare `` `name`.toLowerCase() `` with a lowercased pattern. Lowercase any query you substitute into a placeholder.
 - **One row per matching symbol.** Where a statement anchors on a symbol name and returns per-symbol counts, add the rows together when more than one symbol matches.
 - **Path checks** (import cycles, maximum import depth) have no single-statement SQL form. Those blocks return the file-to-file `IMPORTS` edge list and state the rule to compute the value from it. If the edge list comes back truncated, page it with `SKIP`/`LIMIT` inside a subquery.
 
@@ -159,13 +160,13 @@ return {
 SELECT count(*) AS `count`
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%CodeModeSandbox%'
+  AND `name`.toLowerCase() LIKE '%codemodesandbox%'
 
 -- B: symbols
 SELECT `name` AS name, `kind` AS kind, `filePath` AS filePath
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%CodeModeSandbox%'
+  AND `name`.toLowerCase() LIKE '%codemodesandbox%'
 ```
 
 **Cross-Validation:**
@@ -209,7 +210,7 @@ return {
 SELECT count(*) AS totalCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
   AND `kind` = 'class'
 
 -- B: limitedNames (first 5)
@@ -217,7 +218,7 @@ SELECT name FROM (
   SELECT `name` AS name
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%Error%'
+    AND `name`.toLowerCase() LIKE '%error%'
     AND `kind` = 'class'
   LIMIT 5
 )
@@ -275,7 +276,7 @@ return {
 SELECT count(*) AS exportedCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
   AND `isExported` = true
 
 -- B: symbols (first 10)
@@ -283,7 +284,7 @@ SELECT name, isExported FROM (
   SELECT `name` AS name, `isExported` AS isExported
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%Error%'
+    AND `name`.toLowerCase() LIKE '%error%'
     AND `isExported` = true
   LIMIT 10
 )
@@ -334,7 +335,7 @@ return {
 SELECT count(*) AS `count`
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
   AND `filePath` LIKE 'src/client/%'
 
 -- B: symbols (first 10)
@@ -342,7 +343,7 @@ SELECT name, filePath FROM (
   SELECT `name` AS name, `filePath` AS filePath
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%Error%'
+    AND `name`.toLowerCase() LIKE '%error%'
     AND `filePath` LIKE 'src/client/%'
   LIMIT 10
 )
@@ -392,7 +393,7 @@ SELECT name, usageCount FROM (
          in('REFERENCES','CALLS')[projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].size() AS usageCount
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%getDefaultConfig%'
+    AND `name`.toLowerCase() LIKE '%getdefaultconfig%'
   ORDER BY usageCount DESC
   LIMIT 5
 )
@@ -439,7 +440,7 @@ SELECT name FROM (
   SELECT `name` AS name
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%Error%'
+    AND `name`.toLowerCase() LIKE '%error%'
   ORDER BY `name`
   SKIP 0 LIMIT 3
 )
@@ -449,7 +450,7 @@ SELECT name FROM (
   SELECT `name` AS name
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%Error%'
+    AND `name`.toLowerCase() LIKE '%error%'
   ORDER BY `name`
   SKIP 3 LIMIT 3
 )
@@ -458,14 +459,14 @@ SELECT name FROM (
 SELECT count(*) AS totalCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
 ```
 
 **Cross-Validation:**
 
-- API `firstPage` names should match ArcadeDB `firstPage` (order may vary)
-- API `secondPage` names should match ArcadeDB `secondPage` (order may vary)
+- API `pagination.total` should equal ArcadeDB `totalCount`
 - No overlap between pages in both systems
+- Page contents are not expected to match: the API orders results by relevance, while statements A and B order by name. Every name on an API page should still satisfy the name match
 
 **Validates:** `offset` parameter, `pagination` in response, ArcadeDB SKIP/LIMIT consistency
 
@@ -1732,7 +1733,7 @@ SELECT rootName, calleeCount, calleeNames FROM (
          out('CALLS')[@type = 'Symbol' AND projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND branch = 'main'].name AS calleeNames
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%execute%'
+    AND `name`.toLowerCase() LIKE '%execute%'
     AND `kind` = 'method'
   LIMIT 1
 )
@@ -2787,7 +2788,7 @@ return {
 SELECT count(*) AS `count`
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%ThisSymbolDefinitelyDoesNotExist12345678XYZABC%'
+  AND `name`.toLowerCase() LIKE '%thissymboldefinitelydoesnotexist12345678xyzabc%'
 ```
 
 **Cross-Validation:**
@@ -2827,7 +2828,7 @@ WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main
 SELECT count(*) AS `count`
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%<special-chars>%'
+  AND `name`.toLowerCase() LIKE '%<special-chars>%'
 
 -- For very long query strings (TC-EDGE-005)
 -- Validate that queries with long strings don't crash ArcadeDB
@@ -2961,7 +2962,7 @@ SELECT id, name, filePath FROM (
   SELECT `id` AS id, `name` AS name, `filePath` AS filePath
   FROM Symbol
   WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-    AND `name` LIKE '%<searchQuery>%'
+    AND `name`.toLowerCase() LIKE '%<searchQuery>%'
   LIMIT 1
 )
 
@@ -3044,7 +3045,7 @@ return result.symbols?.length || 0;
 SELECT count(*) AS totalCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
 ```
 
 **Cross-Validation:**
@@ -3080,13 +3081,13 @@ return {
 SELECT count(*) AS errorCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Error%'
+  AND `name`.toLowerCase() LIKE '%error%'
 
 -- Second query
 SELECT count(*) AS clientCount
 FROM Symbol
 WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main'
-  AND `name` LIKE '%Client%'
+  AND `name`.toLowerCase() LIKE '%client%'
 ```
 
 **Cross-Validation:**
