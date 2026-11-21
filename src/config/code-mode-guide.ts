@@ -115,6 +115,8 @@ Three methods answer "what uses X?" at different granularity:
 
 *Methods marked * accept either \`{symbolId}\` or \`{symbolName, filePath}\`. All methods also accept \`limit\` and \`offset\` for pagination.*
 
+**Edge provenance:** \`traceSymbolUsage\` direct usages, \`getCallGraph\` callers/callees and \`impactAnalysis\` dependents may carry \`resolvedBy\` (strongest → weakest: \`lsp\`, \`receiver-type\`, \`interface-dispatch\`, \`import\`, \`lexical-scope\`, \`same-file\`, \`directory\`, \`exported-anywhere\`, \`name\`) and \`source\` (\`extractor\` | \`lsp\`). Treat \`name\` and \`exported-anywhere\` edges as guesses to confirm with Read/Grep. \`resolvedBy\` is only recorded on CALLS and REFERENCES edges: when it is absent (other relationship types, or an index built before the server recorded it) the tier is unknown, not weak.
+
 Run \`api.listMethods()\` for full API details, or \`api.listMethods({query: "impact"})\` to filter by keyword. Read \`constellation://types/api/{method}\` for detailed type definitions.`;
 }
 
@@ -146,7 +148,7 @@ function getGuideRecipesSection(): string {
 \`\`\`javascript
 {
   symbol: { id, name, kind, filePath, line },
-  directDependents: [{ id, name, kind, filePath, relationshipType, depth: 1 }],
+  directDependents: [{ id, name, kind, filePath, relationshipType, depth: 1, resolvedBy?, source? }],
   impactedFiles: [{ filePath, symbolCount, symbols: [{ id, name, kind, line }] }],
   breakingChangeRisk: { riskLevel: "low"|"medium"|"high"|"critical", factors: [...], recommendations: [...] },
   summary: { directDependentCount, transitiveDependentCount, impactedFileCount, maxDepth }
