@@ -168,6 +168,18 @@ describe('code-mode-guide', () => {
 			);
 		});
 
+		it('should say an absent resolvedBy is unrecorded, not a weak tier', () => {
+			// Arrange
+			const content = GUIDE_SECTIONS.methods.getter();
+
+			// Act / Assert
+			expect(content).toMatch(
+				/`resolvedBy` is only recorded on CALLS and REFERENCES edges/,
+			);
+			expect(content).toContain('the tier is unknown, not weak');
+			expect(content).not.toContain('rank unknown values weakest');
+		});
+
 		it('should reference api.listMethods() and type resources', () => {
 			const guide = getCodeModeGuide();
 			expect(guide).toContain('api.listMethods()');

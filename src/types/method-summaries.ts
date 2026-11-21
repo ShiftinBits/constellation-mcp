@@ -248,9 +248,9 @@ interface TraceSymbolUsageResult {
 //   .aliasName         - If imported under an alias
 //   .isTest            - Whether in a test file
 //   .importanceWeight  - Relative importance
-//   .resolvedBy        - How the edge was resolved, strongest to weakest (optional):
+//   .resolvedBy        - How the edge was resolved, strongest to weakest (optional; CALLS/REFERENCES only):
 //                        lsp | receiver-type | interface-dispatch | import | lexical-scope | same-file | directory | exported-anywhere | name
-//                        'name' / 'exported-anywhere' are name-match guesses; treat unknown values as weakest
+//                        'name' / 'exported-anywhere' are name-match guesses; absent means not recorded, not weak
 //   .source            - Edge producer: 'extractor' | 'lsp' (optional)
 
 // TransitiveUsage:
@@ -297,9 +297,10 @@ interface GetCallGraphResult {
 //   .isAsync   - Whether the call is async (callees only)
 //   .depth     - Distance from root
 //   .complexity - { cyclomaticComplexity, complexityRisk } (optional, functions/methods)
-//   .resolvedBy - How the edge from the parent node was resolved (callers/callees only, optional),
+//   .resolvedBy - How the edge between this node and its parent (the hop that reached it) was resolved
+//                 (callers/callees only, optional),
 //                 strongest to weakest: lsp | receiver-type | interface-dispatch | import | lexical-scope | same-file | directory | exported-anywhere | name
-//                 'name' / 'exported-anywhere' are name-match guesses; treat unknown values as weakest
+//                 'name' / 'exported-anywhere' are name-match guesses; absent means not recorded, not weak
 //   .source     - Edge producer: 'extractor' | 'lsp' (callers/callees only, optional)
 
 // GraphRepresentation:
@@ -339,9 +340,9 @@ interface ImpactAnalysisResult {
 //   .id, .name, .qualifiedName, .kind, .filePath, .line
 //   .relationshipType  - How it depends on the target
 //   .depth             - Distance from the target
-//   .resolvedBy        - How the edge from the parent entry was resolved (optional),
+//   .resolvedBy        - How the edge between this entry and its parent was resolved (optional; CALLS/REFERENCES only),
 //                        strongest to weakest: lsp | receiver-type | interface-dispatch | import | lexical-scope | same-file | directory | exported-anywhere | name
-//                        'name' / 'exported-anywhere' are name-match guesses; treat unknown values as weakest
+//                        'name' / 'exported-anywhere' are name-match guesses; absent means not recorded, not weak
 //   .source            - Edge producer: 'extractor' | 'lsp' (optional)
 
 // ImpactedFile:

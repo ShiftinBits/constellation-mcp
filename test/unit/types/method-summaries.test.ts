@@ -226,7 +226,11 @@ describe('method-summaries', () => {
 			'%s summary should document resolvedBy and source on %s',
 			(method, shape) => {
 				const summary = METHOD_SUMMARIES[method];
-				const block = summary.slice(summary.indexOf(`// ${shape}`));
+				// Arrange - isolate this shape's block: up to the next `// <Shape>` heading.
+				const start = summary.indexOf(`// ${shape}`);
+				const next = summary.indexOf('\n\n// ', start);
+				const block = summary.slice(start, next === -1 ? undefined : next);
+				expect(start).toBeGreaterThanOrEqual(0);
 				expect(block).toMatch(/\.resolvedBy\s+-/);
 				expect(block).toMatch(/\.source\s+-/);
 				expect(block).toContain(TIERS.join(' | '));
