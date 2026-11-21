@@ -913,7 +913,7 @@ SELECT count(*) AS directCount FROM (
     AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
 )
 
--- B: transitiveCount (exactly two IMPORTS hops, start file excluded)
+-- B: transitiveCount (files first reached at two IMPORTS hops: start file, direct dependencies and packages excluded)
 SELECT count(*) AS transitiveCount FROM (
   SELECT DISTINCT inV().@rid AS rid
   FROM (
@@ -925,9 +925,10 @@ SELECT count(*) AS transitiveCount FROM (
         AND `path` = 'src/code-mode/sandbox.ts'
     )
   )
-  WHERE (inV().@type = 'File' OR inV().@type = 'Package')
+  WHERE inV().@type = 'File'
     AND inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch = 'main'
-    AND ifnull(inV().path, '') <> 'src/code-mode/sandbox.ts'
+    AND inV().path <> 'src/code-mode/sandbox.ts'
+    AND NOT (inV().in('IMPORTS').path CONTAINS 'src/code-mode/sandbox.ts')
 )
 ```
 
@@ -1154,7 +1155,7 @@ SELECT count(*) AS directCount FROM (
     AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
 )
 
--- B: transitiveCount (exactly two IMPORTS hops, target file excluded)
+-- B: transitiveCount (files first reached at two IMPORTS hops: target file and direct dependents excluded)
 SELECT count(*) AS transitiveCount FROM (
   SELECT DISTINCT outV().@rid AS rid
   FROM (
@@ -1166,9 +1167,10 @@ SELECT count(*) AS transitiveCount FROM (
         AND `path` = 'src/types/mcp-errors.ts'
     )
   )
-  WHERE (outV().@type = 'File' OR outV().@type = 'Package')
+  WHERE outV().@type = 'File'
     AND outV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND outV().branch = 'main'
-    AND ifnull(outV().path, '') <> 'src/types/mcp-errors.ts'
+    AND outV().path <> 'src/types/mcp-errors.ts'
+    AND NOT (outV().out('IMPORTS').path CONTAINS 'src/types/mcp-errors.ts')
 )
 ```
 
@@ -2207,9 +2209,9 @@ return {
 	hasFiles: !!result.structure?.files,
 	hasSymbols: !!result.structure?.symbols,
 	hasModules: !!result.structure?.modules,
-	fileCount: result.structure?.files?.length || 0,
-	symbolCount: result.structure?.symbols?.length || 0,
-	moduleCount: result.structure?.modules?.length || 0,
+	fileCount: result.structure?.files?.total || 0,
+	symbolCount: result.structure?.symbols?.total || 0,
+	moduleCount: result.structure?.modules?.total || 0,
 };
 ```
 
@@ -3425,7 +3427,9 @@ WHERE `projectId` = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND `branch` = 'main
 ```javascript
 const result = await api.getDependencies({ filePath: 'src/index.ts' });
 return {
-	apiDeps: result.directDependencies?.map((d) => d.filePath || d.path).sort(),
+	apiDeps: result.directDependencies
+		?.map((d) => d.filePath || d.moduleName)
+		.sort(),
 	depCount: result.directDependencies?.length || 0,
 };
 ```
@@ -3476,17 +3480,17 @@ WHERE inV().projectId = 'proj:adf45ed0a35649d19a7d70edaa9636b1' AND inV().branch
 const classes = await api.searchSymbols({
 	query: '',
 	filterByKind: ['class'],
-	limit: 1000,
+	limit: 1,
 });
 const functions = await api.searchSymbols({
 	query: '',
 	filterByKind: ['function'],
-	limit: 1000,
+	limit: 1,
 });
 const methods = await api.searchSymbols({
 	query: '',
 	filterByKind: ['method'],
-	limit: 1000,
+	limit: 1,
 });
 return {
 	classes: classes.pagination?.total || classes.symbols?.length || 0,
